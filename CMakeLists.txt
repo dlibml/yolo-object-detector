@@ -76,6 +76,7 @@ fetch_content(dlib loss-yolo https://github.com/arrufat/dlib.git)
 fetch_content(json v3.9.1 https://github.com/nlohmann/json.git)
 
 add_dlib_executable(convert_dataset)
+add_dlib_executable(compute_anchors)
 add_dlib_executable(train)
 add_dlib_executable(demo)
 target_link_libraries(demo PRIVATE ${OpenCV_LIBS})
