@@ -39,6 +39,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 find_package(TBB REQUIRED)
+find_package(OpenCV REQUIRED)
 
 # Dependency management
 include(FetchContent)
@@ -76,3 +77,6 @@ fetch_content(json v3.9.1 https://github.com/nlohmann/json.git)
 
 add_dlib_executable(convert_dataset)
 add_dlib_executable(train)
+add_dlib_executable(demo)
+target_link_libraries(demo PRIVATE ${OpenCV_LIBS})
+target_include_directories(demo PRIVATE ${OpenCV_INCLUDE_DIRS})

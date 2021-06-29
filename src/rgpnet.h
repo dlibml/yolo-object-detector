@@ -13,20 +13,40 @@ namespace rgpnet
     template <typename SUBNET> using ytag16 = add_tag_layer<4016, SUBNET>;
     template <typename SUBNET> using ytag32 = add_tag_layer<4032, SUBNET>;
 
+    // The backbone tags
+    template <typename SUBNET> using btag1 = add_tag_layer<8001, SUBNET>;
+    template <typename SUBNET> using btag2 = add_tag_layer<8002, SUBNET>;
+    template <typename SUBNET> using btag3 = add_tag_layer<8003, SUBNET>;
+    template <typename SUBNET> using bskip1 = add_skip_layer<btag1, SUBNET>;
+    template <typename SUBNET> using bskip2 = add_skip_layer<btag2, SUBNET>;
+    template <typename SUBNET> using bskip3 = add_skip_layer<btag3, SUBNET>;
+
+    // RPGNet number of filters at each level
+    static const long feats1 = 64;
+    static const long feats2 = 128;
+    static const long feats3 = 256;
+    static const long feats4 = 512;
+
+    // Custom tags to refer to the processed inputs from the backbone
+    template <typename SUBNET> using itag1 = add_tag_layer<5001, SUBNET>;
+    template <typename SUBNET> using itag2 = add_tag_layer<5002, SUBNET>;
+    template <typename SUBNET> using itag3 = add_tag_layer<5003, SUBNET>;
+    template <typename SUBNET> using itag4 = add_tag_layer<5004, SUBNET>;
+
+    // Custom tags for the adaptor modules
+    template <typename SUBNET> using atag = add_tag_layer<7000, SUBNET>;
+    template <typename SUBNET> using atag4 = add_tag_layer<7004, SUBNET>;
+    template <typename SUBNET> using atag3 = add_tag_layer<7003, SUBNET>;
+    template <typename SUBNET> using atag2 = add_tag_layer<7002, SUBNET>;
+    template <typename SUBNET> using askip2 = add_skip_layer<atag2, SUBNET>;
+    template <typename SUBNET> using askip3 = add_skip_layer<atag3, SUBNET>;
+    template <typename SUBNET> using askip4 = add_skip_layer<atag4, SUBNET>;
+
     // BN is bn_con or affine and ACT is an activation layer, such as relu or mish
     template <template <typename> class ACT, template <typename> class BN>
     struct def
     {
         // ----------------------------- VoVNet Backbone ----------------------------- //
-
-        // This section loads the definitions from dlib/examples/resnet.h and adds tags
-        // after each backbone convolutional block to extract features at different levels.
-        template <typename SUBNET> using btag1 = add_tag_layer<8001, SUBNET>;
-        template <typename SUBNET> using btag2 = add_tag_layer<8002, SUBNET>;
-        template <typename SUBNET> using btag3 = add_tag_layer<8003, SUBNET>;
-        template <typename SUBNET> using bskip1 = add_skip_layer<btag1, SUBNET>;
-        template <typename SUBNET> using bskip2 = add_skip_layer<btag2, SUBNET>;
-        template <typename SUBNET> using bskip3 = add_skip_layer<btag3, SUBNET>;
 
         // the resnet basic block, where BN is bn_con or affine
         template<long num_filters, int stride, typename SUBNET>
@@ -61,12 +81,6 @@ namespace rgpnet
 
         // --------------------------------- RGPNet --------------------------------- //
 
-        // RPGNet number of filters at each level
-        static const long feats1 = 64;
-        static const long feats2 = 128;
-        static const long feats3 = 256;
-        static const long feats4 = 512;
-
         template <long num_filters, typename SUBNET>
         using downsampler = add_layer<con_<num_filters, 3, 3, 2, 2, 1, 1>, SUBNET>;
         template <long num_filters, typename SUBNET>
@@ -82,23 +96,11 @@ namespace rgpnet
         template <typename SUBNET> using in_lvl2 = ACT<BN<con<feats2, 1, 1, 1, 1, bskip2<SUBNET>>>>;
         template <typename SUBNET> using in_lvl3 = ACT<BN<con<feats3, 1, 1, 1, 1, bskip3<SUBNET>>>>;
         template <typename SUBNET> using in_lvl4 = ACT<BN<con<feats4, 1, 1, 1, 1, SUBNET>>>;
-        // Custom tags to refer to the processed inputs from the backbone
-        template <typename SUBNET> using itag1 = add_tag_layer<5001, SUBNET>;
-        template <typename SUBNET> using itag2 = add_tag_layer<5002, SUBNET>;
-        template <typename SUBNET> using itag3 = add_tag_layer<5003, SUBNET>;
-        template <typename SUBNET> using itag4 = add_tag_layer<5004, SUBNET>;
+
         // The and downsampled versions of the backbone processed levels
         template <typename SUBNET> using in_lvl1d = downsampler<feats2, itag1<in_lvl1<SUBNET>>>;
         template <typename SUBNET> using in_lvl2d = downsampler<feats3, itag2<in_lvl2<SUBNET>>>;
         template <typename SUBNET> using in_lvl3d = downsampler<feats4, itag3<in_lvl3<SUBNET>>>;
-        // Custom tag to use inside of adaptor modules
-        template <typename SUBNET> using atag = add_tag_layer<7000, SUBNET>;
-        template <typename SUBNET> using atag4 = add_tag_layer<7004, SUBNET>;
-        template <typename SUBNET> using atag3 = add_tag_layer<7003, SUBNET>;
-        template <typename SUBNET> using atag2 = add_tag_layer<7002, SUBNET>;
-        template <typename SUBNET> using askip2 = add_skip_layer<atag2, SUBNET>;
-        template <typename SUBNET> using askip3 = add_skip_layer<atag3, SUBNET>;
-        template <typename SUBNET> using askip4 = add_skip_layer<atag4, SUBNET>;
 
         // adaptor4 adds in_lvl4 and in_lvl3d
         template <typename SUBNET> using adaptor4 =

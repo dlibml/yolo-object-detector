@@ -115,15 +115,15 @@ try
         std::vector<dlib::matrix<double, 2, 1>> anchors;
         pick_initial_centers(num_clusers, anchors, samples);
         find_clusters_using_kmeans(samples, anchors);
-        anchors[0](0) = 12; anchors[0](1) = 16;
-        anchors[1](0) = 19; anchors[1](1) = 36;
-        anchors[2](0) = 40; anchors[2](1) = 28;
-        anchors[3](0) = 36; anchors[3](1) = 75;
-        anchors[4](0) = 76; anchors[4](1) = 55;
-        anchors[5](0) = 72; anchors[5](1) = 146;
-        anchors[6](0) = 142; anchors[6](1) = 110;
-        anchors[7](0) = 192; anchors[7](1) = 243;
-        anchors[8](0) = 459; anchors[8](1) = 401;
+        anchors[0] = 12, 16;
+        anchors[1] = 19, 36;
+        anchors[2] = 40, 28;
+        anchors[3] = 36, 75;
+        anchors[4] = 76, 55;
+        anchors[5] = 72, 146;
+        anchors[6] = 142, 110;
+        anchors[7] = 192, 243;
+        anchors[8] = 459, 401;
         std::sort(
             anchors.begin(),
             anchors.end(),
