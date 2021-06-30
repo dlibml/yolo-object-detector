@@ -23,6 +23,17 @@ void postprocess_detections(
         d.rect = tform(d.rect);
 }
 
+template <typename net_type>
+void setup_detector(net_type& net, int num_classes = 80)
+{
+    // remove bias
+    dlib::disable_duplicative_biases(net);
+    // set the number of filters
+    dlib::layer<rgpnet::ytag8, 2>(net).layer_details().set_num_filters(3 * (num_classes + 5));
+    dlib::layer<rgpnet::ytag16, 2>(net).layer_details().set_num_filters(3 * (num_classes + 5));
+    dlib::layer<rgpnet::ytag32, 2>(net).layer_details().set_num_filters(3 * (num_classes + 5));
+}
+
 int main(const int argc, const char** argv)
 try
 {
@@ -115,15 +126,15 @@ try
         std::vector<dlib::matrix<double, 2, 1>> anchors;
         pick_initial_centers(num_clusers, anchors, samples);
         find_clusters_using_kmeans(samples, anchors);
-        anchors[0] = 12, 16;
-        anchors[1] = 19, 36;
-        anchors[2] = 40, 28;
-        anchors[3] = 36, 75;
-        anchors[4] = 76, 55;
-        anchors[5] = 72, 146;
-        anchors[6] = 142, 110;
-        anchors[7] = 192, 243;
-        anchors[8] = 459, 401;
+        // anchors[0] = 12, 16;
+        // anchors[1] = 19, 36;
+        // anchors[2] = 40, 28;
+        // anchors[3] = 36, 75;
+        // anchors[4] = 76, 55;
+        // anchors[5] = 72, 146;
+        // anchors[6] = 142, 110;
+        // anchors[7] = 192, 243;
+        // anchors[8] = 459, 401;
         std::sort(
             anchors.begin(),
             anchors.end(),
@@ -153,11 +164,13 @@ try
     // Predictions above this threshold will be ignored, i.e. will not contribute to the
     // loss. Good values are 0.7 or 0.5.
     options.iou_ignore_threshold = 0.5;
-    // These are the anchors computed on COCO dataset, presented in the YOLOv3 paper.
-    options.add_anchors<rgpnet::ytag8>({{10, 13}, {16, 30}, {33, 23}});
-    options.add_anchors<rgpnet::ytag16>({{30, 61}, {62, 45}, {59, 119}});
-    options.add_anchors<rgpnet::ytag32>({{116, 90}, {156, 198}, {373, 326}});
+    // These are the anchors computed on COCO dataset, presented in the YOLOv4 paper.
+    options.add_anchors<rgpnet::ytag8>({{12, 16}, {19, 36}, {40, 28}});
+    options.add_anchors<rgpnet::ytag16>({{36, 75}, {76, 55}, {72, 146}});
+    options.add_anchors<rgpnet::ytag32>({{142, 110}, {192, 243}, {459, 401}});
+
     rgpnet::train net(options);
+    setup_detector(net, options.labels.size());
 
     // The training process can be unstable at the beginning.  For this reason, we exponentially
     // increase the learning rate during the first burnin steps.
