@@ -63,6 +63,7 @@ struct draw_options
     size_t thickness = 5;
     color_mapper string_to_color;
     bool draw_labels = true;
+    bool multilabel = false;
     const std::shared_ptr<dlib::font>& get_font()
     {
         if (custom_font != nullptr)
@@ -88,7 +89,6 @@ inline void draw_bounding_boxes(
     for (const auto& d : detections)
     {
         const auto color = opts.string_to_color(d.label);
-        const double prob = d.detection_confidence;
         rectangle r(d.rect);
         r.left() = dlib::put_in_range(0, image.nc() - 1, r.left());
         r.top() = dlib::put_in_range(0, image.nr() - 1, r.top());
@@ -99,22 +99,32 @@ inline void draw_bounding_boxes(
         if (opts.draw_labels)
         {
             std::ostringstream sout;
-            sout << d.label << std::fixed << std::setprecision(0) << " (" << 100 * prob << "%)";
+            sout << std::fixed << std::setprecision(0);
+            if (opts.multilabel)
+            {
+                for (size_t i = 0; i < d.labels.size() - 1; ++i)
+                    sout << d.labels[i].second << " (" << d.labels[i].first * 100 << "%), ";
+                sout << d.labels[d.labels.size() - 1].second << " ("
+                     << d.labels[d.labels.size() - 1].first * 100 << "%)";
+            }
+            else
+            {
+                sout << d.label << " (" << d.detection_confidence * 100 << "%), ";
+            }
+
             const dlib::ustring label = dlib::convert_utf8_to_utf32(sout.str());
+
             auto [lw, lh] = dlib::string_dims(label, opts.get_font());
 
             // the default case: label outside the top left corner of the box
-            point label_pos(r.left(), r.top() - lh);
-            rectangle bg(r.left() - opts.thickness / 2, r.top() - lh, r.left() + lw, r.top());
+            point label_pos(r.left(), r.top() - lh + opts.thickness / 2);
+            rectangle bg(lw + opts.thickness, lh);
 
-            // draw label inside the bounding box
+            // draw label inside the bounding box (move it downwards)
             if (label_pos.y() < 0)
-            {
                 label_pos = point(r.left(), r.top());
-                bg =
-                    rectangle(r.left() - opts.thickness / 2, r.top(), r.left() + lw, r.top() + lh);
-            }
 
+            bg = move_rect(bg, label_pos.x() - opts.thickness / 2, label_pos.y());
             fill_rect(image, bg, color);
             draw_string(image, dlib::point(label_pos), label, opts.font_color, opts.get_font());
         }

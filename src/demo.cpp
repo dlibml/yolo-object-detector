@@ -36,6 +36,7 @@ try
     parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
     parser.add_option("no-labels", "do not draw label names");
     parser.add_option("font", "path to custom bdf font", 1);
+    parser.add_option("multilabel", "draw multiple labels");
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("help", "display this message and exit");
@@ -74,6 +75,7 @@ try
 
     draw_options options(font_path);
     options.thickness = thickness;
+    options.multilabel = parser.option("multilabel");
     options.draw_labels = not parser.option("no-labels");
     for (const auto& label : net.loss_details().get_options().labels)
     {
