@@ -48,6 +48,8 @@ try
         return EXIT_SUCCESS;
     }
     parser.check_incompatible_options("dnn", "sync");
+    parser.check_incompatible_options("multilabel", "no-labels");
+    parser.check_option_arg_range("thickness", 0, 10);
 
     const size_t image_size = dlib::get_option(parser, "size", 512);
     const std::string dnn_path = dlib::get_option(parser, "dnn", "");

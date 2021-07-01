@@ -113,11 +113,10 @@ inline void draw_bounding_boxes(
             }
 
             const dlib::ustring label = dlib::convert_utf8_to_utf32(sout.str());
-
-            auto [lw, lh] = dlib::string_dims(label, opts.get_font());
+            const auto [lw, lh] = string_dims(label, opts.get_font());
 
             // the default case: label outside the top left corner of the box
-            point label_pos(r.left(), r.top() - lh + opts.thickness / 2);
+            point label_pos(r.left(), r.top() - lh);
             rectangle bg(lw + opts.thickness, lh);
 
             // draw label inside the bounding box (move it downwards)
