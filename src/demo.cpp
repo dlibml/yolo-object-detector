@@ -4,6 +4,8 @@
 #include <dlib/cmd_line_parser.h>
 #include <dlib/data_io.h>
 #include <dlib/image_io.h>
+#include <dlib/opencv.h>
+#include <opencv2/videoio.hpp>
 #include <tools/imglab/src/metadata_editor.h>
 
 using rgb_image = dlib::matrix<dlib::rgb_pixel>;
@@ -31,6 +33,9 @@ try
     parser.add_option("dnn", "load this network file", 1);
     parser.add_option("sync", "load this sync file", 1);
     parser.add_option("size", "image size for inference (default: 512)", 1);
+    parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
+    parser.add_option("no-labels", "do not draw label names");
+    parser.add_option("font", "path to custom bdf font", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("help", "display this message and exit");
@@ -46,6 +51,8 @@ try
     const size_t image_size = dlib::get_option(parser, "size", 512);
     const std::string dnn_path = dlib::get_option(parser, "dnn", "");
     const std::string sync_path = dlib::get_option(parser, "sync", "");
+    const size_t thickness = dlib::get_option(parser, "thickness", 5);
+    const std::string font_path = dlib::get_option(parser, "font", "");
 
     rgpnet::infer net;
 
@@ -65,11 +72,13 @@ try
         return EXIT_FAILURE;
     }
 
-    color_mapper string_to_color;
+    draw_options options(font_path);
+    options.thickness = thickness;
+    options.draw_labels = not parser.option("no-labels");
     for (const auto& label : net.loss_details().get_options().labels)
     {
         std::cout << label << std::endl;
-        string_to_color(label);
+        options.string_to_color(label);
     }
 
     webcam_window win;
@@ -93,7 +102,7 @@ try
         auto detections = net.process(letterbox, win.conf_thresh);
         postprocess_detections(tform, detections);
         const auto t1 = std::chrono::steady_clock::now();
-        render_bounding_boxes(image, detections, string_to_color);
+        draw_bounding_boxes(image, detections, options);
         win.set_image(image);
         det_fps.add(1.0f / std::chrono::duration_cast<fseconds>(t1 - t0).count());
         std::cout << "FPS: " << det_fps.mean() << "              \r" << std::flush;
