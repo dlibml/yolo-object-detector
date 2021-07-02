@@ -41,6 +41,7 @@ try
     parser.add_option("size", "image size for training (default: 416)", 1);
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("batch-size", "mini batch size (default: 8)", 1);
+    parser.add_option("sync-file", "set the synchronization file name (default: yolo_sync)", 1);
     parser.add_option("burnin", "learning rate burnin steps (default: 1000)", 1);
     parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
     parser.add_option("workers", "number of worker threads to load data (default: 4)", 1);
@@ -66,9 +67,9 @@ try
     const size_t image_size = get_option(parser, "size", 416);
     const size_t num_workers = get_option(parser, "workers", 4);
     const size_t num_gpus = get_option(parser, "gpus", 1);
+    const std::string sync_file_name = get_option(parser, "sync-file", "yolo_sync");
 
     const std::string data_directory = parser[0];
-    const std::string sync_file_name = "yolov4_sync";
 
     dlib::image_dataset_metadata::dataset dataset;
     dlib::image_dataset_metadata::load_image_dataset_metadata(
@@ -427,7 +428,7 @@ try
     for (auto& worker : data_loaders)
         worker.join();
 
-    dlib::serialize("yolov3.dnn") << net;
+    dlib::serialize("yolo.dnn") << net;
     return EXIT_SUCCESS;
 }
 catch (const std::exception& e)
