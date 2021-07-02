@@ -88,12 +88,13 @@ inline void draw_bounding_boxes(
         dlib::fill_rect;
     for (const auto& d : detections)
     {
+        const auto offset = opts.thickness / 2;
         const auto color = opts.string_to_color(d.label);
         rectangle r(d.rect);
-        r.left() = dlib::put_in_range(0, image.nc() - 1, r.left());
-        r.top() = dlib::put_in_range(0, image.nr() - 1, r.top());
-        r.right() = dlib::put_in_range(0, image.nc() - 1, r.right());
-        r.bottom() = dlib::put_in_range(0, image.nr() - 1, r.bottom());
+        r.left() = dlib::put_in_range(offset, image.nc() - 1 - offset, r.left());
+        r.top() = dlib::put_in_range(offset, image.nr() - 1 - offset, r.top());
+        r.right() = dlib::put_in_range(offset, image.nc() - 1 - offset, r.right());
+        r.bottom() = dlib::put_in_range(offset, image.nr() - 1 - offset, r.bottom());
         dlib::draw_rectangle(image, r, color, opts.thickness);
 
         if (opts.draw_labels)
@@ -123,7 +124,7 @@ inline void draw_bounding_boxes(
             if (label_pos.y() < 0)
                 label_pos = point(r.left(), r.top());
 
-            bg = move_rect(bg, label_pos.x() - opts.thickness / 2, label_pos.y());
+            bg = move_rect(bg, label_pos.x() - offset, label_pos.y());
             fill_rect(image, bg, color);
             draw_string(image, dlib::point(label_pos), label, opts.font_color, opts.get_font());
         }
