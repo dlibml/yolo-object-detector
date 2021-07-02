@@ -37,6 +37,8 @@ try
     parser.add_option("no-labels", "do not draw label names");
     parser.add_option("font", "path to custom bdf font", 1);
     parser.add_option("multilabel", "draw multiple labels");
+    parser.add_option("nms", "IoU and area covered ratio thresholds (default: 0.45 1)", 2);
+    parser.add_option("classwise-nms", "classwise NMS");
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("help", "display this message and exit");
@@ -49,13 +51,23 @@ try
     }
     parser.check_incompatible_options("dnn", "sync");
     parser.check_incompatible_options("multilabel", "no-labels");
-    parser.check_option_arg_range("thickness", 0, 10);
+    parser.check_option_arg_range<size_t>("size", 32, std::numeric_limits<size_t>::max());
+    parser.check_option_arg_range<size_t>("thickness", 0, 10);
+    parser.check_option_arg_range<double>("nms", 0, 1);
 
     const size_t image_size = dlib::get_option(parser, "size", 512);
     const std::string dnn_path = dlib::get_option(parser, "dnn", "");
     const std::string sync_path = dlib::get_option(parser, "sync", "");
     const size_t thickness = dlib::get_option(parser, "thickness", 5);
     const std::string font_path = dlib::get_option(parser, "font", "");
+    const bool classwise_nms = parser.option("classwise-nms");
+    double iou_threshold = 0.45;
+    double ratio_covered = 1.0;
+    if (parser.option("nms"))
+    {
+        iou_threshold = std::stod(parser.option("nms").argument(0));
+        ratio_covered = std::stod(parser.option("nms").argument(1));
+    }
 
     rgpnet::infer net;
 
@@ -75,15 +87,15 @@ try
         return EXIT_FAILURE;
     }
 
+    net.loss_details().adjust_nms(iou_threshold, ratio_covered, classwise_nms);
+    std::cout << net.loss_details() << std::endl;
+
     draw_options options(font_path);
     options.thickness = thickness;
     options.multilabel = parser.option("multilabel");
     options.draw_labels = not parser.option("no-labels");
     for (const auto& label : net.loss_details().get_options().labels)
-    {
-        std::cout << label << std::endl;
         options.string_to_color(label);
-    }
 
     webcam_window win;
     cv::VideoCapture cap(0);
