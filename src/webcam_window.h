@@ -109,7 +109,7 @@ inline void draw_bounding_boxes(
             }
             else
             {
-                sout << d.label << " (" << d.detection_confidence * 100 << "%), ";
+                sout << d.label << " (" << d.detection_confidence * 100 << "%)";
             }
 
             const dlib::ustring label = dlib::convert_utf8_to_utf32(sout.str());
