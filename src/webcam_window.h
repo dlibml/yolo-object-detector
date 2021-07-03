@@ -143,16 +143,17 @@ class webcam_window : public dlib::image_window
     bool mirror = true;
     float conf_thresh = 0.25;
     bool recording = false;
+    bool can_record = false;
 
     static void print_keyboard_shortcuts()
     {
-        std::cout << "Keyboard shortcuts:" << std::endl;
-        std::cout << "  h                   Display keyboard shortcuts" << std::endl;
-        std::cout << "  m                   Toggle mirror mode" << std::endl;
-        std::cout << "  +, k                Increase confidence threshold by 0.01" << std::endl;
-        std::cout << "  -, j                Decrease confidence threshold by 0.01" << std::endl;
-        std::cout << "  r                   Toggle recording (needs --output option)" << std::endl;
-        std::cout << "  q                   Quit the application" << std::endl;
+        std::cout << "Keyboard Shortcuts:" << std::endl;
+        std::cout << "  h                     display keyboard shortcuts\n";
+        std::cout << "  m                     toggle mirror mode\n";
+        std::cout << "  +, k                  increase confidence threshold by 0.01\n";
+        std::cout << "  -, j                  decrease confidence threshold by 0.01\n";
+        std::cout << "  r                     toggle recording (needs --output option)\n";
+        std::cout << "  q                     quit the application\n";
         std::cout << std::endl;
     }
 
@@ -170,7 +171,7 @@ class webcam_window : public dlib::image_window
     {
         const auto c = dlib::point(20, 20);
         const auto color = dlib::rgb_pixel(255, 0, 0);
-        for (auto r = 0.1; r < 10; r += 0.1)
+        for (auto r = 0.0; r < 10; r += 0.1)
         {
             recording_icon.emplace_back(c, r, color);
         }
@@ -196,6 +197,8 @@ class webcam_window : public dlib::image_window
             update_title();
             break;
         case 'r':
+            if (not can_record)
+                break;
             recording = !recording;
             if (recording)
                 show_recording_icon();

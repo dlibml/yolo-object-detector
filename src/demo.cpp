@@ -30,20 +30,23 @@ auto main(const int argc, const char** argv) -> int
 try
 {
     dlib::command_line_parser parser;
-    parser.add_option("dnn", "load this network file", 1);
-    parser.add_option("sync", "load this sync file", 1);
-    parser.add_option("size", "image size for inference (default: 512)", 1);
-    parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
-    parser.add_option("no-labels", "do not draw label names");
-    parser.add_option("font", "path to custom bdf font", 1);
-    parser.add_option("multilabel", "draw multiple labels");
-    parser.add_option("nms", "IoU and area covered ratio thresholds (default: 0.45 1)", 2);
+    parser.set_group_name("Detector Options");
     parser.add_option("classwise-nms", "classwise NMS");
-    parser.add_option("input", "input file to process instead of the camera");
+    parser.add_option("conf-thresh", "detection confidence threshold (default: 0.25)", 1);
+    parser.add_option("dnn", "load this network file", 1);
+    parser.add_option("nms", "IoU and area covered ratio thresholds (default: 0.45 1)", 2);
+    parser.add_option("size", "image size for inference (default: 512)", 1);
+    parser.add_option("sync", "load this sync file", 1);
+    parser.set_group_name("Display Options");
+    parser.add_option("font", "path to custom bdf font", 1);
+    parser.add_option("multilabel", "draw multiple labels per class");
+    parser.add_option("no-labels", "do not draw label names");
+    parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
+    parser.set_group_name("I/O Options");
+    parser.add_option("fps", "force frames per second (default: 30)", 1);
+    parser.add_option("input", "input file to process instead of the camera", 1);
     parser.add_option("output", "output file to write out the processed input", 1);
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
-    parser.add_option("fps", "force frames per second (default: 30)", 1);
-    parser.add_option("conf-thresh", "detection confidence threshold (default: 0.25)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("help", "display this message and exit");
@@ -52,6 +55,7 @@ try
     if (parser.option("h") or parser.option("help"))
     {
         parser.print_options();
+        webcam_window::print_keyboard_shortcuts();
         return EXIT_SUCCESS;
     }
     parser.check_incompatible_options("dnn", "sync");
@@ -110,6 +114,7 @@ try
         options.string_to_color(label);
 
     webcam_window win(conf_thresh);
+    win.can_record = not output_path.empty();
 
     cv::VideoCapture vid_src;
     cv::VideoWriter vid_snk;
