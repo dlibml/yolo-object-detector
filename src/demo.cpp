@@ -55,7 +55,8 @@ try
         return EXIT_SUCCESS;
     }
     parser.check_incompatible_options("dnn", "sync");
-    parser.check_incompatible_options("multilabel", "no-labels");
+    parser.check_incompatible_options("no-labels", "multilabel");
+    parser.check_incompatible_options("no-labels", "font");
     parser.check_incompatible_options("input", "webcam");
     parser.check_option_arg_range<size_t>("size", 224, 2048);
     parser.check_option_arg_range<size_t>("thickness", 0, 10);
