@@ -39,6 +39,11 @@ try
     parser.add_option("multilabel", "draw multiple labels");
     parser.add_option("nms", "IoU and area covered ratio thresholds (default: 0.45 1)", 2);
     parser.add_option("classwise-nms", "classwise NMS");
+    parser.add_option("input", "input file to process instead of the camera");
+    parser.add_option("output", "output file to write out the processed input", 1);
+    parser.add_option("webcam", "webcam device to use (default: 0)", 1);
+    parser.add_option("fps", "force frames per second (default: 30)", 1);
+    parser.add_option("conf-thresh", "detection confidence threshold (default: 0.25)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("help", "display this message and exit");
@@ -51,16 +56,22 @@ try
     }
     parser.check_incompatible_options("dnn", "sync");
     parser.check_incompatible_options("multilabel", "no-labels");
+    parser.check_incompatible_options("input", "webcam");
     parser.check_option_arg_range<size_t>("size", 224, 2048);
     parser.check_option_arg_range<size_t>("thickness", 0, 10);
     parser.check_option_arg_range<double>("nms", 0, 1);
 
     const size_t image_size = dlib::get_option(parser, "size", 512);
+    const double conf_thresh = dlib::get_option(parser, "conf-thresh", 0.25);
     const std::string dnn_path = dlib::get_option(parser, "dnn", "");
     const std::string sync_path = dlib::get_option(parser, "sync", "");
     const size_t thickness = dlib::get_option(parser, "thickness", 5);
     const std::string font_path = dlib::get_option(parser, "font", "");
     const bool classwise_nms = parser.option("classwise-nms");
+    const size_t webcam_index = dlib::get_option(parser, "webcam", 0);
+    const std::string input_path = dlib::get_option(parser, "input", "");
+    const std::string output_path = dlib::get_option(parser, "output", "");
+    float fps = dlib::get_option(parser, "fps", 30);
     double iou_threshold = 0.45;
     double ratio_covered = 1.0;
     if (parser.option("nms"))
@@ -97,15 +108,49 @@ try
     for (const auto& label : net.loss_details().get_options().labels)
         options.string_to_color(label);
 
-    webcam_window win;
-    cv::VideoCapture cap(0);
-    cap.set(cv::CAP_PROP_FPS, 30);
+    webcam_window win(conf_thresh);
+
+    cv::VideoCapture vid_src;
+    cv::VideoWriter vid_snk;
+    if (not input_path.empty())
+    {
+        cv::VideoCapture file(input_path);
+        if (not parser.option("fps"))
+            fps = file.get(cv::CAP_PROP_FPS);
+        vid_src = file;
+        win.mirror = false;
+    }
+    else
+    {
+        cv::VideoCapture cap(webcam_index);
+        cap.set(cv::CAP_PROP_FPS, fps);
+        vid_src = cap;
+        win.mirror = true;
+    }
+
+    int width, height;
+    {
+        cv::Mat cv_tmp;
+        vid_src.read(cv_tmp);
+        width = cv_tmp.cols;
+        height = cv_tmp.rows;
+    }
+
+    if (not output_path.empty())
+    {
+        vid_snk = cv::VideoWriter(
+            output_path,
+            cv::VideoWriter::fourcc('X', '2', '6', '4'),
+            fps,
+            cv::Size(width, height));
+    }
+
     rgb_image image, letterbox;
     dlib::running_stats_decayed<float> det_fps(100);
     while (not win.is_closed())
     {
         cv::Mat cv_cap;
-        if (not cap.read(cv_cap))
+        if (not vid_src.read(cv_cap))
             break;
         const dlib::cv_image<dlib::bgr_pixel> tmp(cv_cap);
         if (win.mirror)
@@ -122,7 +167,15 @@ try
         win.set_image(image);
         det_fps.add(1.0f / std::chrono::duration_cast<fseconds>(t1 - t0).count());
         std::cout << "FPS: " << det_fps.mean() << "              \r" << std::flush;
+        if (win.recording and not output_path.empty())
+        {
+            dlib::matrix<dlib::bgr_pixel> bgr_img(height, width);
+            dlib::assign_image(bgr_img, image);
+            vid_snk.write(dlib::toMat(bgr_img));
+        }
     }
+    if (not output_path.empty())
+        vid_snk.release();
 }
 catch (const std::exception& e)
 {
