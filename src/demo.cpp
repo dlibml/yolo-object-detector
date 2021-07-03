@@ -51,7 +51,7 @@ try
     }
     parser.check_incompatible_options("dnn", "sync");
     parser.check_incompatible_options("multilabel", "no-labels");
-    parser.check_option_arg_range<size_t>("size", 32, std::numeric_limits<size_t>::max());
+    parser.check_option_arg_range<size_t>("size", 224, 2048);
     parser.check_option_arg_range<size_t>("thickness", 0, 10);
     parser.check_option_arg_range<double>("nms", 0, 1);
 
