@@ -240,7 +240,7 @@ try
     }
 
     // Create some data loaders which will load the data, and perform som data augmentation.
-    dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(1000);
+    dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(5000);
     const auto loader = [&dataset, &data_directory, &train_data, &image_size](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
@@ -250,7 +250,7 @@ try
         cropper.set_seed(time(nullptr) + seed);
         cropper.set_chip_dims(image_size, image_size);
         cropper.set_max_object_size(0.9);
-        cropper.set_min_object_size(24, 24);
+        cropper.set_min_object_size(16, 16);
         cropper.set_min_object_coverage(0.7);
         cropper.set_max_rotation_degrees(10);
         cropper.set_translate_amount(0.5);
