@@ -250,7 +250,8 @@ try
         cropper.set_seed(time(nullptr) + seed);
         cropper.set_chip_dims(image_size, image_size);
         cropper.set_max_object_size(0.9);
-        cropper.set_min_object_size(10, 10);
+        cropper.set_min_object_size(24, 24);
+        cropper.set_min_object_coverage(0.7);
         cropper.set_max_rotation_degrees(10);
         cropper.set_translate_amount(0.5);
         cropper.set_randomly_flip(true);
