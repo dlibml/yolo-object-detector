@@ -38,7 +38,7 @@ int main(const int argc, const char** argv)
 try
 {
     dlib::command_line_parser parser;
-    parser.add_option("size", "image size for training (default: 416)", 1);
+    parser.add_option("size", "image size for training (default: 512)", 1);
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("batch-size", "mini batch size (default: 8)", 1);
     parser.add_option("sync-file", "set the synchronization file name (default: yolo_sync)", 1);
@@ -63,7 +63,7 @@ try
     const size_t patience = get_option(parser, "patience", 10000);
     const size_t batch_size = get_option(parser, "batch-size", 8);
     const size_t burnin = get_option(parser, "burnin", 1000);
-    const size_t image_size = get_option(parser, "size", 416);
+    const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", 4);
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const std::string sync_file_name = get_option(parser, "sync-file", "yolo_sync");
