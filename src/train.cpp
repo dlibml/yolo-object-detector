@@ -240,7 +240,7 @@ try
     }
 
     // Create some data loaders which will load the data, and perform som data augmentation.
-    dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(5000);
+    dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(100 * batch_size);
     const auto loader = [&dataset, &data_directory, &train_data, &image_size](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
