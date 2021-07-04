@@ -23,8 +23,7 @@ void postprocess_detections(
         d.rect = tform(d.rect);
 }
 
-template <typename net_type>
-void setup_detector(net_type& net, int num_classes = 80)
+template <typename net_type> void setup_detector(net_type& net, int num_classes = 80)
 {
     // remove bias
     dlib::disable_duplicative_biases(net);
@@ -44,6 +43,7 @@ try
     parser.add_option("sync-file", "set the synchronization file name (default: yolo_sync)", 1);
     parser.add_option("burnin", "learning rate burnin steps (default: 1000)", 1);
     parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
+    parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("workers", "number of worker threads to load data (default: 4)", 1);
     parser.add_option("gpus", "number of GPUs to run the training on (default: 1)", 1);
     parser.add_option("test", "test the detector with a threshold (default: 0.01)", 1);
@@ -66,6 +66,7 @@ try
     const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", 4);
     const size_t num_gpus = get_option(parser, "gpus", 1);
+    const double mosaic_prob = get_option(parser, "mosaic", 0.5);
     const std::string sync_file_name = get_option(parser, "sync-file", "yolo_sync");
 
     const std::string data_directory = parser[0];
@@ -241,11 +242,11 @@ try
 
     // Create some data loaders which will load the data, and perform som data augmentation.
     dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(100 * batch_size);
-    const auto loader = [&dataset, &data_directory, &train_data, &image_size](time_t seed)
+    const auto loader =
+        [&dataset, &data_directory, &train_data, &image_size, &mosaic_prob](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
         rgb_image image, rotated;
-        std::pair<rgb_image, std::vector<dlib::yolo_rect>> temp;
         dlib::random_cropper cropper;
         cropper.set_seed(time(nullptr) + seed);
         cropper.set_chip_dims(image_size, image_size);
@@ -256,12 +257,14 @@ try
         cropper.set_translate_amount(0.5);
         cropper.set_randomly_flip(true);
         cropper.set_background_crops_fraction(0);
-        while (train_data.is_enabled())
+
+        const auto get_sample = [&]()
         {
+            std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
             const auto idx = rnd.get_random_32bit_number() % dataset.images.size();
             load_image(image, data_directory + "/" + dataset.images[idx].filename);
             for (const auto& box : dataset.images[idx].boxes)
-                temp.second.emplace_back(box.rect, 1, box.label);
+                sample.second.emplace_back(box.rect, 1, box.label);
 
             // We alternate between augmenting the full image and random cropping
             if (rnd.get_random_double() > 0.5)
@@ -271,27 +274,84 @@ try
                     rotated,
                     rnd.get_double_in_range(-5 * dlib::pi / 180, 5 * dlib::pi / 180),
                     dlib::interpolate_bilinear());
-                for (auto& box : temp.second)
+                for (auto& box : sample.second)
                     box.rect = tform(box.rect);
 
-                tform = letterbox_image(rotated, temp.first, image_size);
-                for (auto& box : temp.second)
+                tform = letterbox_image(rotated, sample.first, image_size);
+                for (auto& box : sample.second)
                     box.rect = tform(box.rect);
 
                 if (rnd.get_random_double() > 0.5)
                 {
-                    tform = flip_image_left_right(temp.first);
-                    for (auto& box : temp.second)
+                    tform = flip_image_left_right(sample.first);
+                    for (auto& box : sample.second)
                         box.rect = tform(box.rect);
                 }
             }
             else
             {
-                std::vector<dlib::yolo_rect> boxes = temp.second;
-                cropper(image, boxes, temp.first, temp.second);
+                std::vector<dlib::yolo_rect> boxes = sample.second;
+                cropper(image, boxes, sample.first, sample.second);
             }
-            disturb_colors(temp.first, rnd);
-            train_data.enqueue(temp);
+            disturb_colors(sample.first, rnd);
+            return sample;
+        };
+
+        while (train_data.is_enabled())
+        {
+            if (rnd.get_random_double() > mosaic_prob)
+            {
+                train_data.enqueue(get_sample());
+            }
+            else
+            {
+                const double scale = 0.5;
+                const long tile_size = image_size * scale;
+                std::pair<dlib::matrix<dlib::rgb_pixel, 0, 0>, std::vector<dlib::yolo_rect>>
+                    sample;
+                sample.first.set_size(image_size, image_size);
+                const auto short_dim = cropper.get_min_object_length_short_dim() * scale;
+                const auto long_dim = cropper.get_min_object_length_long_dim() * scale;
+                for (size_t i = 0; i < 4; ++i)
+                {
+                    long x = 0, y = 0;
+                    switch (i)
+                    {
+                    case 0:
+                        x = 0 * tile_size;
+                        y = 0 * tile_size;
+                        break;
+                    case 1:
+                        x = 0 * tile_size;
+                        y = 1 * tile_size;
+                        break;
+                    case 2:
+                        x = 1 * tile_size;
+                        y = 0 * tile_size;
+                        break;
+                    case 3:
+                        x = 1 * tile_size;
+                        y = 1 * tile_size;
+                        break;
+                    default:
+                        DLIB_CASSERT(false, "Something went terribly wrong");
+                    }
+
+                    auto tile = get_sample();
+                    const dlib::rectangle r(x, y, x + tile_size, y + tile_size);
+                    auto si = dlib::sub_image(sample.first, r);
+                    resize_image(tile.first, si);
+                    for (auto&& b : tile.second)
+                    {
+                        b.rect = translate_rect(scale_rect(b.rect, scale), x, y);
+                        if ((b.rect.height() < long_dim and b.rect.width() < long_dim) or
+                            (b.rect.height() < short_dim or b.rect.width() < short_dim))
+                            b.ignore = true;
+                        sample.second.push_back(std::move(b));
+                    }
+                }
+                train_data.enqueue(sample);
+            }
         }
     };
 
