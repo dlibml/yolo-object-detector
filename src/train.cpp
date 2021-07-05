@@ -72,8 +72,8 @@ try
     const size_t num_workers = get_option(parser, "workers", 4);
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
-    const double angle = get_option(parser, "rotation", 5);
-    const double shift = get_option(parser, "rotation", 0.5);
+    const double angle = get_option(parser, "angle", 5);
+    const double shift = get_option(parser, "shift", 0.5);
     const std::string experiment_name = get_option(parser, "name", "yolo");
     const std::string sync_file_name = experiment_name + "_sync";
     const std::string net_file_name = experiment_name + ".dnn";
