@@ -194,11 +194,14 @@ try
         rgb_image image, resized;
         std::map<std::string, std::vector<std::pair<double, bool>>> hits;
         std::map<std::string, unsigned long> missing;
+        size_t padding = 0;
         for (const auto& label : options.labels)
         {
             hits[label] = std::vector<std::pair<double, bool>>();
             missing[label] = 0;
+            padding = std::max(label.length(), padding);
         }
+        padding += 2;
         std::cout << "computing mean average precision for " << dataset.images.size()
                   << " images..." << std::endl;
         for (size_t i = 0; i < dataset.images.size(); ++i)
@@ -246,10 +249,11 @@ try
         {
             std::sort(item.second.rbegin(), item.second.rend());
             const double ap = dlib::average_precision(item.second, missing[item.first]);
-            std::cout << dlib::rpad(item.first + ": ", 16, " ") << ap * 100 << '%' << std::endl;
+            std::cout << dlib::rpad(item.first + ": ", padding) << ap * 100 << '%' << std::endl;
             map += ap;
         }
-        std::cout << dlib::rpad(std::string("mAP: "), 16, " ") << map / hits.size() * 100 << '%'
+        std::cout << "--" << std::endl;
+        std::cout << dlib::rpad(std::string("mAP: "), padding) << map / hits.size() * 100 << '%'
                   << std::endl;
         return EXIT_SUCCESS;
     }
