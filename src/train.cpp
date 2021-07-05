@@ -37,22 +37,24 @@ int main(const int argc, const char** argv)
 try
 {
     dlib::command_line_parser parser;
-    parser.add_option("size", "image size for internal usage (default: 512)", 1);
-    parser.add_option("name", "name used for sync and net files (default: yolo)", 1);
-    parser.add_option("test", "test the detector with a threshold (default: 0.01)", 1);
-    parser.add_option("visualize", "visualize data augmentation instead of training");
     parser.add_option("map", "compute the mean average precision");
+    parser.add_option("name", "name used for sync and net files (default: yolo)", 1);
+    parser.add_option("size", "image size for internal usage (default: 512)", 1);
+    parser.add_option("test", "visually test with a threshold (default: 0.01)", 1);
+    parser.add_option("visualize", "visualize data augmentation instead of training");
     parser.set_group_name("Training Options");
-    parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("batch-size", "mini batch size (default: 8)", 1);
     parser.add_option("burnin", "learning rate burnin steps (default: 1000)", 1);
+    parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
+    parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
+    parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
+    parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
     parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
-    parser.add_option("workers", "number of worker threads to load data (default: 4)", 1);
-    parser.add_option("gpus", "number of GPUs to run the training on (default: 1)", 1);
+    parser.add_option("workers", "number of worker data loader threads (default: 4)", 1);
     parser.set_group_name("Data Augmentation Options");
-    parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("angle", "random rotation in degrees (default: 5)", 1);
-    parser.add_option("shift", "translation relative to object size (default: 0.5)", 1);
+    parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
+    parser.add_option("shift", "translation relative to box size (default: 0.5)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
     parser.add_option("help", "display this message and exit");
@@ -64,7 +66,9 @@ try
         std::cout << "Give the path to a folder containing the training.xml file." << std::endl;
         return 0;
     }
+    parser.check_option_arg_range<double>("iou-ignore", 0, 1);
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
+    const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 10000);
     const size_t batch_size = get_option(parser, "batch-size", 8);
     const size_t burnin = get_option(parser, "burnin", 1000);
@@ -74,6 +78,7 @@ try
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
     const double angle = get_option(parser, "angle", 5);
     const double shift = get_option(parser, "shift", 0.5);
+    const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
     const std::string experiment_name = get_option(parser, "name", "yolo");
     const std::string sync_file_name = experiment_name + "_sync";
     const std::string net_file_name = experiment_name + ".dnn";
@@ -112,7 +117,7 @@ try
     // treated as not capable of detecting an object, an therefore incur loss.
     // Predictions above this threshold will be ignored, i.e. will not contribute to the
     // loss. Good values are 0.7 or 0.5.
-    options.iou_ignore_threshold = 0.5;
+    options.iou_ignore_threshold = iou_ignore_threshold;
     // These are the anchors computed on COCO dataset, presented in the YOLOv4 paper.
     options.add_anchors<rgpnet::ytag8>({{12, 16}, {19, 36}, {40, 28}});
     options.add_anchors<rgpnet::ytag16>({{36, 75}, {76, 55}, {72, 146}});
@@ -420,7 +425,7 @@ try
     std::cout << "burn-in finished" << std::endl;
     trainer.get_net();
     trainer.set_learning_rate(learning_rate);
-    trainer.set_min_learning_rate(learning_rate * 1e-3);
+    trainer.set_min_learning_rate(min_learning_rate);
     trainer.set_learning_rate_shrink_factor(0.1);
     trainer.set_iterations_without_progress_threshold(patience);
     std::cout << trainer << std::endl;
