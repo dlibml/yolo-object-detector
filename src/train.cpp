@@ -37,18 +37,22 @@ int main(const int argc, const char** argv)
 try
 {
     dlib::command_line_parser parser;
-    parser.add_option("size", "image size for training (default: 512)", 1);
-    parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
-    parser.add_option("batch-size", "mini batch size (default: 8)", 1);
-    parser.add_option("name", "name used for sync and net file (default: yolo)", 1);
-    parser.add_option("burnin", "learning rate burnin steps (default: 1000)", 1);
-    parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
-    parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
-    parser.add_option("workers", "number of worker threads to load data (default: 4)", 1);
-    parser.add_option("gpus", "number of GPUs to run the training on (default: 1)", 1);
+    parser.add_option("size", "image size for internal usage (default: 512)", 1);
+    parser.add_option("name", "name used for sync and net files (default: yolo)", 1);
     parser.add_option("test", "test the detector with a threshold (default: 0.01)", 1);
     parser.add_option("visualize", "visualize data augmentation instead of training");
     parser.add_option("map", "compute the mean average precision");
+    parser.set_group_name("Training Options");
+    parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
+    parser.add_option("batch-size", "mini batch size (default: 8)", 1);
+    parser.add_option("burnin", "learning rate burnin steps (default: 1000)", 1);
+    parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
+    parser.add_option("workers", "number of worker threads to load data (default: 4)", 1);
+    parser.add_option("gpus", "number of GPUs to run the training on (default: 1)", 1);
+    parser.set_group_name("Data Augmentation Options");
+    parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
+    parser.add_option("angle", "random rotation in degrees (default: 5)", 1);
+    parser.add_option("shift", "translation relative to object size (default: 0.5)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
     parser.add_option("help", "display this message and exit");
@@ -68,6 +72,8 @@ try
     const size_t num_workers = get_option(parser, "workers", 4);
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
+    const double angle = get_option(parser, "rotation", 5);
+    const double shift = get_option(parser, "rotation", 0.5);
     const std::string experiment_name = get_option(parser, "name", "yolo");
     const std::string sync_file_name = experiment_name + "_sync";
     const std::string net_file_name = experiment_name + ".dnn";
@@ -245,8 +251,7 @@ try
 
     // Create some data loaders which will load the data, and perform som data augmentation.
     dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(100 * batch_size);
-    const auto loader =
-        [&dataset, &data_directory, &train_data, &image_size, &mosaic_prob](time_t seed)
+    const auto loader = [&](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
         rgb_image image, rotated;
@@ -256,26 +261,26 @@ try
         cropper.set_max_object_size(0.9);
         cropper.set_min_object_size(16, 16);
         cropper.set_min_object_coverage(0.7);
-        cropper.set_max_rotation_degrees(10);
-        cropper.set_translate_amount(0.5);
+        cropper.set_max_rotation_degrees(angle);
+        cropper.set_translate_amount(shift);
         cropper.set_randomly_flip(true);
         cropper.set_background_crops_fraction(0);
 
-        const auto get_sample = [&]()
+        const auto get_sample = [&](const double crop_prob = 0.5)
         {
             std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
             const auto idx = rnd.get_random_32bit_number() % dataset.images.size();
-            load_image(image, data_directory + "/" + dataset.images[idx].filename);
+            dlib::load_image(image, data_directory + "/" + dataset.images[idx].filename);
             for (const auto& box : dataset.images[idx].boxes)
                 sample.second.emplace_back(box.rect, 1, box.label);
 
             // We alternate between augmenting the full image and random cropping
-            if (rnd.get_random_double() > 0.5)
+            if (rnd.get_random_double() > crop_prob)
             {
                 dlib::rectangle_transform tform = rotate_image(
                     image,
                     rotated,
-                    rnd.get_double_in_range(-5 * dlib::pi / 180, 5 * dlib::pi / 180),
+                    rnd.get_double_in_range(-angle * dlib::pi / 180, angle * dlib::pi / 180),
                     dlib::interpolate_bilinear());
                 for (auto& box : sample.second)
                     box.rect = tform(box.rect);
@@ -340,7 +345,7 @@ try
                         DLIB_CASSERT(false, "Something went terribly wrong");
                     }
 
-                    auto tile = get_sample();
+                    auto tile = get_sample(0);  // do not use random cropping here
                     const dlib::rectangle r(x, y, x + tile_size, y + tile_size);
                     auto si = dlib::sub_image(sample.first, r);
                     resize_image(tile.first, si);
