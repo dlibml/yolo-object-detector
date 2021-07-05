@@ -40,7 +40,7 @@ try
     parser.add_option("size", "image size for training (default: 512)", 1);
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("batch-size", "mini batch size (default: 8)", 1);
-    parser.add_option("sync-file", "set the synchronization file name (default: yolo_sync)", 1);
+    parser.add_option("name", "name used for sync and net file (default: yolo)", 1);
     parser.add_option("burnin", "learning rate burnin steps (default: 1000)", 1);
     parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
@@ -55,6 +55,7 @@ try
     parser.parse(argc, argv);
     if (parser.number_of_arguments() == 0 || parser.option("h") || parser.option("help"))
     {
+        std::cout << "Usage: " << argv[0] << " [OPTION]... PATH/TO/DATASET/DIRECTORY" << std::endl;
         parser.print_options();
         std::cout << "Give the path to a folder containing the training.xml file." << std::endl;
         return 0;
@@ -67,7 +68,9 @@ try
     const size_t num_workers = get_option(parser, "workers", 4);
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
-    const std::string sync_file_name = get_option(parser, "sync-file", "yolo_sync");
+    const std::string experiment_name = get_option(parser, "name", "yolo");
+    const std::string sync_file_name = experiment_name + "_sync";
+    const std::string net_file_name = experiment_name + ".dnn";
 
     const std::string data_directory = parser[0];
 
@@ -427,7 +430,7 @@ try
     for (auto& worker : data_loaders)
         worker.join();
 
-    dlib::serialize("yolo.dnn") << net;
+    dlib::serialize(experiment_name) << net;
     return EXIT_SUCCESS;
 }
 catch (const std::exception& e)
