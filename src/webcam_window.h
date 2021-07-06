@@ -84,13 +84,12 @@ inline void draw_bounding_boxes(
     const std::vector<dlib::yolo_rect>& detections,
     draw_options& opts)
 {
-    using dlib::draw_string, dlib::rectangle, dlib::convert_utf8_to_utf32, dlib::point,
-        dlib::fill_rect;
-    for (const auto& d : detections)
+    // We want to draw most confident detections on top, so we iterate in reverse order
+    for (auto d = detections.rbegin(); d != detections.rend(); ++d)
     {
         const auto offset = opts.thickness / 2;
-        const auto color = opts.string_to_color(d.label);
-        rectangle r(d.rect);
+        const auto color = opts.string_to_color(d->label);
+        dlib::rectangle r(d->rect);
         r.left() = dlib::put_in_range(offset, image.nc() - 1 - offset, r.left());
         r.top() = dlib::put_in_range(offset, image.nr() - 1 - offset, r.top());
         r.right() = dlib::put_in_range(offset, image.nc() - 1 - offset, r.right());
@@ -103,26 +102,26 @@ inline void draw_bounding_boxes(
             sout << std::fixed << std::setprecision(0);
             if (opts.multilabel)
             {
-                for (size_t i = 0; i < d.labels.size() - 1; ++i)
-                    sout << d.labels[i].second << " (" << d.labels[i].first * 100 << "%), ";
-                sout << d.labels[d.labels.size() - 1].second << " ("
-                     << d.labels[d.labels.size() - 1].first * 100 << "%)";
+                for (size_t i = 0; i < d->labels.size() - 1; ++i)
+                    sout << d->labels[i].second << " (" << d->labels[i].first * 100 << "%), ";
+                sout << d->labels[d->labels.size() - 1].second << " ("
+                     << d->labels[d->labels.size() - 1].first * 100 << "%)";
             }
             else
             {
-                sout << d.label << " (" << d.detection_confidence * 100 << "%)";
+                sout << d->label << " (" << d->detection_confidence * 100 << "%)";
             }
 
             const dlib::ustring label = dlib::convert_utf8_to_utf32(sout.str());
             const auto [lw, lh] = string_dims(label, opts.get_font());
 
             // the default case: label outside the top left corner of the box
-            point label_pos(r.left(), r.top() - lh);
-            rectangle bg(lw + opts.thickness, lh);
+            dlib::point label_pos(r.left(), r.top() - lh);
+            dlib::rectangle bg(lw + opts.thickness, lh);
 
             // draw label inside the bounding box (move it downwards)
             if (label_pos.y() < 0)
-                label_pos = point(r.left(), r.top());
+                label_pos = dlib::point(r.left(), r.top());
 
             bg = move_rect(bg, label_pos.x() - offset, label_pos.y());
             fill_rect(image, bg, color);
