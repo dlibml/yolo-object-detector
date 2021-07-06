@@ -131,7 +131,6 @@ namespace rgpnet
 
         // The RGPNet type definition
         using net_type = loss_yolo<ytag8, ytag16, ytag32,
-        // using net_type = loss_multiclass_log_per_pixel<
         ytag8<sig<con<1, 1, 1, 1, 1, adaptor2<askip3<
         ytag16<sig<con<1, 1, 1, 1, 1, atag3<adaptor3<askip4<
         ytag32<sig<con<1, 1, 1, 1, 1, atag4<adaptor4<

@@ -27,7 +27,9 @@ try
     parser.add_option("iou-anchor", "extra anchors IoU treshold (default: 1)", 1);
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
+    parser.add_option("momentum", "sgd momentum (default: 0.9)", 1);
     parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
+    parser.add_option("weight-decay", "sgd weight decay (default: 0.0005)", 1);
     parser.add_option("workers", "number of worker data loader threads (default: 4)", 1);
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max random rotation in degrees (default: 5)", 1);
@@ -47,6 +49,8 @@ try
     }
     parser.check_option_arg_range<double>("iou-ignore", 0, 1);
     parser.check_option_arg_range<double>("iou-anchor", 0, 1);
+    parser.check_option_arg_range<double>("mosaic", 0, 1);
+    parser.check_option_arg_range<double>("crop", 0, 1);
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 10000);
@@ -61,6 +65,8 @@ try
     const double shift = get_option(parser, "shift", 0.5);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
     const double iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
+    const float momentum = get_option(parser, "momentum", 0.9);
+    const float weight_decay = get_option(parser, "weight-decay", 0.0005);
     const std::string experiment_name = get_option(parser, "name", "yolo");
     const std::string sync_file_name = experiment_name + "_sync";
     const std::string net_file_name = experiment_name + ".dnn";
@@ -119,7 +125,7 @@ try
     std::iota(gpus.begin(), gpus.end(), 0);
     // We initialize the trainer here, as it will be used in several contexts, depending on the
     // arguments passed the the program.
-    dlib::dnn_trainer<decltype(net)> trainer(net, dlib::sgd(0.0005, 0.9), gpus);
+    dlib::dnn_trainer<decltype(net)> trainer(net, dlib::sgd(weight_decay, momentum), gpus);
     trainer.be_verbose();
     trainer.set_mini_batch_size(batch_size);
     trainer.set_learning_rate_schedule(learning_rate_schedule);

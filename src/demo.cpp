@@ -18,10 +18,10 @@ try
 {
     dlib::command_line_parser parser;
     parser.set_group_name("Detector Options");
-    parser.add_option("classwise-nms", "classwise NMS");
     parser.add_option("conf-thresh", "detection confidence threshold (default: 0.25)", 1);
     parser.add_option("dnn", "load this network file", 1);
     parser.add_option("nms", "IoU and area covered ratio thresholds (default: 0.45 1)", 2);
+    parser.add_option("nms-agnostic", "class-agnositc NMS");
     parser.add_option("size", "image size for inference (default: 512)", 1);
     parser.add_option("sync", "load this sync file", 1);
     parser.set_group_name("Display Options");
@@ -59,7 +59,7 @@ try
     const std::string sync_path = dlib::get_option(parser, "sync", "");
     const size_t thickness = dlib::get_option(parser, "thickness", 5);
     const std::string font_path = dlib::get_option(parser, "font", "");
-    const bool classwise_nms = parser.option("classwise-nms");
+    const bool classwise_nms = not parser.option("nms-agnostic");
     const size_t webcam_index = dlib::get_option(parser, "webcam", 0);
     const std::string input_path = dlib::get_option(parser, "input", "");
     const std::string output_path = dlib::get_option(parser, "output", "");
@@ -93,7 +93,7 @@ try
     net.loss_details().adjust_nms(iou_threshold, ratio_covered, classwise_nms);
     std::cout << net.loss_details() << std::endl;
 
-    draw_options options(font_path);
+    drawing_options options(font_path);
     options.thickness = thickness;
     options.multilabel = parser.option("multilabel");
     options.draw_labels = not parser.option("no-labels");

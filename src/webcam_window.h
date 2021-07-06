@@ -45,10 +45,10 @@ namespace dlib
     }
 }  // namespace dlib
 
-struct draw_options
+struct drawing_options
 {
-    draw_options() = default;
-    draw_options(const std::string& font_path)
+    drawing_options() = default;
+    drawing_options(const std::string& font_path)
     {
         if (not font_path.empty())
         {
@@ -82,7 +82,7 @@ struct draw_options
 inline void draw_bounding_boxes(
     dlib::matrix<dlib::rgb_pixel>& image,
     const std::vector<dlib::yolo_rect>& detections,
-    draw_options& opts)
+    drawing_options& opts)
 {
     // We want to draw most confident detections on top, so we iterate in reverse order
     for (auto det = detections.rbegin(); det != detections.rend(); ++det)
