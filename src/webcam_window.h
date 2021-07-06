@@ -85,11 +85,12 @@ inline void draw_bounding_boxes(
     draw_options& opts)
 {
     // We want to draw most confident detections on top, so we iterate in reverse order
-    for (auto d = detections.rbegin(); d != detections.rend(); ++d)
+    for (auto det = detections.rbegin(); det != detections.rend(); ++det)
     {
+        const auto& d = *det;
         const auto offset = opts.thickness / 2;
-        const auto color = opts.string_to_color(d->label);
-        dlib::rectangle r(d->rect);
+        const auto color = opts.string_to_color(d.label);
+        dlib::rectangle r(d.rect);
         r.left() = dlib::put_in_range(offset, image.nc() - 1 - offset, r.left());
         r.top() = dlib::put_in_range(offset, image.nr() - 1 - offset, r.top());
         r.right() = dlib::put_in_range(offset, image.nc() - 1 - offset, r.right());
@@ -102,14 +103,14 @@ inline void draw_bounding_boxes(
             sout << std::fixed << std::setprecision(0);
             if (opts.multilabel)
             {
-                for (size_t i = 0; i < d->labels.size() - 1; ++i)
-                    sout << d->labels[i].second << " (" << d->labels[i].first * 100 << "%), ";
-                sout << d->labels[d->labels.size() - 1].second << " ("
-                     << d->labels[d->labels.size() - 1].first * 100 << "%)";
+                for (size_t i = 0; i < d.labels.size() - 1; ++i)
+                    sout << d.labels[i].second << " (" << d.labels[i].first * 100 << "%), ";
+                sout << d.labels[d.labels.size() - 1].second << " ("
+                     << d.labels[d.labels.size() - 1].first * 100 << "%)";
             }
             else
             {
-                sout << d->label << " (" << d->detection_confidence * 100 << "%)";
+                sout << d.label << " (" << d.detection_confidence * 100 << "%)";
             }
 
             const dlib::ustring label = dlib::convert_utf8_to_utf32(sout.str());
