@@ -1,4 +1,5 @@
 #include "rgpnet.h"
+#include "utils.h"
 #include "webcam_window.h"
 
 #include <dlib/cmd_line_parser.h>
@@ -11,20 +12,6 @@
 using rgb_image = dlib::matrix<dlib::rgb_pixel>;
 using fseconds = std::chrono::duration<float>;
 using fms = std::chrono::duration<float, std::milli>;
-
-dlib::rectangle_transform
-    preprocess_image(const rgb_image& image, rgb_image& output, const long image_size)
-{
-    return dlib::rectangle_transform(inv(letterbox_image(image, output, image_size)));
-}
-
-void postprocess_detections(
-    const dlib::rectangle_transform& tform,
-    std::vector<dlib::yolo_rect>& detections)
-{
-    for (auto& d : detections)
-        d.rect = tform(d.rect);
-}
 
 auto main(const int argc, const char** argv) -> int
 try

@@ -47,12 +47,14 @@ try
     parser.add_option("burnin", "learning rate burnin steps (default: 1000)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
+    parser.add_option("iou-anchor", "extra anchors IoU treshold (default: 1)", 1);
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
     parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
     parser.add_option("workers", "number of worker data loader threads (default: 4)", 1);
     parser.set_group_name("Data Augmentation Options");
-    parser.add_option("angle", "random rotation in degrees (default: 5)", 1);
+    parser.add_option("angle", "max random rotation in degrees (default: 5)", 1);
+    parser.add_option("crop", "no-mosaic random crop probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("shift", "translation relative to box size (default: 0.5)", 1);
     parser.set_group_name("Help Options");
@@ -67,6 +69,7 @@ try
         return 0;
     }
     parser.check_option_arg_range<double>("iou-ignore", 0, 1);
+    parser.check_option_arg_range<double>("iou-anchor", 0, 1);
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 10000);
@@ -76,9 +79,11 @@ try
     const size_t num_workers = get_option(parser, "workers", 4);
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
+    const double crop_prob = get_option(parser, "crop", 0.5);
     const double angle = get_option(parser, "angle", 5);
     const double shift = get_option(parser, "shift", 0.5);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
+    const double iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
     const std::string experiment_name = get_option(parser, "name", "yolo");
     const std::string sync_file_name = experiment_name + "_sync";
     const std::string net_file_name = experiment_name + ".dnn";
@@ -118,6 +123,7 @@ try
     // Predictions above this threshold will be ignored, i.e. will not contribute to the
     // loss. Good values are 0.7 or 0.5.
     options.iou_ignore_threshold = iou_ignore_threshold;
+    options.iou_anchor_threshold = iou_anchor_threshold;
     // These are the anchors computed on COCO dataset, presented in the YOLOv4 paper.
     options.add_anchors<rgpnet::ytag8>({{12, 16}, {19, 36}, {40, 28}});
     options.add_anchors<rgpnet::ytag16>({{36, 75}, {76, 55}, {72, 146}});
@@ -318,7 +324,7 @@ try
         {
             if (rnd.get_random_double() > mosaic_prob)
             {
-                train_data.enqueue(get_sample());
+                train_data.enqueue(get_sample(crop_prob));
             }
             else
             {
