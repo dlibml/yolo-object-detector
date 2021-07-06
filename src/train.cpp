@@ -1,4 +1,5 @@
 #include "rgpnet.h"
+#include "utils.h"
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/data_io.h>
@@ -8,30 +9,6 @@
 #include <tools/imglab/src/metadata_editor.h>
 
 using rgb_image = dlib::matrix<dlib::rgb_pixel>;
-
-dlib::rectangle_transform
-    preprocess_image(const rgb_image& image, rgb_image& output, const long image_size)
-{
-    return dlib::rectangle_transform(inv(letterbox_image(image, output, image_size)));
-}
-
-void postprocess_detections(
-    const dlib::rectangle_transform& tform,
-    std::vector<dlib::yolo_rect>& detections)
-{
-    for (auto& d : detections)
-        d.rect = tform(d.rect);
-}
-
-template <typename net_type> void setup_detector(net_type& net, int num_classes = 80)
-{
-    // remove bias
-    dlib::disable_duplicative_biases(net);
-    // set the number of filters
-    dlib::layer<rgpnet::ytag8, 2>(net).layer_details().set_num_filters(3 * (num_classes + 5));
-    dlib::layer<rgpnet::ytag16, 2>(net).layer_details().set_num_filters(3 * (num_classes + 5));
-    dlib::layer<rgpnet::ytag32, 2>(net).layer_details().set_num_filters(3 * (num_classes + 5));
-}
 
 int main(const int argc, const char** argv)
 try
@@ -130,7 +107,7 @@ try
     options.add_anchors<rgpnet::ytag32>({{142, 110}, {192, 243}, {459, 401}});
 
     rgpnet::train net(options);
-    setup_detector(net, options.labels.size());
+    setup_detector(net, options);
 
     // The training process can be unstable at the beginning.  For this reason, we exponentially
     // increase the learning rate during the first burnin steps.
