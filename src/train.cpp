@@ -14,7 +14,6 @@ int main(const int argc, const char** argv)
 try
 {
     dlib::command_line_parser parser;
-    parser.add_option("map", "compute the mean average precision");
     parser.add_option("name", "name used for sync and net files (default: yolo)", 1);
     parser.add_option("size", "image size for internal usage (default: 512)", 1);
     parser.add_option("test", "visually test with a threshold (default: 0.01)", 1);
@@ -167,87 +166,6 @@ try
             }
             std::cin.get();
         }
-        return EXIT_SUCCESS;
-    }
-
-    // If the training has started and a synchronization file has already been saved to disk,
-    // we can re-run this program with the --map option to compute the mean average precision
-    // on the test set.
-    if (parser.option("map"))
-    {
-        dlib::image_dataset_metadata::dataset dataset;
-        dlib::image_dataset_metadata::load_image_dataset_metadata(
-            dataset,
-            data_directory + "/testing.xml");
-        if (!dlib::file_exists(sync_file_name))
-        {
-            std::cout << "Could not find file " << sync_file_name << std::endl;
-            return EXIT_FAILURE;
-        }
-        rgb_image image, resized;
-        std::map<std::string, std::vector<std::pair<double, bool>>> hits;
-        std::map<std::string, unsigned long> missing;
-        size_t padding = 0;
-        for (const auto& label : options.labels)
-        {
-            hits[label] = std::vector<std::pair<double, bool>>();
-            missing[label] = 0;
-            padding = std::max(label.length(), padding);
-        }
-        padding += 2;
-        std::cout << "computing mean average precision for " << dataset.images.size()
-                  << " images..." << std::endl;
-        for (size_t i = 0; i < dataset.images.size(); ++i)
-        {
-            const auto& im = dataset.images[i];
-            load_image(image, data_directory + "/" + im.filename);
-            const auto tform = preprocess_image(image, resized, image_size);
-            auto dets = net.process(resized, 0.005);
-            postprocess_detections(tform, dets);
-            std::vector<bool> used(dets.size(), false);
-            // true positives: truths matched by detections
-            for (size_t t = 0; t < im.boxes.size(); ++t)
-            {
-                bool found_match = false;
-                for (size_t d = 0; d < dets.size(); ++d)
-                {
-                    if (used[d])
-                        continue;
-                    if (im.boxes[t].label == dets[d].label &&
-                        box_intersection_over_union(
-                            dlib::drectangle(im.boxes[t].rect),
-                            dets[d].rect) > 0.5)
-                    {
-                        used[d] = true;
-                        found_match = true;
-                        hits.at(dets[d].label).emplace_back(dets[d].detection_confidence, true);
-                        break;
-                    }
-                }
-                // false negatives: truths not matched
-                if (!found_match)
-                    missing.at(im.boxes[t].label)++;
-            }
-            // false positives: detections not matched
-            for (size_t d = 0; d < dets.size(); ++d)
-            {
-                if (!used[d])
-                    hits.at(dets[d].label).emplace_back(dets[d].detection_confidence, false);
-            }
-            std::cout << "progress: " << i << '/' << dataset.images.size() << "\t\t\t\r"
-                      << std::flush;
-        }
-        double map = 0;
-        for (auto& item : hits)
-        {
-            std::sort(item.second.rbegin(), item.second.rend());
-            const double ap = dlib::average_precision(item.second, missing[item.first]);
-            std::cout << dlib::rpad(item.first + ": ", padding) << ap * 100 << '%' << std::endl;
-            map += ap;
-        }
-        std::cout << "--" << std::endl;
-        std::cout << dlib::rpad(std::string("mAP: "), padding) << map / hits.size() * 100 << '%'
-                  << std::endl;
         return EXIT_SUCCESS;
     }
 
