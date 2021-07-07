@@ -36,6 +36,7 @@ try
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
+    parser.add_option("print", "print the network architecture");
     parser.add_option("help", "display this message and exit");
     parser.parse(argc, argv);
 
@@ -91,7 +92,10 @@ try
     }
 
     net.loss_details().adjust_nms(iou_threshold, ratio_covered, classwise_nms);
-    std::cout << net.loss_details() << std::endl;
+    if (parser.option("print"))
+        std::cout << net << std::endl;
+    else
+        std::cout << net.loss_details() << std::endl;
 
     drawing_options options(font_path);
     options.thickness = thickness;
