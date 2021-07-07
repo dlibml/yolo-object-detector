@@ -133,7 +133,7 @@ try
     trainer.be_verbose();
     trainer.set_mini_batch_size(batch_size);
     trainer.set_learning_rate_schedule(learning_rate_schedule);
-    trainer.set_synchronization_file(sync_file_name, std::chrono::minutes(15));
+    trainer.set_synchronization_file(sync_file_name, std::chrono::minutes(30));
     std::cout << trainer;
 
     // If the training has started and a synchronization file has already been saved to disk,
