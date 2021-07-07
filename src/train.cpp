@@ -107,10 +107,14 @@ try
     // loss. Good values are 0.7 or 0.5.
     options.iou_ignore_threshold = iou_ignore_threshold;
     options.iou_anchor_threshold = iou_anchor_threshold;
-    // These are the anchors computed on COCO dataset, presented in the YOLOv4 paper.
-    options.add_anchors<rgpnet::ytag8>({{12, 16}, {19, 36}, {40, 28}});
-    options.add_anchors<rgpnet::ytag16>({{36, 75}, {76, 55}, {72, 146}});
-    options.add_anchors<rgpnet::ytag32>({{142, 110}, {192, 243}, {459, 401}});
+    // These are the anchors computed on the COCO dataset, presented in the YOLOv4 paper.
+    // options.add_anchors<rgpnet::ytag8>({{12, 16}, {19, 36}, {40, 28}});
+    // options.add_anchors<rgpnet::ytag16>({{36, 75}, {76, 55}, {72, 146}});
+    // options.add_anchors<rgpnet::ytag32>({{142, 110}, {192, 243}, {459, 401}});
+    // These are the anchors computed on the OMNIOUS product_2021-02-25 dataset
+    options.add_anchors<rgpnet::ytag8>({{31,33}, {62,42}, {41,66}});
+    options.add_anchors<rgpnet::ytag16>({{76,88}, {151,113}, {97,184}});
+    options.add_anchors<rgpnet::ytag32>({{205,243}, {240,444}, {437,306}, {430,549}});
 
     rgpnet::train net(options);
     setup_detector(net, options);
