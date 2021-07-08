@@ -1,4 +1,4 @@
-#include "rgpnet.h"
+#include "model.h"
 #include "utils.h"
 
 #include <dlib/cmd_line_parser.h>
@@ -98,14 +98,9 @@ try
         options.labels.push_back(label.first);
         string_to_color(label.first);
     }
-
-    // When computing the objectness loss in YOLO, predictions that do not have an IoU
-    // with any ground truth box of at least options.iou_ignore_threshold, will be
-    // treated as not capable of detecting an object, an therefore incur loss.
-    // Predictions above this threshold will be ignored, i.e. will not contribute to the
-    // loss. Good values are 0.7 or 0.5.
     options.iou_ignore_threshold = iou_ignore_threshold;
     options.iou_anchor_threshold = iou_anchor_threshold;
+
     // These are the anchors computed on the COCO dataset, presented in the YOLOv4 paper.
     // options.add_anchors<rgpnet::ytag8>({{12, 16}, {19, 36}, {40, 28}});
     // options.add_anchors<rgpnet::ytag16>({{36, 75}, {76, 55}, {72, 146}});
@@ -115,7 +110,8 @@ try
     options.add_anchors<rgpnet::ytag16>({{76,88}, {151,113}, {97,184}});
     options.add_anchors<rgpnet::ytag32>({{205,243}, {240,444}, {437,306}, {430,549}});
 
-    rgpnet::train net(options);
+    model_train model(options);
+    auto& net = model.net;
     setup_detector(net, options);
 
     // The training process can be unstable at the beginning.  For this reason, we exponentially
@@ -128,7 +124,7 @@ try
     std::iota(gpus.begin(), gpus.end(), 0);
     // We initialize the trainer here, as it will be used in several contexts, depending on the
     // arguments passed the the program.
-    dlib::dnn_trainer<decltype(net)> trainer(net, dlib::sgd(weight_decay, momentum), gpus);
+    auto trainer = model.get_trainer(weight_decay, momentum);
     trainer.be_verbose();
     trainer.set_mini_batch_size(batch_size);
     trainer.set_learning_rate_schedule(learning_rate_schedule);

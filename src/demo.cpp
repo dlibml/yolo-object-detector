@@ -1,4 +1,4 @@
-#include "rgpnet.h"
+#include "model.h"
 #include "utils.h"
 #include "webcam_window.h"
 
@@ -65,15 +65,16 @@ try
     const std::string input_path = dlib::get_option(parser, "input", "");
     const std::string output_path = dlib::get_option(parser, "output", "");
     float fps = dlib::get_option(parser, "fps", 30);
-    double iou_threshold = 0.45;
-    double ratio_covered = 1.0;
+    double nms_iou_threshold = 0.45;
+    double nms_ratio_covered = 1.0;
     if (parser.option("nms"))
     {
-        iou_threshold = std::stod(parser.option("nms").argument(0));
-        ratio_covered = std::stod(parser.option("nms").argument(1));
+        nms_iou_threshold = std::stod(parser.option("nms").argument(0));
+        nms_ratio_covered = std::stod(parser.option("nms").argument(1));
     }
 
-    rgpnet::infer net;
+    model_infer model;
+    auto& net = model.net;
 
     if (not dnn_path.empty())
     {
@@ -81,7 +82,7 @@ try
     }
     else if (not sync_path.empty() and dlib::file_exists(sync_path))
     {
-        auto trainer = dlib::dnn_trainer(net);
+        auto trainer = model.get_trainer();
         trainer.set_synchronization_file(sync_path);
         trainer.get_net();
     }
@@ -91,7 +92,7 @@ try
         return EXIT_FAILURE;
     }
 
-    net.loss_details().adjust_nms(iou_threshold, ratio_covered, classwise_nms);
+    net.loss_details().adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
     if (parser.option("print"))
         std::cout << net << std::endl;
     else

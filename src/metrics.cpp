@@ -1,4 +1,4 @@
-#include "rgpnet.h"
+#include "model.h"
 #include "utils.h"
 
 #include <dlib/cmd_line_parser.h>
@@ -79,7 +79,8 @@ try
     }
 
 #if 1
-    rgpnet::infer net;
+    model_infer model;
+    auto& net = model.net;
 
     if (not dnn_path.empty())
     {
@@ -87,7 +88,7 @@ try
     }
     else if (not sync_path.empty() and dlib::file_exists(sync_path))
     {
-        auto trainer = dlib::dnn_trainer(net);
+        auto trainer = model.get_trainer();
         trainer.set_synchronization_file(sync_path);
         trainer.get_net();
     }
