@@ -49,10 +49,6 @@ namespace rgpnet
         template <long nf, int ks, int s, typename SUBNET>
         using conblock = ACT<BN<add_layer<con_<nf, ks, ks, s, s, ks / 2, ks / 2>, SUBNET>>>;
 
-        // Stem block
-        template <typename INPUT>
-        using darkstem = conblock<64, 3, 2, conblock<32, 1, 1, conblock<64, 3, 2, conblock<32, 3, 1, INPUT>>>>;
-
         // ----------------------------- VoVNet Backbone ----------------------------- //
 
         // the resnet basic block, where BN is bn_con or affine
@@ -84,29 +80,23 @@ namespace rgpnet
                              typename vovnet::def<ACT, BN>::template stem<INPUT>>>>>>>>>>>;
 
         template <typename INPUT>
-        using backbone_39 = typename vovnet::def<ACT, BN>::template osa_module5_id_1024<
-                             typename vovnet::def<ACT, BN>::template osa_module5<1024, 224,
-                             typename vovnet::def<ACT, BN>::template maxpool<
-                       btag3<typename vovnet::def<ACT, BN>::template osa_module5_id_768<
-                             typename vovnet::def<ACT, BN>::template osa_module5<768, 192,
-                             typename vovnet::def<ACT, BN>::template maxpool<
-                       btag2<typename vovnet::def<ACT, BN>::template osa_module5<512, 160,
-                             typename vovnet::def<ACT, BN>::template maxpool<
-                       btag1<typename vovnet::def<ACT, BN>::template osa_module5<256, 128,
-                             typename vovnet::def<ACT, BN>::template stem<INPUT>>>>>>>>>>>>>;
-                             // darkstem<INPUT>>>>>>>>>>>>>;
+        using backbone_39 = typename vovnet::def<ACT, BN>::template dark_osa_module5_id_1024<
+                            typename vovnet::def<ACT, BN>::template dark_osa_module5<1024, 224,
+                            typename vovnet::def<ACT, BN>::template maxpool<
+                      btag3<typename vovnet::def<ACT, BN>::template dark_osa_module5_id_768<
+                            typename vovnet::def<ACT, BN>::template dark_osa_module5<768, 192,
+                            typename vovnet::def<ACT, BN>::template maxpool<
+                      btag2<typename vovnet::def<ACT, BN>::template dark_osa_module5<512, 160,
+                            typename vovnet::def<ACT, BN>::template maxpool<
+                      btag1<typename vovnet::def<ACT, BN>::template dark_osa_module5<256, 128,
+                            typename vovnet::def<ACT, BN>::template stem<INPUT>>>>>>>>>>>>>;
 
         // --------------------------------- RGPNet --------------------------------- //
 
         template <long num_filters, typename SUBNET>
         using downsampler = add_layer<con_<num_filters, 3, 3, 2, 2, 1, 1>, SUBNET>;
         template <long num_filters, typename SUBNET>
-        // using upsampler = cont<num_filters, 2, 2, 2, 2, SUBNET>;
-        using upsampler = con<num_filters, 1, 1, 1, 1, upsample<2, SUBNET>>;
-
-        // template <template <typename> class TAGGED, typename SUBNET>
-        // using resize_and_add = add_layer<add_prev_<TAGGED>, resize_prev_to_tagged<TAGGED, SUBNET>>;
-        // using resize_and_add = add_layer<add_prev_<TAGGED>,  SUBNET>;
+        using upsampler = upsample<2, con<num_filters, 1, 1, 1, 1, SUBNET>>;
 
         // The processed backbone levels that serve as the input of RGPNet
         template <typename SUBNET> using in_lvl1 = ACT<BN<con<feats1, 1, 1, 1, 1, bskip1<SUBNET>>>>;

@@ -34,6 +34,9 @@ namespace vovnet
         template <long num_filters, int s, typename SUBNET>
         using con3 = ACT<BN<add_layer<con_<num_filters, 3, 3, s, s, 1, 1>, SUBNET>>>;
 
+        template <long num_filters, typename SUBNET>
+        using con1 = ACT<BN<add_layer<con_<num_filters, 1, 1, 1, 1, 0, 0>, SUBNET>>>;
+
         // Max-pooling with 3x3 kernel size 2-stride and 1-padding
         template <typename SUBNET> using maxpool = add_layer<max_pool_<3, 3, 2, 2, 1, 1>, SUBNET>;
 
@@ -68,10 +71,23 @@ namespace vovnet
                             vov_tag1<con3<num_filters_in, 1,
                             vov_tag0<SUBNET>>>>>>>>>>>>>;
 
+        // The VoVNet One-Shot Aggregation Module with 5 inner layers
+        template <long num_filters_out, long num_filters_in, typename SUBNET>
+        using dark_osa_module5 = ese_module<num_filters_out,
+                                 concatenate5<num_filters_out,
+                                 vov_tag5<con3<num_filters_in, 1,
+                                 vov_tag4<con1<num_filters_in / 2,
+                                 vov_tag3<con3<num_filters_in, 1,
+                                 vov_tag2<con1<num_filters_in / 2,
+                                 vov_tag1<con3<num_filters_in, 1,
+                                 vov_tag0<SUBNET>>>>>>>>>>>>>;
+
         // some definitions to allow the use of the repeat layer
         template <typename SUBNET> using osa_module5_id_512 = id_mapping<osa_module5<512, 160, SUBNET>>;
         template <typename SUBNET> using osa_module5_id_768 = id_mapping<osa_module5<768, 192, SUBNET>>;
         template <typename SUBNET> using osa_module5_id_1024 = id_mapping<osa_module5<1024, 224, SUBNET>>;
+        template <typename SUBNET> using dark_osa_module5_id_768 = id_mapping<dark_osa_module5<768, 192, SUBNET>>;
+        template <typename SUBNET> using dark_osa_module5_id_1024 = id_mapping<dark_osa_module5<1024, 224, SUBNET>>;
 
         template <typename INPUT>
         using backbone_19_slim = osa_module3<512, 112,
