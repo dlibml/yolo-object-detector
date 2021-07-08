@@ -124,7 +124,7 @@ try
     std::iota(gpus.begin(), gpus.end(), 0);
     // We initialize the trainer here, as it will be used in several contexts, depending on the
     // arguments passed the the program.
-    auto trainer = model.get_trainer(weight_decay, momentum);
+    auto trainer = model.get_trainer(weight_decay, momentum, gpus);
     trainer.be_verbose();
     trainer.set_mini_batch_size(batch_size);
     trainer.set_learning_rate_schedule(learning_rate_schedule);

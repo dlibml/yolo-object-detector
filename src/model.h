@@ -9,7 +9,7 @@ struct model_train
     model_train(const dlib::yolo_options& options);
     rgpnet::train net;
     dlib::dnn_trainer<rgpnet::train, dlib::sgd>
-        get_trainer(float weight_decay = 0.0005, float momentum = 0.9);
+        get_trainer(float weight_decay = 0.0005, float momentum = 0.9, const std::vector<int>& gpus = {0});
 };
 
 struct model_infer
@@ -18,7 +18,7 @@ struct model_infer
     model_infer(const dlib::yolo_options& options);
     rgpnet::infer net;
     dlib::dnn_trainer<rgpnet::infer, dlib::sgd>
-        get_trainer(float weight_decay = 0.0005, float momentum = 0.9);
+        get_trainer(float weight_decay = 0.0005, float momentum = 0.9, const std::vector<int>& gpus = {0});
 };
 
 #endif  // model_h_INCLUDED
