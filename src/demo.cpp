@@ -4,6 +4,7 @@
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/data_io.h>
+#include <dlib/dir_nav.h>
 #include <dlib/image_io.h>
 #include <dlib/opencv.h>
 #include <opencv2/videoio.hpp>
@@ -12,19 +13,21 @@
 using rgb_image = dlib::matrix<dlib::rgb_pixel>;
 using fseconds = std::chrono::duration<float>;
 using fms = std::chrono::duration<float, std::milli>;
+const auto image_types = dlib::match_endings(".jpg .jpeg .gif .png .bmp .JPG JPEG .GIF .PNG .BMP");
 
 auto main(const int argc, const char** argv) -> int
 try
 {
     dlib::command_line_parser parser;
     parser.set_group_name("Detector Options");
-    parser.add_option("conf-thresh", "detection confidence threshold (default: 0.25)", 1);
+    parser.add_option("conf", "detection confidence threshold (default: 0.25)", 1);
     parser.add_option("dnn", "load this network file", 1);
     parser.add_option("nms", "IoU and area covered ratio thresholds (default: 0.45 1)", 2);
     parser.add_option("nms-agnostic", "class-agnositc NMS");
     parser.add_option("size", "image size for inference (default: 512)", 1);
     parser.add_option("sync", "load this sync file", 1);
     parser.set_group_name("Display Options");
+    parser.add_option("no-display", "do not display detection for --image(s) options");
     parser.add_option("font", "path to custom bdf font", 1);
     parser.add_option("multilabel", "draw multiple labels per class");
     parser.add_option("no-labels", "do not draw label names");
@@ -32,6 +35,8 @@ try
     parser.set_group_name("I/O Options");
     parser.add_option("fps", "force frames per second (default: 30)", 1);
     parser.add_option("input", "input file to process instead of the camera", 1);
+    parser.add_option("image", "path to image file", 1);
+    parser.add_option("images", "path to directory with images", 1);
     parser.add_option("output", "output file to write out the processed input", 1);
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
     parser.set_group_name("Help Options");
@@ -46,21 +51,32 @@ try
         webcam_window::print_keyboard_shortcuts();
         return EXIT_SUCCESS;
     }
+    // check for incompatible input options
+    const auto input_options = std::array{"image", "images", "input", "webcam"};
+    for (size_t i = 0; i < input_options.size(); ++i)
+    {
+        for (size_t j = i + 1; j < input_options.size(); ++j)
+        {
+            parser.check_incompatible_options(input_options[i], input_options[j]);
+        }
+    }
     parser.check_incompatible_options("dnn", "sync");
     parser.check_incompatible_options("no-labels", "multilabel");
     parser.check_incompatible_options("no-labels", "font");
-    parser.check_incompatible_options("input", "webcam");
     parser.check_option_arg_range<size_t>("size", 224, 2048);
     parser.check_option_arg_range<size_t>("thickness", 0, 10);
     parser.check_option_arg_range<double>("nms", 0, 1);
+    parser.check_sub_option("image", "no-display");
+    parser.check_sub_option("images", "no-display");
 
     const size_t image_size = dlib::get_option(parser, "size", 512);
-    const double conf_thresh = dlib::get_option(parser, "conf-thresh", 0.25);
+    const double conf_thresh = dlib::get_option(parser, "conf", 0.25);
     const std::string dnn_path = dlib::get_option(parser, "dnn", "");
     const std::string sync_path = dlib::get_option(parser, "sync", "");
     const size_t thickness = dlib::get_option(parser, "thickness", 5);
     const std::string font_path = dlib::get_option(parser, "font", "");
     const bool classwise_nms = not parser.option("nms-agnostic");
+    const bool display = not parser.option("no-display");
     const size_t webcam_index = dlib::get_option(parser, "webcam", 0);
     const std::string input_path = dlib::get_option(parser, "input", "");
     const std::string output_path = dlib::get_option(parser, "output", "");
@@ -106,7 +122,49 @@ try
         options.string_to_color(label);
 
     webcam_window win(conf_thresh);
+    if (not display)
+        win.close_window();
     win.can_record = not output_path.empty();
+
+    if (parser.option("image"))
+    {
+        rgb_image image, letterbox;
+        dlib::load_image(image, parser.option("image").argument());
+        const auto tform = preprocess_image(image, letterbox, image_size);
+        auto detections = net.process(letterbox, conf_thresh);
+        postprocess_detections(tform, detections);
+        draw_bounding_boxes(image, detections, options);
+        dlib::save_png(image, "detections.png");
+        if (display)
+        {
+            win.set_image(image);
+            win.wait_until_closed();
+        }
+        return EXIT_SUCCESS;
+    }
+
+    if (parser.option("images"))
+    {
+        rgb_image image, letterbox;
+        const auto path = parser.option("images").argument();
+        const auto files = dlib::get_files_in_directory_tree(path, image_types);
+        std::cout << "# images: " << files.size() << std::endl;
+        for (const auto& file : files)
+        {
+            dlib::load_image(image, file.full_name());
+            const auto tform = preprocess_image(image, letterbox, image_size);
+            auto detections = net.process(letterbox, conf_thresh);
+            postprocess_detections(tform, detections);
+            draw_bounding_boxes(image, detections, options);
+            dlib::save_png(image, "detections.png");
+            if (display)
+            {
+                win.set_image(image);
+                std::cin.get();
+            }
+        }
+        return EXIT_SUCCESS;
+    }
 
     cv::VideoCapture vid_src;
     cv::VideoWriter vid_snk;
