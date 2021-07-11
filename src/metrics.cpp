@@ -165,10 +165,15 @@ try
             const auto& im = details[i].info;
             auto& dets = detections_batch[i];
             std::vector<bool> used(dets.size(), false);
+            const size_t num_pr = std::count_if(
+                dets.begin(),
+                dets.end(),
+                [conf_thresh](const auto& d) { return d.detection_confidence > conf_thresh; });
             // true positives: truths matched by detections
             for (size_t t = 0; t < im.boxes.size(); ++t)
             {
-                bool found_match = false;
+                bool found_match_ap = false;
+                bool found_match_pr = false;
                 for (size_t d = 0; d < dets.size(); ++d)
                 {
                     if (used[d])
@@ -179,55 +184,30 @@ try
                             dets[d].rect) > 0.5)
                     {
                         used[d] = true;
-                        found_match = true;
+                        found_match_ap = true;
                         hits.at(dets[d].label).emplace_back(dets[d].detection_confidence, true);
+                        if (d < num_pr)
+                        {
+                            found_match_pr = true;
+                            results[dets[d].label].tp++;
+                        }
                         break;
                     }
                 }
                 // false negatives: truths not matched
-                if (!found_match)
+                if (!found_match_ap)
                     missing.at(im.boxes[t].label)++;
-            }
-            // false positives: detections not matched
-            for (size_t d = 0; d < dets.size(); ++d)
-            {
-                if (!used[d])
-                    hits.at(dets[d].label).emplace_back(dets[d].detection_confidence, false);
-            }
-
-            dets.erase(std::remove_if(
-                dets.begin(),
-                dets.end(),
-                [conf_thresh](const auto& d) { return d.detection_confidence < conf_thresh; }), dets.end());
-            std::vector<bool> used_pr(dets.size(), false);
-            for (size_t t = 0; t < im.boxes.size(); ++t)
-            {
-                bool found_match_pr = false;
-                for (size_t d = 0; d < dets.size(); ++d)
-                {
-                    if (used_pr[d])
-                        continue;
-                    if (im.boxes[t].label == dets[d].label &&
-                        box_intersection_over_union(
-                            dlib::drectangle(im.boxes[t].rect),
-                            dets[d].rect) > 0.5)
-                    {
-                        used_pr[d] = true;
-                        found_match_pr = true;
-                        results[dets[d].label].tp++;
-                        break;
-                    }
-                }
-                // false negatives: truths not matched
                 if (!found_match_pr)
                     results[im.boxes[t].label].fn++;
             }
             // false positives: detections not matched
             for (size_t d = 0; d < dets.size(); ++d)
             {
-                if (!used_pr[d])
+                if (!used[d])
                 {
-                    results[dets[d].label].fp++;
+                    hits.at(dets[d].label).emplace_back(dets[d].detection_confidence, false);
+                    if (d < num_pr)
+                        results[dets[d].label].fp++;
                 }
             }
         }
