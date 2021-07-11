@@ -186,7 +186,19 @@ try
         {
             std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
             const auto idx = rnd.get_random_32bit_number() % dataset.images.size();
-            dlib::load_image(image, data_directory + "/" + dataset.images[idx].filename);
+            try
+            {
+                dlib::load_image(image, data_directory + "/" + dataset.images[idx].filename);
+            }
+            catch (const dlib::image_load_error& e)
+            {
+                std::cerr << "ERROR loading image" << data_directory + "/" + dataset.images[idx].filename << std::endl;
+                std::cerr << e.what() << std::endl;
+                auto empty = rgb_image(image_size, image_size);
+                dlib::assign_all_pixels(empty, dlib::rgb_pixel(0, 0, 0));
+                sample.second = {};
+                return sample;
+            }
             for (const auto& box : dataset.images[idx].boxes)
                 sample.second.emplace_back(box.rect, 1, box.label);
 
