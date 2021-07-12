@@ -131,8 +131,16 @@ try
         rgb_image image, letterbox;
         dlib::load_image(image, parser.option("image").argument());
         const auto tform = preprocess_image(image, letterbox, image_size);
+        const auto t0 = std::chrono::steady_clock::now();
         auto detections = net.process(letterbox, conf_thresh);
+        const auto t1 = std::chrono::steady_clock::now();
+        const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
+        std::cout << parser.option("image").argument() << ": " << t << " ms" << std::endl;
         postprocess_detections(tform, detections);
+        for (const auto& d : detections)
+        {
+            std::cout << d.label << " " << d.detection_confidence << ": " << d.rect << "\n";
+        }
         draw_bounding_boxes(image, detections, options);
         dlib::save_png(image, "detections.png");
         if (display)
@@ -153,8 +161,16 @@ try
         {
             dlib::load_image(image, file.full_name());
             const auto tform = preprocess_image(image, letterbox, image_size);
+            const auto t0 = std::chrono::steady_clock::now();
             auto detections = net.process(letterbox, conf_thresh);
+            const auto t1 = std::chrono::steady_clock::now();
             postprocess_detections(tform, detections);
+            const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
+            std::cout << file.full_name() << ": " << t << " ms" << std::endl;
+            for (const auto& d : detections)
+            {
+                std::cout << d.label << " " << d.detection_confidence << ": " << d.rect << "\n";
+            }
             draw_bounding_boxes(image, detections, options);
             dlib::save_png(image, "detections.png");
             if (display)
