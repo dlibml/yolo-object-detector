@@ -341,17 +341,20 @@ try
         trainer.train_one_step(images, bboxes);
     };
 
-    std::cout << "training started with " << burnin << " burn-in steps" << std::endl;
-    while (trainer.get_train_one_step_calls() < burnin)
-        train();
+    if (trainer.get_train_one_step_calls() < burnin)
+    {
+        std::cout << "training started with " << burnin << " burn-in steps" << std::endl;
+        while (trainer.get_train_one_step_calls() < burnin)
+            train();
+        std::cout << "burn-in finished" << std::endl;
+        trainer.get_net();
+        trainer.set_learning_rate(learning_rate);
+        trainer.set_min_learning_rate(min_learning_rate);
+        trainer.set_learning_rate_shrink_factor(0.1);
+        trainer.set_iterations_without_progress_threshold(patience);
+        std::cout << trainer << std::endl;
+    }
 
-    std::cout << "burn-in finished" << std::endl;
-    trainer.get_net();
-    trainer.set_learning_rate(learning_rate);
-    trainer.set_min_learning_rate(min_learning_rate);
-    trainer.set_learning_rate_shrink_factor(0.1);
-    trainer.set_iterations_without_progress_threshold(patience);
-    std::cout << trainer << std::endl;
 
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
         train();
