@@ -73,7 +73,6 @@ try
     const double conf_thresh = dlib::get_option(parser, "conf", 0.25);
     const std::string dnn_path = dlib::get_option(parser, "dnn", "");
     const std::string sync_path = dlib::get_option(parser, "sync", "");
-    const size_t thickness = dlib::get_option(parser, "thickness", 5);
     const std::string font_path = dlib::get_option(parser, "font", "");
     const bool classwise_nms = not parser.option("nms-agnostic");
     const bool display = not parser.option("no-display");
@@ -115,7 +114,7 @@ try
         std::cout << net.loss_details() << std::endl;
 
     drawing_options options(font_path);
-    options.thickness = thickness;
+    options.thickness = dlib::get_option(parser, "thickness", 5);
     options.multilabel = parser.option("multilabel");
     options.draw_labels = not parser.option("no-labels");
     for (const auto& label : net.loss_details().get_options().labels)
