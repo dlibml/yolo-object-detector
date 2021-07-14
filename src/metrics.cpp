@@ -246,8 +246,9 @@ try
         weighted_f1_score += r.f1_score() * r.support();
         // clang-format off
         std::cout << dlib::rpad(item.first + ": ", padding)
-                  << std::setprecision(3) << std::right << std::fixed
+                  << std::setprecision(2) << std::right << std::fixed
                   << std::setw(12) << ap * 100. << "%"
+                  << std::setprecision(4)
                   << std::setw(12) << r.precision()
                   << std::setw(12) << r.recall()
                   << std::setw(12) << r.f1_score()
@@ -267,8 +268,9 @@ try
     std::cout << "--" << std::endl;
     // clang-format off
     std::cout << dlib::rpad(std::string("macro: "), padding)
-              << std::setprecision(3) << std::right << std::fixed
+              << std::setprecision(2) << std::right << std::fixed
               << std::setw(12) << map * 100. / hits.size() << "%"
+              << std::setprecision(4)
               << std::setw(12) << macro_precision / results.size()
               << std::setw(12) << macro_recall / results.size()
               << std::setw(12) << macro_f1_score / results.size()
@@ -280,7 +282,7 @@ try
               << std::setw(12) << micro.f1_score()
               << std::endl;
     std::cout << dlib::rpad(std::string("weighted: "), padding)
-              << std::setprecision(3) << std::right << std::fixed
+              << std::setprecision(4) << std::right << std::fixed
               << "             "
               << std::setw(12) << weighted_precision / num_boxes
               << std::setw(12) << weighted_recall / num_boxes
