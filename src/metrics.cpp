@@ -36,7 +36,7 @@ auto main(const int argc, const char** argv) -> int
 try
 {
     dlib::command_line_parser parser;
-    parser.add_option("batch-size", "batch size for inference (default: 32)", 1);
+    parser.add_option("batch", "batch size for inference (default: 32)", 1);
     parser.add_option("conf", "detection confidence threshold (default: 0.25)", 1);
     parser.add_option("dnn", "load this network file", 1);
     parser.add_option("nms", "IoU and area covered ratio thresholds (default: 0.45 1)", 2);
@@ -63,7 +63,7 @@ try
     dlib::file dataset_file(parser[0]);
     const auto dataset_dir = dlib::get_parent_directory(dataset_file).full_name();
 
-    const size_t batch_size = dlib::get_option(parser, "batch-size", 32);
+    const size_t batch_size = dlib::get_option(parser, "batch", 32);
     const size_t image_size = dlib::get_option(parser, "size", 512);
     const size_t num_workers = dlib::get_option(parser, "workers", 512);
     const double conf_thresh = dlib::get_option(parser, "conf", 0.25);
