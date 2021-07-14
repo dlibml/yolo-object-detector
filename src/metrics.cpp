@@ -264,20 +264,14 @@ try
     for (const auto& im : dataset.images)
         num_boxes += im.boxes.size();
 
-    macro_precision /= results.size();
-    macro_recall /= results.size();
-    macro_f1_score /= results.size();
-    weighted_precision /= num_boxes;
-    weighted_recall /= num_boxes;
-    weighted_f1_score /= num_boxes;
     std::cout << "--" << std::endl;
     // clang-format off
     std::cout << dlib::rpad(std::string("macro: "), padding)
               << std::setprecision(3) << std::right << std::fixed
               << std::setw(12) << map * 100. / hits.size() << "%"
-              << std::setw(12) << macro_precision
-              << std::setw(12) << macro_recall
-              << std::setw(12) << macro_f1_score
+              << std::setw(12) << macro_precision / results.size()
+              << std::setw(12) << macro_recall / results.size()
+              << std::setw(12) << macro_f1_score / results.size()
               << std::endl;
     std::cout << dlib::rpad(std::string("micro: "), padding)
               << "             "
@@ -288,9 +282,9 @@ try
     std::cout << dlib::rpad(std::string("weighted: "), padding)
               << std::setprecision(3) << std::right << std::fixed
               << "             "
-              << std::setw(12) << weighted_precision
-              << std::setw(12) << weighted_recall
-              << std::setw(12) << weighted_f1_score
+              << std::setw(12) << weighted_precision / num_boxes
+              << std::setw(12) << weighted_recall / num_boxes
+              << std::setw(12) << weighted_f1_score / num_boxes
               << std::endl;
     // clang-format on
 
