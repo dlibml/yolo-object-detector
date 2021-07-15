@@ -366,7 +366,7 @@ try
     for (auto& worker : data_loaders)
         worker.join();
 
-    dlib::serialize(experiment_name) << net;
+    dlib::serialize(experiment_name + ".dnn") << net;
     return EXIT_SUCCESS;
 }
 catch (const std::exception& e)
