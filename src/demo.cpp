@@ -31,6 +31,7 @@ try
     parser.add_option("font", "path to custom bdf font", 1);
     parser.add_option("multilabel", "draw multiple labels per class");
     parser.add_option("no-labels", "do not draw label names");
+    parser.add_option("no-conf", "do not display the confidence value");
     parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
     parser.set_group_name("I/O Options");
     parser.add_option("fps", "force frames per second (default: 30)", 1);
@@ -117,6 +118,7 @@ try
     options.thickness = dlib::get_option(parser, "thickness", 5);
     options.multilabel = parser.option("multilabel");
     options.draw_labels = not parser.option("no-labels");
+    options.draw_confidence = not parser.option("no-conf");
     for (const auto& label : net.loss_details().get_options().labels)
         options.string_to_color(label);
 
@@ -190,6 +192,8 @@ try
             fps = file.get(cv::CAP_PROP_FPS);
         vid_src = file;
         win.mirror = false;
+        if (not output_path.empty())
+            win.recording = true;
     }
     else
     {

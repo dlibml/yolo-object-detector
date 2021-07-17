@@ -63,6 +63,7 @@ struct drawing_options
     size_t thickness = 5;
     color_mapper string_to_color;
     bool draw_labels = true;
+    bool draw_confidence = true;
     bool multilabel = false;
     const std::shared_ptr<dlib::font>& get_font()
     {
@@ -104,13 +105,21 @@ inline void draw_bounding_boxes(
             if (opts.multilabel)
             {
                 for (size_t i = 0; i < d.labels.size() - 1; ++i)
-                    sout << d.labels[i].second << " (" << d.labels[i].first * 100 << "%), ";
-                sout << d.labels[d.labels.size() - 1].second << " ("
-                     << d.labels[d.labels.size() - 1].first * 100 << "%)";
+                {
+                    sout << d.labels[i].second;
+                    if (opts.draw_confidence)
+                        sout << " (" << d.labels[i].first * 100 << "%)";
+                    sout << ", ";
+                }
+                sout << d.labels[d.labels.size() - 1].second;
+                if (opts.draw_confidence)
+                    sout << " (" << d.labels[d.labels.size() - 1].first * 100 << "%)";
             }
             else
             {
-                sout << d.label << " (" << d.detection_confidence * 100 << "%)";
+                sout << d.label;
+                if (opts.draw_confidence)
+                    sout << " (" << d.detection_confidence * 100 << "%)";
             }
 
             const dlib::ustring label = dlib::convert_utf8_to_utf32(sout.str());
