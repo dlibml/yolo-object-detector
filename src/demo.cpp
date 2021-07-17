@@ -29,9 +29,10 @@ try
     parser.set_group_name("Display Options");
     parser.add_option("no-display", "do not display detection for --image(s) options");
     parser.add_option("font", "path to custom bdf font", 1);
+    parser.add_option("mapping", "mapping file to change labels names", 1);
     parser.add_option("multilabel", "draw multiple labels per class");
-    parser.add_option("no-labels", "do not draw label names");
     parser.add_option("no-conf", "do not display the confidence value");
+    parser.add_option("no-labels", "do not draw label names");
     parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
     parser.set_group_name("I/O Options");
     parser.add_option("fps", "force frames per second (default: 30)", 1);
@@ -61,9 +62,11 @@ try
             parser.check_incompatible_options(input_options[i], input_options[j]);
         }
     }
+
     parser.check_incompatible_options("dnn", "sync");
     parser.check_incompatible_options("no-labels", "multilabel");
     parser.check_incompatible_options("no-labels", "font");
+    parser.check_incompatible_options("no-labels", "mapping");
     parser.check_option_arg_range<size_t>("size", 224, 2048);
     parser.check_option_arg_range<size_t>("thickness", 0, 10);
     parser.check_option_arg_range<double>("nms", 0, 1);
@@ -80,6 +83,7 @@ try
     const size_t webcam_index = dlib::get_option(parser, "webcam", 0);
     const std::string input_path = dlib::get_option(parser, "input", "");
     const std::string output_path = dlib::get_option(parser, "output", "");
+    const std::string mapping_file = dlib::get_option(parser, "mapping", "");
     float fps = dlib::get_option(parser, "fps", 30);
     double nms_iou_threshold = 0.45;
     double nms_ratio_covered = 1.0;
@@ -118,9 +122,26 @@ try
     options.thickness = dlib::get_option(parser, "thickness", 5);
     options.multilabel = parser.option("multilabel");
     options.draw_labels = not parser.option("no-labels");
-    options.draw_confidence = not parser.option("no-conf");
+    options.draw_confidence = not parser.option("no-conf") and options.draw_labels;
     for (const auto& label : net.loss_details().get_options().labels)
+    {
         options.string_to_color(label);
+        options.mapping[label] = label;
+    }
+
+    if (not mapping_file.empty())
+    {
+        std::ifstream fin(mapping_file);
+        if (not fin.good())
+            throw std::runtime_error("Error reading " + mapping_file);
+        std::string line;
+        for (const auto& label : model.net.loss_details().get_options().labels)
+        {
+            getline(fin, line);
+            std::cerr << "mapping: " << label << " => " << line << std::endl;
+            options.mapping.at(label) = line;
+        }
+    }
 
     webcam_window win(conf_thresh);
     if (not display)

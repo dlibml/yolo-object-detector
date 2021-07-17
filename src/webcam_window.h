@@ -65,6 +65,7 @@ struct drawing_options
     bool draw_labels = true;
     bool draw_confidence = true;
     bool multilabel = false;
+    std::map<std::string, std::string> mapping;
     const std::shared_ptr<dlib::font>& get_font()
     {
         if (custom_font != nullptr)
@@ -106,18 +107,18 @@ inline void draw_bounding_boxes(
             {
                 for (size_t i = 0; i < d.labels.size() - 1; ++i)
                 {
-                    sout << d.labels[i].second;
+                    sout << opts.mapping[d.labels[i].second];
                     if (opts.draw_confidence)
                         sout << " (" << d.labels[i].first * 100 << "%)";
                     sout << ", ";
                 }
-                sout << d.labels[d.labels.size() - 1].second;
+                sout << opts.mapping[d.labels[d.labels.size() - 1].second];
                 if (opts.draw_confidence)
                     sout << " (" << d.labels[d.labels.size() - 1].first * 100 << "%)";
             }
             else
             {
-                sout << d.label;
+                sout << opts.mapping[d.label];
                 if (opts.draw_confidence)
                     sout << " (" << d.detection_confidence * 100 << "%)";
             }
