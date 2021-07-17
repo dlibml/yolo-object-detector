@@ -54,9 +54,18 @@ struct drawing_options
         {
             const auto font = std::make_shared<dlib::bdf_font>();
             std::ifstream fin(font_path);
-            font->read_bdf_file(fin, 0xFFFF);
-            font->adjust_metrics();
-            custom_font = std::move(font);
+            if (fin.good())
+            {
+                font->read_bdf_file(fin, 0xFFFF);
+                font->adjust_metrics();
+                custom_font = std::move(font);
+            }
+            else
+            {
+                std::cerr << "WARNING: could not open font file " + font_path +
+                                 ", using default font."
+                          << std::endl;
+            }
         }
     };
     dlib::rgb_pixel font_color = dlib::rgb_pixel(0, 0, 0);
