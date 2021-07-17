@@ -83,7 +83,7 @@ try
     const size_t webcam_index = dlib::get_option(parser, "webcam", 0);
     const std::string input_path = dlib::get_option(parser, "input", "");
     const std::string output_path = dlib::get_option(parser, "output", "");
-    const std::string mapping_file = dlib::get_option(parser, "mapping", "");
+    const std::string mapping_path = dlib::get_option(parser, "mapping", "");
     float fps = dlib::get_option(parser, "fps", 30);
     double nms_iou_threshold = 0.45;
     double nms_ratio_covered = 1.0;
@@ -129,11 +129,11 @@ try
         options.mapping[label] = label;
     }
 
-    if (not mapping_file.empty())
+    if (not mapping_path.empty())
     {
-        std::ifstream fin(mapping_file);
+        std::ifstream fin(mapping_path);
         if (not fin.good())
-            throw std::runtime_error("Error reading " + mapping_file);
+            throw std::runtime_error("Error reading " + mapping_path);
         std::string line;
         for (const auto& label : model.net.loss_details().get_options().labels)
         {
@@ -164,7 +164,8 @@ try
             std::cout << d.label << " " << d.detection_confidence << ": " << d.rect << "\n";
         }
         draw_bounding_boxes(image, detections, options);
-        dlib::save_png(image, "detections.png");
+        if (not output_path.empty())
+            dlib::save_png(image, output_path);
         if (display)
         {
             win.set_image(image);
@@ -194,7 +195,8 @@ try
                 std::cout << d.label << " " << d.detection_confidence << ": " << d.rect << "\n";
             }
             draw_bounding_boxes(image, detections, options);
-            dlib::save_png(image, "detections.png");
+            if (not output_path.empty())
+                dlib::save_png(image, output_path);
             if (display)
             {
                 win.set_image(image);
