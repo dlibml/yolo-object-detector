@@ -136,12 +136,12 @@ inline void draw_bounding_boxes(
             const auto [lw, lh] = string_dims(label, opts.get_font());
 
             // the default case: label outside the top left corner of the box
-            dlib::point label_pos(r.left(), r.top() - lh);
+            dlib::point label_pos(r.left(), r.top() - lh - offset);
             dlib::rectangle bg(lw + opts.thickness, lh);
 
             // draw label inside the bounding box (move it downwards)
             if (label_pos.y() < 0)
-                label_pos = dlib::point(r.left(), r.top());
+                label_pos.y() += lh;
 
             bg = move_rect(bg, label_pos.x() - offset, label_pos.y());
             fill_rect(image, bg, color);
