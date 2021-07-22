@@ -14,6 +14,7 @@ int main(const int argc, const char** argv)
 try
 {
     dlib::command_line_parser parser;
+    parser.add_option("architecture", "print the network architecture");
     parser.add_option("name", "name used for sync and net files (default: yolo)", 1);
     parser.add_option("size", "image size for internal usage (default: 512)", 1);
     parser.add_option("test", "visually test with a threshold (default: 0.01)", 1);
@@ -128,6 +129,8 @@ try
     model_train model(options);
     auto& net = model.net;
     setup_detector(net, options);
+    if (parser.option("architecture"))
+        std::cerr << net << std::endl;
 
     // The training process can be unstable at the beginning.  For this reason, we exponentially
     // increase the learning rate during the first burnin steps.
