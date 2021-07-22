@@ -11,7 +11,7 @@ try
     dlib::command_line_parser parser;
     parser.add_option("dataset", "path to the dataset XML file", 1);
     parser.add_option("size", "image size to use during training (default: 512)", 1);
-    parser.add_option("areas", "min and max areas covered for an anchor box group", 2);
+    parser.add_option("sides", "min and max sides covered for an anchor box group", 2);
     parser.add_option("clusters", "number of clusters for an anchor box group", 1);
     parser.add_option("iou", "minimum IoU each anchor should have", 1);
     parser.set_group_name("Help Options");
@@ -31,7 +31,7 @@ try
                   << std::endl;
         ;
         std::cout << dlib::wrap_string(
-                         "2: --areas and --clusters should be specified as many "
+                         "2: --sides and --clusters should be specified as many "
                          "times as strides, and they must match.",
                          0,
                          3)
@@ -51,12 +51,12 @@ try
         return EXIT_FAILURE;
     }
 
-    if (not parser.option("areas"))
+    if (not parser.option("sides"))
     {
-        std::cout << "specify the areas covered by an anchor box group." << std::endl;
+        std::cout << "specify the sides of an anchor box group." << std::endl;
         return EXIT_FAILURE;
     }
-    const size_t num_groups = parser.option("areas").count();
+    const size_t num_groups = parser.option("sides").count();
 
     if (not parser.option("clusters") and not parser.option("iou"))
     {
@@ -67,7 +67,7 @@ try
 
     if (parser.option("clusters"))
     {
-        DLIB_CASSERT(parser.option("areas").count() == parser.option("clusters").count());
+        DLIB_CASSERT(parser.option("sides").count() == parser.option("clusters").count());
     }
 
     // Load the dataset
@@ -77,18 +77,18 @@ try
     // Prepare the anchor box groups
     std::vector<size_t> clusters;
     std::vector<std::pair<double, double>> ranges;
-    for (size_t i = 0; i < parser.option("areas").count(); ++i)
+    for (size_t i = 0; i < parser.option("sides").count(); ++i)
     {
         std::pair<double, double> range;
-        range.first = std::stod(parser.option("areas").argument(0, i));
-        range.second = std::stod(parser.option("areas").argument(1, i));
+        range.first = std::stod(parser.option("sides").argument(0, i));
+        range.second = std::stod(parser.option("sides").argument(1, i));
         if (range.first > range.second)
             std::swap(range.first, range.second);
         ranges.push_back(std::move(range));
         if (parser.option("clusters"))
             clusters.push_back(std::stoul(parser.option("clusters").argument(0, i)));
 
-        std::cout << "group #" << i << ranges.back().first << " - " << ranges.back().second
+        std::cout << "group #" << i << ": " << ranges.back().first << " - " << ranges.back().second
                   << std::endl;
     }
 
@@ -103,12 +103,13 @@ try
             sample_t sample;
             sample(0) = box.rect.width() * scale;
             sample(1) = box.rect.height() * scale;
-            const double area = sample(0) * sample(1);
+            const auto [min_side, max_side] = std::minmax(sample(0), sample(1));
             for (size_t i = 0; i < ranges.size(); ++i)
             {
-                if (ranges[i].first < area && area < ranges[i].second)
+                if (ranges[i].second > max_side)
                 {
                     box_groups.at(i).push_back(std::move(sample));
+                    break;
                 }
             }
             ++num_boxes;

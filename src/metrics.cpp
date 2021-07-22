@@ -91,6 +91,9 @@ try
         auto trainer = model.get_trainer();
         trainer.set_synchronization_file(sync_path);
         trainer.get_net();
+        std::cerr << "Lodaded network from " << sync_path << std::endl;
+        std::cerr << "current learning rate: " << trainer.get_learning_rate() << std::endl;
+        std::cerr << "# training steps: " << trainer.get_train_one_step_calls() << std::endl;
     }
     else
     {
