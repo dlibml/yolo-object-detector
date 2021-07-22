@@ -19,8 +19,8 @@ try
     parser.add_option("test", "visually test with a threshold (default: 0.01)", 1);
     parser.add_option("visualize", "visualize data augmentation instead of training");
     parser.set_group_name("Training Options");
-    parser.add_option("batch-size", "mini batch size (default: 8)", 1);
-    parser.add_option("burnin", "learning rate burnin steps (default: 1000)", 1);
+    parser.add_option("batch", "mini batch size (default: 8)", 1);
+    parser.add_option("burnin", "learning rate burn-in steps (default: 1000)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
     parser.add_option("iou-anchor", "extra anchors IoU treshold (default: 1)", 1);
@@ -32,7 +32,12 @@ try
     parser.add_option("workers", "number of worker data loader threads (default: 4)", 1);
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max random rotation in degrees (default: 5)", 1);
+    parser.add_option("blur", "probability of blurring the image (default: 0.5)", 1);
+    parser.add_option("color", "color magnitude (default: 0.2)", 1);
+    parser.add_option("color-offset", "random color offset probability (default: 0.5)", 1);
     parser.add_option("crop", "no-mosaic random crop probability (default: 0.5)", 1);
+    parser.add_option("gamma", "gamma magnitude (default: 0.5)", 1);
+    parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("shift", "translation relative to box size (default: 0.5)", 1);
     parser.set_group_name("Help Options");
@@ -48,18 +53,28 @@ try
     }
     parser.check_option_arg_range<double>("iou-ignore", 0, 1);
     parser.check_option_arg_range<double>("iou-anchor", 0, 1);
+    parser.check_option_arg_range<double>("mirror", 0, 1);
     parser.check_option_arg_range<double>("mosaic", 0, 1);
     parser.check_option_arg_range<double>("crop", 0, 1);
+    parser.check_option_arg_range<double>("color-offset", 0, 1);
+    parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
+    parser.check_option_arg_range<double>("color", 0, 1);
+    parser.check_option_arg_range<double>("blur", 0, 1);
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 10000);
-    const size_t batch_size = get_option(parser, "batch-size", 8);
+    const size_t batch_size = get_option(parser, "batch", 8);
     const size_t burnin = get_option(parser, "burnin", 1000);
     const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", 4);
     const size_t num_gpus = get_option(parser, "gpus", 1);
+    const double mirror_prob = get_option(parser, "mirror", 0.5);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
     const double crop_prob = get_option(parser, "crop", 0.5);
+    const double blur_prob = get_option(parser, "blur", 0.5);
+    const double color_offset_prob = get_option(parser, "color-offset", 0.5);
+    const double gamma_magnitude = get_option(parser, "gamma", 0.5);
+    const double color_magnitude = get_option(parser, "color", 0.2);
     const double angle = get_option(parser, "angle", 5);
     const double shift = get_option(parser, "shift", 0.5);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
@@ -170,16 +185,17 @@ try
     const auto loader = [&](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
-        rgb_image image, rotated;
+        rgb_image image, rotated, blurred;
         dlib::random_cropper cropper;
         cropper.set_seed(time(nullptr) + seed);
         cropper.set_chip_dims(image_size, image_size);
         cropper.set_max_object_size(0.9);
-        cropper.set_min_object_size(16, 16);
+        cropper.set_min_object_size(24, 24);
         cropper.set_min_object_coverage(0.7);
         cropper.set_max_rotation_degrees(angle);
         cropper.set_translate_amount(shift);
-        cropper.set_randomly_flip(true);
+        if (mirror_prob == 0)
+            cropper.set_randomly_flip(false);
         cropper.set_background_crops_fraction(0);
 
         const auto get_sample = [&](const double crop_prob = 0.5)
@@ -217,11 +233,16 @@ try
                 for (auto& box : sample.second)
                     box.rect = tform(box.rect);
 
-                if (rnd.get_random_double() > 0.5)
+                if (rnd.get_random_double() < mirror_prob)
                 {
                     tform = flip_image_left_right(sample.first);
                     for (auto& box : sample.second)
                         box.rect = tform(box.rect);
+                }
+                if (rnd.get_random_double() < blur_prob)
+                {
+                    dlib::gaussian_blur(sample.first, blurred);
+                    std::swap(sample.first, blurred);
                 }
             }
             else
@@ -229,7 +250,12 @@ try
                 std::vector<dlib::yolo_rect> boxes = sample.second;
                 cropper(image, boxes, sample.first, sample.second);
             }
-            disturb_colors(sample.first, rnd);
+
+            if (rnd.get_random_double() > color_offset_prob)
+                disturb_colors(sample.first, rnd, gamma_magnitude, color_magnitude);
+            else
+                dlib::apply_random_color_offset(sample.first, rnd);
+
             return sample;
         };
 
