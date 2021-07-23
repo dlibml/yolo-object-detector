@@ -3,6 +3,7 @@
 #include "webcam_window.h"
 
 #include <dlib/cmd_line_parser.h>
+#include <dlib/console_progress_indicator.h>
 #include <dlib/data_io.h>
 #include <dlib/dir_nav.h>
 #include <dlib/image_io.h>
@@ -22,7 +23,7 @@ try
     parser.set_group_name("Detector Options");
     parser.add_option("conf", "detection confidence threshold (default: 0.25)", 1);
     parser.add_option("dnn", "load this network file", 1);
-    parser.add_option("nms", "IoU and area covered ratio thresholds (default: 0.45 1)", 2);
+    parser.add_option("nms", "IoU and area covered thresholds (default: 0.45 1)", 2);
     parser.add_option("nms-agnostic", "class-agnositc NMS");
     parser.add_option("size", "image size for inference (default: 512)", 1);
     parser.add_option("sync", "load this sync file", 1);
@@ -41,6 +42,9 @@ try
     parser.add_option("images", "path to directory with images", 1);
     parser.add_option("output", "output file to write out the processed input", 1);
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
+    parser.set_group_name("Pseudo-labelling Options");
+    parser.add_option("update", "update this dataset with pseudo-labels", 1);
+    parser.add_option("overlap", "overlap between truth and pseudo-labels", 2);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("print", "print the network architecture");
@@ -69,9 +73,12 @@ try
     parser.check_incompatible_options("no-labels", "mapping");
     parser.check_option_arg_range<size_t>("size", 224, 2048);
     parser.check_option_arg_range<size_t>("thickness", 0, 10);
+    parser.check_option_arg_range<double>("conf", 0, 1);
     parser.check_option_arg_range<double>("nms", 0, 1);
+    parser.check_option_arg_range<double>("overlap", 0, 1);
     parser.check_sub_option("image", "no-display");
     parser.check_sub_option("images", "no-display");
+    parser.check_sub_option("update", "overlap");
 
     const size_t image_size = dlib::get_option(parser, "size", 512);
     const double conf_thresh = dlib::get_option(parser, "conf", 0.25);
@@ -84,6 +91,7 @@ try
     const std::string input_path = dlib::get_option(parser, "input", "");
     const std::string output_path = dlib::get_option(parser, "output", "");
     const std::string mapping_path = dlib::get_option(parser, "mapping", "");
+    const std::string dataset_path = dlib::get_option(parser, "update", "");
     float fps = dlib::get_option(parser, "fps", 30);
     double nms_iou_threshold = 0.45;
     double nms_ratio_covered = 1.0;
@@ -117,6 +125,52 @@ try
         std::cout << net << std::endl;
     else
         std::cout << net.loss_details() << std::endl;
+
+    if (not dataset_path.empty())
+    {
+        dlib::image_dataset_metadata::dataset dataset;
+        dlib::image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_path);
+        dlib::locally_change_current_dir chdir(get_parent_directory(dlib::file(dataset_path)));
+        rgb_image image, letterbox;
+        double overlap_iou_threshold = 0.45;
+        double overlap_ratio_covered = 1;
+        if (parser.option("overlap"))
+        {
+            overlap_iou_threshold = std::stod(parser.option("overlap").argument(0));
+            overlap_ratio_covered = std::stod(parser.option("overlap").argument(1));
+        }
+        dlib::test_box_overlap overlaps(overlap_iou_threshold, overlap_ratio_covered);
+        dlib::console_progress_indicator progress(dataset.images.size());
+        for (size_t i = 0; i < dataset.images.size(); ++i)
+        {
+            auto& image_info = dataset.images[i];
+            dlib::load_image(image, image_info.filename);
+            const auto tform = preprocess_image(image, letterbox, image_size);
+            auto detections = net.process(letterbox, conf_thresh);
+            postprocess_detections(tform, detections);
+            std::vector<dlib::image_dataset_metadata::box> boxes;
+            for (const auto& pseudo : detections)
+            {
+                if (not overlaps_any_box(image_info.boxes, pseudo, overlaps, classwise_nms))
+                {
+                    dlib::image_dataset_metadata::box box;
+                    box.rect = pseudo.rect;
+                    box.label = pseudo.label;
+                    image_info.boxes.push_back(std::move(box));
+                }
+            }
+            const auto percent = (i + 1) * 100. / dataset.images.size();
+            progress.print_status(i + 1, false, std::cerr);
+            std::cerr << "\t\t\t\tProgress: " << i + 1 << "/" << dataset.images.size() << " ("
+                      << std::fixed << std::setprecision(3) << percent << "%)        \r"
+                      << std::flush;
+        }
+        std::cerr << std::endl;
+        chdir.revert();
+        const auto new_path = dataset_path.substr(0, dataset_path.rfind('.')) + "-pseudo.xml";
+        dlib::image_dataset_metadata::save_image_dataset_metadata(dataset, new_path);
+        return EXIT_SUCCESS;
+    }
 
     drawing_options options(font_path);
     options.thickness = dlib::get_option(parser, "thickness", 5);

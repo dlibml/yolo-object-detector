@@ -167,12 +167,12 @@ class webcam_window : public dlib::image_window
     static void print_keyboard_shortcuts()
     {
         std::cout << "Keyboard Shortcuts:" << std::endl;
-        std::cout << "  h                     display keyboard shortcuts\n";
-        std::cout << "  m                     toggle mirror mode\n";
-        std::cout << "  +, k                  increase confidence threshold by 0.01\n";
-        std::cout << "  -, j                  decrease confidence threshold by 0.01\n";
-        std::cout << "  r                     toggle recording (needs --output option)\n";
-        std::cout << "  q                     quit the application\n";
+        std::cout << "  h                         display keyboard shortcuts\n";
+        std::cout << "  m                         toggle mirror mode\n";
+        std::cout << "  +, k                      increase confidence threshold by 0.01\n";
+        std::cout << "  -, j                      decrease confidence threshold by 0.01\n";
+        std::cout << "  r                         toggle recording (needs --output option)\n";
+        std::cout << "  q                         quit the application\n";
         std::cout << std::endl;
     }
 
