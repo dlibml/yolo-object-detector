@@ -86,6 +86,9 @@ target_link_libraries(train PRIVATE model utils)
 add_dlib_executable(metrics)
 target_link_libraries(metrics PRIVATE model utils)
 
-add_dlib_executable(demo)
-target_link_libraries(demo PRIVATE model utils ${OpenCV_LIBS})
-target_include_directories(demo PRIVATE ${OpenCV_INCLUDE_DIRS})
+add_dlib_executable(detect)
+target_link_libraries(detect PRIVATE model utils ${OpenCV_LIBS})
+target_include_directories(detect PRIVATE ${OpenCV_INCLUDE_DIRS})
+
+add_dlib_executable(kfashion)
+target_link_libraries(kfashion PRIVATE nlohmann_json::nlohmann_json)
