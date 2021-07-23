@@ -24,13 +24,13 @@ try
     parser.add_option("conf", "detection confidence threshold (default: 0.25)", 1);
     parser.add_option("dnn", "load this network file", 1);
     parser.add_option("nms", "IoU and area covered thresholds (default: 0.45 1)", 2);
-    parser.add_option("nms-agnostic", "class-agnositc NMS");
+    parser.add_option("no-classwise", "disable classwise NMS");
     parser.add_option("size", "image size for inference (default: 512)", 1);
     parser.add_option("sync", "load this sync file", 1);
     parser.set_group_name("Display Options");
     parser.add_option("font", "path to custom bdf font", 1);
     parser.add_option("mapping", "mapping file to change labels names", 1);
-    parser.add_option("multilabel", "draw multiple labels per class");
+    parser.add_option("multilabel", "allow multiple labels per detection");
     parser.add_option("no-conf", "do not display the confidence value");
     parser.add_option("no-labels", "do not draw label names");
     parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
@@ -82,7 +82,7 @@ try
     const std::string dnn_path = dlib::get_option(parser, "dnn", "");
     const std::string sync_path = dlib::get_option(parser, "sync", "");
     const std::string font_path = dlib::get_option(parser, "font", "");
-    const bool classwise_nms = not parser.option("nms-agnostic");
+    const bool classwise_nms = not parser.option("no-classwise");
     const size_t webcam_index = dlib::get_option(parser, "webcam", 0);
     const std::string input_path = dlib::get_option(parser, "input", "");
     const std::string output_path = dlib::get_option(parser, "output", "");
