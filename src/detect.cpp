@@ -28,7 +28,6 @@ try
     parser.add_option("size", "image size for inference (default: 512)", 1);
     parser.add_option("sync", "load this sync file", 1);
     parser.set_group_name("Display Options");
-    parser.add_option("no-display", "do not display detection for --image(s) options");
     parser.add_option("font", "path to custom bdf font", 1);
     parser.add_option("mapping", "mapping file to change labels names", 1);
     parser.add_option("multilabel", "draw multiple labels per class");
@@ -76,8 +75,6 @@ try
     parser.check_option_arg_range<double>("conf", 0, 1);
     parser.check_option_arg_range<double>("nms", 0, 1);
     parser.check_option_arg_range<double>("overlap", 0, 1);
-    parser.check_sub_option("image", "no-display");
-    parser.check_sub_option("images", "no-display");
     parser.check_sub_option("update", "overlap");
 
     const size_t image_size = dlib::get_option(parser, "size", 512);
@@ -86,7 +83,6 @@ try
     const std::string sync_path = dlib::get_option(parser, "sync", "");
     const std::string font_path = dlib::get_option(parser, "font", "");
     const bool classwise_nms = not parser.option("nms-agnostic");
-    const bool display = not parser.option("no-display");
     const size_t webcam_index = dlib::get_option(parser, "webcam", 0);
     const std::string input_path = dlib::get_option(parser, "input", "");
     const std::string output_path = dlib::get_option(parser, "output", "");
@@ -198,8 +194,6 @@ try
     }
 
     webcam_window win(conf_thresh);
-    if (not display)
-        win.close_window();
     win.can_record = not output_path.empty();
 
     if (parser.option("image"))
@@ -220,11 +214,8 @@ try
         draw_bounding_boxes(image, detections, options);
         if (not output_path.empty())
             dlib::save_png(image, output_path);
-        if (display)
-        {
-            win.set_image(image);
-            win.wait_until_closed();
-        }
+        win.set_image(image);
+        win.wait_until_closed();
         return EXIT_SUCCESS;
     }
 
@@ -251,11 +242,8 @@ try
             draw_bounding_boxes(image, detections, options);
             if (not output_path.empty())
                 dlib::save_png(image, output_path);
-            if (display)
-            {
-                win.set_image(image);
-                std::cin.get();
-            }
+            win.set_image(image);
+            std::cin.get();
         }
         return EXIT_SUCCESS;
     }
