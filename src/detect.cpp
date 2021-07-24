@@ -42,6 +42,7 @@ try
     parser.add_option("output", "output file to write out the processed input", 1);
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
     parser.set_group_name("Pseudo-labelling Options");
+    parser.add_option("check", "check that all files in the dataset exist");
     parser.add_option("update", "update this dataset with pseudo-labels", 1);
     parser.add_option("overlap", "overlap between truth and pseudo-labels", 2);
     parser.set_group_name("Help Options");
@@ -76,6 +77,7 @@ try
     parser.check_option_arg_range<double>("nms", 0, 1);
     parser.check_option_arg_range<double>("overlap", 0, 1);
     parser.check_sub_option("update", "overlap");
+    parser.check_sub_option("update", "check");
 
     const size_t image_size = dlib::get_option(parser, "size", 512);
     const double conf_thresh = dlib::get_option(parser, "conf", 0.25);
@@ -124,6 +126,7 @@ try
 
     if (not dataset_path.empty())
     {
+        const bool check_dataset = parser.option("check");
         dlib::image_dataset_metadata::dataset dataset;
         dlib::image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_path);
         dlib::locally_change_current_dir chdir(get_parent_directory(dlib::file(dataset_path)));
@@ -140,6 +143,12 @@ try
         for (size_t i = 0; i < dataset.images.size(); ++i)
         {
             auto& image_info = dataset.images[i];
+            if (check_dataset)
+            {
+                if (not dlib::file_exists(image_info.filename))
+                    std::cout << image_info.filename << '\n';
+                continue;
+            }
             dlib::load_image(image, image_info.filename);
             const auto tform = preprocess_image(image, letterbox, image_size);
             auto detections = net.process(letterbox, conf_thresh);
