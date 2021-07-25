@@ -38,7 +38,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     endif()
 endif()
 
-find_package(TBB REQUIRED)
+# find_package(TBB REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # Dependency management
