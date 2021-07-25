@@ -1,7 +1,7 @@
 #ifndef utils_h_INCLUDED
 #define utils_h_INCLUDED
 
-#include "rgpnet.h"
+#include "model.h"
 
 #include <dlib/image_transforms.h>
 
@@ -38,6 +38,6 @@ void postprocess_detections(
     const dlib::rectangle_transform& tform,
     std::vector<dlib::yolo_rect>& detections);
 
-void setup_detector(rgpnet::train& net, const dlib::yolo_options& options);
+void setup_detector(net_train_type& net, const dlib::yolo_options& options);
 
 #endif  // utils_h_INCLUDED

@@ -79,6 +79,7 @@ add_dlib_executable(compute_anchors)
 
 add_dlib_library(model)
 add_dlib_library(utils)
+target_link_libraries(utils PRIVATE model)
 
 add_dlib_executable(train)
 target_link_libraries(train PRIVATE model utils)
