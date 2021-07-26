@@ -113,7 +113,7 @@ try
     parser.parse(argc, argv);
     if (parser.number_of_arguments() == 0 || parser.option("h") || parser.option("help"))
     {
-        std::cout << "Usage: " << argv[0] << " [OPTION]... PATH/TO/DATASET/DIRECTORY" << std::endl;
+        std::cout << "Usage: " << argv[0] << " [OPTION]… PATH/TO/DATASET/DIRECTORY" << std::endl;
         parser.print_options();
         std::cout << "Give the path to a folder containing the training.xml file." << std::endl;
         return 0;
