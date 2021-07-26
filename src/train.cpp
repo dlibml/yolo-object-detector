@@ -106,7 +106,7 @@ try
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.5)", 1);
-    parser.add_option("shift", "translation relative to box size (default: 0.5)", 1);
+    parser.add_option("shift", "crop shift relative to box size (default: 0.5)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
     parser.add_option("help", "display this message and exit");
@@ -128,6 +128,7 @@ try
     parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
     parser.check_option_arg_range<double>("color", 0, 1);
     parser.check_option_arg_range<double>("blur", 0, 1);
+    parser.check_sub_option("crop", "shift");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 10000);
@@ -331,7 +332,8 @@ try
                         corner.x() += rnd.get_double_in_range(-amount / 2., amount / 2.);
                         corner.y() += rnd.get_double_in_range(-amount / 2., amount / 2.);
                     }
-                    const auto ptform = omnious::extract_image_4points(image, sample.first, corners);
+                    const auto ptform =
+                        omnious::extract_image_4points(image, sample.first, corners);
                     for (auto& box : sample.second)
                     {
                         corners[0] = ptform(box.rect.tl_corner());
@@ -373,11 +375,10 @@ try
             {
                 const double scale = 0.5;
                 const long tile_size = image_size * scale;
-                std::pair<dlib::matrix<dlib::rgb_pixel, 0, 0>, std::vector<dlib::yolo_rect>>
-                    sample;
+                std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
                 sample.first.set_size(image_size, image_size);
-                const auto short_dim = cropper.get_min_object_length_short_dim() * scale;
-                const auto long_dim = cropper.get_min_object_length_long_dim() * scale;
+                const auto short_dim = cropper.get_min_object_length_short_dim();
+                const auto long_dim = cropper.get_min_object_length_long_dim();
                 for (size_t i = 0; i < 4; ++i)
                 {
                     long x = 0, y = 0;
@@ -407,7 +408,7 @@ try
                     const dlib::rectangle r(x, y, x + tile_size, y + tile_size);
                     auto si = dlib::sub_image(sample.first, r);
                     resize_image(tile.first, si);
-                    for (auto&& b : tile.second)
+                    for (auto& b : tile.second)
                     {
                         b.rect = translate_rect(scale_rect(b.rect, scale), x, y);
                         if ((b.rect.height() < long_dim and b.rect.width() < long_dim) or
