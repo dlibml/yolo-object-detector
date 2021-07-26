@@ -10,6 +10,71 @@
 
 using rgb_image = dlib::matrix<dlib::rgb_pixel>;
 
+// clang-format off
+namespace omnious
+{
+    template <
+        typename image_type
+        >
+    dlib::point_transform_projective extract_image_4points (
+        const image_type& img_,
+        image_type& out_,
+        const std::array<dlib::dpoint,4>& pts
+    )
+    {
+        dlib::const_image_view<image_type> img(img_);
+        dlib::image_view<image_type> out(out_);
+        if (out.size() == 0)
+            return dlib::point_transform_projective();
+
+        dlib::drectangle bounding_box;
+        for (auto& p : pts)
+            bounding_box += p;
+
+        const std::array<dlib::dpoint,4> corners = {{bounding_box.tl_corner(), bounding_box.tr_corner(),
+                                               bounding_box.bl_corner(), bounding_box.br_corner()}};
+
+        dlib::matrix<double> dists(4,4);
+        for (long r = 0; r < dists.nr(); ++r)
+        {
+            for (long c = 0; c < dists.nc(); ++c)
+            {
+                dists(r,c) = length_squared(corners[r] - pts[c]);
+            }
+        }
+
+        dlib::matrix<long long> idists = dlib::matrix_cast<long long>(-round(std::numeric_limits<long long>::max()*(dists/max(dists))));
+
+
+        const dlib::drectangle area = get_rect(out);
+        std::vector<dlib::dpoint> from_points = {area.tl_corner(), area.tr_corner(),
+                                           area.bl_corner(), area.br_corner()};
+
+        // find the assignment of corners to pts
+        auto assignment = max_cost_assignment(idists);
+        std::vector<dlib::dpoint> to_points(4);
+        for (size_t i = 0; i < assignment.size(); ++i)
+            to_points[i] = pts[assignment[i]];
+
+        auto tform = find_projective_transform(from_points, to_points);
+        dlib::transform_image(img_, out_, dlib::interpolate_bilinear(), tform);
+        return inv(tform);
+    }
+
+    template <
+        typename image_type
+        >
+    void extract_image_4points (
+        const image_type& img,
+        image_type& out,
+        const std::array<dlib::line,4>& lines
+    )
+    {
+        return extract_image_4points(img, out, find_convex_quadrilateral(lines));
+    }
+}
+// clang-format on
+
 int main(const int argc, const char** argv)
 try
 {
@@ -40,6 +105,7 @@ try
     parser.add_option("gamma", "gamma magnitude (default: 0.5)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
+    parser.add_option("perspective", "perspective probability (default: 0.5)", 1);
     parser.add_option("shift", "translation relative to box size (default: 0.5)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
@@ -57,6 +123,7 @@ try
     parser.check_option_arg_range<double>("mirror", 0, 1);
     parser.check_option_arg_range<double>("mosaic", 0, 1);
     parser.check_option_arg_range<double>("crop", 0, 1);
+    parser.check_option_arg_range<double>("perspective", 0, 1);
     parser.check_option_arg_range<double>("color-offset", 0, 1);
     parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
     parser.check_option_arg_range<double>("color", 0, 1);
@@ -73,6 +140,7 @@ try
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
     const double crop_prob = get_option(parser, "crop", 0.5);
     const double blur_prob = get_option(parser, "blur", 0.5);
+    const double perspective_prob = get_option(parser, "perspective", 0.5);
     const double color_offset_prob = get_option(parser, "color-offset", 0.5);
     const double gamma_magnitude = get_option(parser, "gamma", 0.5);
     const double color_magnitude = get_option(parser, "color", 0.2);
@@ -122,9 +190,9 @@ try
     // options.add_anchors<rgpnet::ytag16>({{36, 75}, {76, 55}, {72, 146}});
     // options.add_anchors<rgpnet::ytag32>({{142, 110}, {192, 243}, {459, 401}});
     // These are the anchors computed on the OMNIOUS product_2021-02-25 dataset
-    options.add_anchors<rgpnet::ytag8>({{31,33}, {62,42}, {41,66}});
-    options.add_anchors<rgpnet::ytag16>({{76,88}, {151,113}, {97,184}});
-    options.add_anchors<rgpnet::ytag32>({{205,243}, {240,444}, {437,306}, {430,549}});
+    options.add_anchors<ytag8>({{31, 33}, {62, 42}, {41, 66}});
+    options.add_anchors<ytag16>({{76, 88}, {151, 113}, {97, 184}});
+    options.add_anchors<ytag32>({{205, 243}, {240, 444}, {437, 306}, {430, 549}});
 
     model_train model(options);
     auto& net = model.net;
@@ -211,7 +279,8 @@ try
             }
             catch (const dlib::image_load_error& e)
             {
-                std::cerr << "ERROR loading image" << data_directory + "/" + dataset.images[idx].filename << std::endl;
+                std::cerr << "ERROR loading image"
+                          << data_directory + "/" + dataset.images[idx].filename << std::endl;
                 std::cerr << e.what() << std::endl;
                 auto empty = rgb_image(image_size, image_size);
                 dlib::assign_all_pixels(empty, dlib::rgb_pixel(0, 0, 0));
@@ -246,6 +315,38 @@ try
                 {
                     dlib::gaussian_blur(sample.first, blurred);
                     std::swap(sample.first, blurred);
+                }
+                if (rnd.get_random_double() < perspective_prob)
+                {
+                    image = sample.first;
+                    const dlib::drectangle r(0, 0, image.nc() - 1, image.nr() - 1);
+                    std::array<dlib::dpoint, 4> corners{
+                        r.tl_corner(),
+                        r.tr_corner(),
+                        r.bl_corner(),
+                        r.br_corner()};
+                    const double amount = image_size / 4.;
+                    for (auto& corner : corners)
+                    {
+                        corner.x() += rnd.get_double_in_range(-amount / 2., amount / 2.);
+                        corner.y() += rnd.get_double_in_range(-amount / 2., amount / 2.);
+                    }
+                    const auto ptform = omnious::extract_image_4points(image, sample.first, corners);
+                    for (auto& box : sample.second)
+                    {
+                        corners[0] = ptform(box.rect.tl_corner());
+                        corners[1] = ptform(box.rect.tr_corner());
+                        corners[2] = ptform(box.rect.bl_corner());
+                        corners[3] = ptform(box.rect.br_corner());
+                        box.rect.left() = std::min(
+                            {corners[0].x(), corners[1].x(), corners[2].x(), corners[3].x()});
+                        box.rect.top() = std::min(
+                            {corners[0].y(), corners[1].y(), corners[2].y(), corners[3].y()});
+                        box.rect.right() = std::max(
+                            {corners[0].x(), corners[1].x(), corners[2].x(), corners[3].x()});
+                        box.rect.bottom() = std::max(
+                            {corners[0].y(), corners[1].y(), corners[2].y(), corners[3].y()});
+                    }
                 }
             }
             else
@@ -383,7 +484,6 @@ try
         trainer.set_iterations_without_progress_threshold(patience);
         std::cout << trainer << std::endl;
     }
-
 
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
         train();
