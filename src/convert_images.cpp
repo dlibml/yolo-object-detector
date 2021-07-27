@@ -32,6 +32,12 @@ try
     parser.add_option("help", "display this message and exit");
     parser.parse(argc, argv);
 
+    if (parser.number_of_arguments() == 0 or parser.option("h") or parser.option("help"))
+    {
+        parser.print_options();
+        return EXIT_SUCCESS;
+    }
+
     parser.check_option_arg_range<int>("quality", 0, 100);
     const int quality = get_option(parser, "quality", 75);
     const std::string output_root = get_option(parser, "output", "");
@@ -43,11 +49,6 @@ try
 
     create_directories(output_root);
 
-    if (parser.number_of_arguments() == 0 or parser.option("h") or parser.option("help"))
-    {
-        parser.print_options();
-        return EXIT_SUCCESS;
-    }
 
     std::vector<dlib::file> dataset_files;
     for (size_t i = 0; i < parser.number_of_arguments(); ++i)
