@@ -29,6 +29,7 @@ try
     parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
     parser.add_option("momentum", "sgd momentum (default: 0.9)", 1);
     parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
+    parser.add_option("tune", "path to the network to fine-tune", 1);
     parser.add_option("weight-decay", "sgd weight decay (default: 0.0005)", 1);
     parser.add_option("workers", "number of worker data loader threads (default: 4)", 1);
     parser.set_group_name("Data Augmentation Options");
@@ -89,6 +90,7 @@ try
     const std::string experiment_name = get_option(parser, "name", "yolo");
     const std::string sync_file_name = experiment_name + "_sync";
     const std::string net_file_name = experiment_name + ".dnn";
+    const std::string tune_net_path = get_option(parser, "tune", "");
 
     const std::string data_directory = parser[0];
 
@@ -126,15 +128,25 @@ try
     // options.add_anchors<rgpnet::ytag16>({{36, 75}, {76, 55}, {72, 146}});
     // options.add_anchors<rgpnet::ytag32>({{142, 110}, {192, 243}, {459, 401}});
     // These are the anchors computed on the OMNIOUS product_2021-02-25 dataset
-    options.add_anchors<ytag8>({{31, 33}, {62, 42}, {41, 66}});
-    options.add_anchors<ytag16>({{76, 88}, {151, 113}, {97, 184}});
-    options.add_anchors<ytag32>({{205, 243}, {240, 444}, {437, 306}, {430, 549}});
+    // options.add_anchors<ytag8>({{31, 33}, {62, 42}, {41, 66}});
+    // options.add_anchors<ytag16>({{76, 88}, {151, 113}, {97, 184}});
+    // options.add_anchors<ytag32>({{205, 243}, {240, 444}, {437, 306}, {430, 549}});
+    options.add_anchors<ytag8>({{30, 29}, {38, 52}, {54, 47}});
+    options.add_anchors<ytag16>({{53, 88}, {85, 59}, {99, 103}});
+    options.add_anchors<ytag32>({{188, 213}, {255, 454}, {465, 418}});
 
     model_train model(options);
     auto& net = model.net;
     setup_detector(net, options);
     if (parser.option("architecture"))
         std::cerr << net << std::endl;
+
+    if (not tune_net_path.empty())
+    {
+        model_train tune;
+        dlib::deserialize(tune_net_path) >> tune.net;
+        dlib::layer<57>(net).subnet() = dlib::layer<57>(tune.net).subnet();
+    }
 
     // The training process can be unstable at the beginning.  For this reason, we exponentially
     // increase the learning rate during the first burnin steps.
@@ -218,8 +230,8 @@ try
                 std::cerr << "ERROR loading image"
                           << data_directory + "/" + dataset.images[idx].filename << std::endl;
                 std::cerr << e.what() << std::endl;
-                auto empty = rgb_image(image_size, image_size);
-                dlib::assign_all_pixels(empty, dlib::rgb_pixel(0, 0, 0));
+		sample.first.set_size(image_size, image_size);
+                dlib::assign_all_pixels(sample.first, dlib::rgb_pixel(0, 0, 0));
                 sample.second = {};
                 return sample;
             }
@@ -348,7 +360,7 @@ try
                         if ((b.rect.height() < long_dim and b.rect.width() < long_dim) or
                             (b.rect.height() < short_dim or b.rect.width() < short_dim))
                             b.ignore = true;
-                        sample.second.push_back(std::move(b));
+                        sample.second.push_back(b);
                     }
                 }
                 train_data.enqueue(sample);
@@ -400,8 +412,8 @@ try
         while (images.size() < trainer.get_mini_batch_size())
         {
             train_data.dequeue(temp);
-            images.push_back(std::move(temp.first));
-            bboxes.push_back(move(temp.second));
+            images.push_back(temp.first);
+            bboxes.push_back(temp.second);
         }
         trainer.train_one_step(images, bboxes);
     };
@@ -412,11 +424,11 @@ try
         while (trainer.get_train_one_step_calls() < burnin)
             train();
         std::cout << "burn-in finished" << std::endl;
-        trainer.get_net();
         trainer.set_learning_rate(learning_rate);
         trainer.set_min_learning_rate(min_learning_rate);
         trainer.set_learning_rate_shrink_factor(0.1);
         trainer.set_iterations_without_progress_threshold(patience);
+        trainer.get_net();
         std::cout << trainer << std::endl;
     }
 
