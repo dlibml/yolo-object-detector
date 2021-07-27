@@ -91,3 +91,5 @@ target_include_directories(detect PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 add_dlib_executable(kfashion)
 target_link_libraries(kfashion PRIVATE nlohmann_json::nlohmann_json)
+
+add_dlib_executable(convert_images)
