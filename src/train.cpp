@@ -228,9 +228,7 @@ try
             }
             catch (const dlib::image_load_error& e)
             {
-                std::cerr << "ERROR loading image" << data_path + "/" + image_info.filename
-                          << std::endl;
-                std::cerr << e.what() << std::endl;
+                std::cerr << "ERROR: " << e.what() << std::endl;
                 sample.first.set_size(image_size, image_size);
                 dlib::assign_all_pixels(sample.first, dlib::rgb_pixel(0, 0, 0));
                 sample.second = {};
