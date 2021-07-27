@@ -230,7 +230,7 @@ try
                 std::cerr << "ERROR loading image"
                           << data_directory + "/" + dataset.images[idx].filename << std::endl;
                 std::cerr << e.what() << std::endl;
-		sample.first.set_size(image_size, image_size);
+                sample.first.set_size(image_size, image_size);
                 dlib::assign_all_pixels(sample.first, dlib::rgb_pixel(0, 0, 0));
                 sample.second = {};
                 return sample;
@@ -239,7 +239,12 @@ try
                 sample.second.emplace_back(box.rect, 1, box.label);
 
             // We alternate between augmenting the full image and random cropping
-            if (rnd.get_random_double() > crop_prob)
+            if (rnd.get_random_double() < crop_prob)
+            {
+                std::vector<dlib::yolo_rect> boxes = sample.second;
+                cropper(image, boxes, sample.first, sample.second);
+            }
+            else
             {
                 dlib::rectangle_transform tform = rotate_image(
                     image,
@@ -297,11 +302,6 @@ try
                     }
                 }
             }
-            else
-            {
-                std::vector<dlib::yolo_rect> boxes = sample.second;
-                cropper(image, boxes, sample.first, sample.second);
-            }
 
             if (rnd.get_random_double() > color_offset_prob)
                 disturb_colors(sample.first, rnd, gamma_magnitude, color_magnitude);
@@ -313,11 +313,7 @@ try
 
         while (train_data.is_enabled())
         {
-            if (rnd.get_random_double() > mosaic_prob)
-            {
-                train_data.enqueue(get_sample(crop_prob));
-            }
-            else
+            if (rnd.get_random_double() < mosaic_prob)
             {
                 const double scale = 0.5;
                 const long tile_size = image_size * scale;
@@ -364,6 +360,10 @@ try
                     }
                 }
                 train_data.enqueue(sample);
+            }
+            else
+            {
+                train_data.enqueue(get_sample(crop_prob));
             }
         }
     };
