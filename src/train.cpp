@@ -92,12 +92,12 @@ try
     const std::string net_file_name = experiment_name + ".dnn";
     const std::string tune_net_path = get_option(parser, "tune", "");
 
-    const std::string data_directory = parser[0];
+    const std::string data_path = parser[0];
 
     dlib::image_dataset_metadata::dataset dataset;
     dlib::image_dataset_metadata::load_image_dataset_metadata(
         dataset,
-        data_directory + "/training.xml");
+        data_path + "/training.xml");
     std::cout << "# images: " << dataset.images.size() << std::endl;
     std::map<std::string, size_t> labels;
     size_t num_objects = 0;
@@ -181,7 +181,7 @@ try
         for (const auto& im : dataset.images)
         {
             win.clear_overlay();
-            load_image(image, data_directory + "/" + im.filename);
+            load_image(image, data_path + "/" + im.filename);
             win.set_title(im.filename);
             win.set_image(image);
             const auto tform = preprocess_image(image, resized, image_size);
@@ -220,22 +220,23 @@ try
         const auto get_sample = [&](const double crop_prob = 0.5)
         {
             std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
-            const auto idx = rnd.get_random_32bit_number() % dataset.images.size();
+            const auto idx = rnd.get_random_64bit_number() % dataset.images.size();
+            const auto& image_info = dataset.images.at(idx);
             try
             {
-                dlib::load_image(image, data_directory + "/" + dataset.images[idx].filename);
+                dlib::load_image(image, data_path + "/" + image_info.filename);
             }
             catch (const dlib::image_load_error& e)
             {
-                std::cerr << "ERROR loading image"
-                          << data_directory + "/" + dataset.images[idx].filename << std::endl;
+                std::cerr << "ERROR loading image" << data_path + "/" + image_info.filename
+                          << std::endl;
                 std::cerr << e.what() << std::endl;
                 sample.first.set_size(image_size, image_size);
                 dlib::assign_all_pixels(sample.first, dlib::rgb_pixel(0, 0, 0));
                 sample.second = {};
                 return sample;
             }
-            for (const auto& box : dataset.images[idx].boxes)
+            for (const auto& box : image_info.boxes)
                 sample.second.emplace_back(box.rect, 1, box.label);
 
             // We alternate between augmenting the full image and random cropping
