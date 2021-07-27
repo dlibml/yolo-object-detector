@@ -78,9 +78,7 @@ try
         ratio_covered = std::stod(parser.option("nms").argument(1));
     }
 
-#if 1
-    model_infer model;
-    auto& net = model.net;
+    net_infer_type net;
 
     if (not dnn_path.empty())
     {
@@ -88,7 +86,7 @@ try
     }
     else if (not sync_path.empty() and dlib::file_exists(sync_path))
     {
-        auto trainer = model.get_trainer();
+        auto trainer = dlib::dnn_trainer(net);
         trainer.set_synchronization_file(sync_path);
         trainer.get_net();
         std::cerr << "Lodaded network from " << sync_path << std::endl;
@@ -106,7 +104,6 @@ try
         std::cout << net << std::endl;
     else
         std::cout << net.loss_details() << std::endl;
-#endif
 
     dlib::image_dataset_metadata::dataset dataset;
     dlib::image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_file.full_name());

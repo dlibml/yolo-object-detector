@@ -135,17 +135,16 @@ try
     options.add_anchors<ytag16>({{53, 88}, {85, 59}, {99, 103}});
     options.add_anchors<ytag32>({{188, 213}, {255, 454}, {465, 418}});
 
-    model_train model(options);
-    auto& net = model.net;
+    net_train_type net(options);
     setup_detector(net, options);
     if (parser.option("architecture"))
         std::cerr << net << std::endl;
 
     if (not tune_net_path.empty())
     {
-        model_train tune;
-        dlib::deserialize(tune_net_path) >> tune.net;
-        dlib::layer<57>(net).subnet() = dlib::layer<57>(tune.net).subnet();
+        net_train_type pretrained_net;
+        dlib::deserialize(tune_net_path) >> pretrained_net;
+        dlib::layer<57>(net).subnet() = dlib::layer<57>(pretrained_net).subnet();
     }
 
     // The training process can be unstable at the beginning.  For this reason, we exponentially
@@ -158,7 +157,7 @@ try
     std::iota(gpus.begin(), gpus.end(), 0);
     // We initialize the trainer here, as it will be used in several contexts, depending on the
     // arguments passed the the program.
-    auto trainer = model.get_trainer(weight_decay, momentum, gpus);
+    auto trainer = dlib::dnn_trainer(net, dlib::sgd(weight_decay, momentum), gpus);
     trainer.be_verbose();
     trainer.set_mini_batch_size(batch_size);
     trainer.set_learning_rate_schedule(learning_rate_schedule);

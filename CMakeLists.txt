@@ -77,18 +77,16 @@ fetch_content(json v3.9.1 https://github.com/nlohmann/json.git)
 
 add_dlib_executable(compute_anchors)
 
-add_dlib_library(model)
 add_dlib_library(utils)
-target_link_libraries(utils PRIVATE model)
 
 add_dlib_executable(train)
-target_link_libraries(train PRIVATE model utils)
+target_link_libraries(train PRIVATE utils)
 
 add_dlib_executable(metrics)
-target_link_libraries(metrics PRIVATE model utils)
+target_link_libraries(metrics PRIVATE utils)
 
 add_dlib_executable(detect)
-target_link_libraries(detect PRIVATE model utils ${OpenCV_LIBS})
+target_link_libraries(detect PRIVATE utils ${OpenCV_LIBS})
 target_include_directories(detect PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 add_dlib_executable(kfashion)
