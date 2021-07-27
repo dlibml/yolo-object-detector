@@ -216,7 +216,7 @@ try
             cropper.set_randomly_flip(false);
         cropper.set_background_crops_fraction(0);
 
-        const auto get_sample = [&](const double crop_prob = 0.5)
+        auto get_sample = [&](const double crop_prob = 0.5)
         {
             std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
             const auto idx = rnd.get_random_64bit_number() % dataset.images.size();
@@ -279,8 +279,8 @@ try
                     const double amount = image_size / 4.;
                     for (auto& corner : corners)
                     {
-                        corner.x() += rnd.get_double_in_range(-amount / 2., amount / 2.);
-                        corner.y() += rnd.get_double_in_range(-amount / 2., amount / 2.);
+                        corner.x() += rnd.get_double_in_range(-amount / 2, amount / 2);
+                        corner.y() += rnd.get_double_in_range(-amount / 2, amount / 2);
                     }
                     const auto ptform = extract_image_4points(image, sample.first, corners);
                     for (auto& box : sample.second)
@@ -301,10 +301,10 @@ try
                 }
             }
 
-            if (rnd.get_random_double() > color_offset_prob)
-                disturb_colors(sample.first, rnd, gamma_magnitude, color_magnitude);
-            else
+            if (rnd.get_random_double() < color_offset_prob)
                 dlib::apply_random_color_offset(sample.first, rnd);
+            else
+                disturb_colors(sample.first, rnd, gamma_magnitude, color_magnitude);
 
             return sample;
         };
