@@ -314,38 +314,16 @@ try
             if (rnd.get_random_double() < mosaic_prob)
             {
                 const double scale = 0.5;
-                const long tile_size = image_size * scale;
+                const long s = image_size * scale;
                 std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
                 sample.first.set_size(image_size, image_size);
                 const auto short_dim = cropper.get_min_object_length_short_dim();
                 const auto long_dim = cropper.get_min_object_length_long_dim();
-                for (size_t i = 0; i < 4; ++i)
+                const std::vector<std::pair<long, long>> pos{{0, 0}, {0, s}, {s, 0}, {s, s}};
+                for (const auto& [x, y] : pos)
                 {
-                    long x = 0, y = 0;
-                    switch (i)
-                    {
-                    case 0:
-                        x = 0 * tile_size;
-                        y = 0 * tile_size;
-                        break;
-                    case 1:
-                        x = 0 * tile_size;
-                        y = 1 * tile_size;
-                        break;
-                    case 2:
-                        x = 1 * tile_size;
-                        y = 0 * tile_size;
-                        break;
-                    case 3:
-                        x = 1 * tile_size;
-                        y = 1 * tile_size;
-                        break;
-                    default:
-                        DLIB_CASSERT(false, "Something went terribly wrong");
-                    }
-
                     auto tile = get_sample(0);  // do not use random cropping here
-                    const dlib::rectangle r(x, y, x + tile_size, y + tile_size);
+                    const dlib::rectangle r(x, y, x + s, y + s);
                     auto si = dlib::sub_image(sample.first, r);
                     resize_image(tile.first, si);
                     for (auto& b : tile.second)
