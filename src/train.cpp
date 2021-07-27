@@ -203,7 +203,6 @@ try
     const auto loader = [&](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
-        rgb_image image, rotated, blurred;
         dlib::random_cropper cropper;
         cropper.set_seed(time(nullptr) + seed);
         cropper.set_chip_dims(image_size, image_size);
@@ -219,6 +218,7 @@ try
         auto get_sample = [&](const double crop_prob = 0.5)
         {
             std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
+            rgb_image image, rotated, blurred;
             const auto idx = rnd.get_random_64bit_number() % dataset.images.size();
             const auto& image_info = dataset.images.at(idx);
             try
@@ -265,7 +265,7 @@ try
                 if (rnd.get_random_double() < blur_prob)
                 {
                     dlib::gaussian_blur(sample.first, blurred);
-                    std::swap(sample.first, blurred);
+                    sample.first = blurred;
                 }
                 if (rnd.get_random_double() < perspective_prob)
                 {
