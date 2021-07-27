@@ -10,71 +10,6 @@
 
 using rgb_image = dlib::matrix<dlib::rgb_pixel>;
 
-// clang-format off
-namespace omnious
-{
-    template <
-        typename image_type
-        >
-    dlib::point_transform_projective extract_image_4points (
-        const image_type& img_,
-        image_type& out_,
-        const std::array<dlib::dpoint,4>& pts
-    )
-    {
-        dlib::const_image_view<image_type> img(img_);
-        dlib::image_view<image_type> out(out_);
-        if (out.size() == 0)
-            return dlib::point_transform_projective();
-
-        dlib::drectangle bounding_box;
-        for (auto& p : pts)
-            bounding_box += p;
-
-        const std::array<dlib::dpoint,4> corners = {{bounding_box.tl_corner(), bounding_box.tr_corner(),
-                                               bounding_box.bl_corner(), bounding_box.br_corner()}};
-
-        dlib::matrix<double> dists(4,4);
-        for (long r = 0; r < dists.nr(); ++r)
-        {
-            for (long c = 0; c < dists.nc(); ++c)
-            {
-                dists(r,c) = length_squared(corners[r] - pts[c]);
-            }
-        }
-
-        dlib::matrix<long long> idists = dlib::matrix_cast<long long>(-round(std::numeric_limits<long long>::max()*(dists/max(dists))));
-
-
-        const dlib::drectangle area = get_rect(out);
-        std::vector<dlib::dpoint> from_points = {area.tl_corner(), area.tr_corner(),
-                                           area.bl_corner(), area.br_corner()};
-
-        // find the assignment of corners to pts
-        auto assignment = max_cost_assignment(idists);
-        std::vector<dlib::dpoint> to_points(4);
-        for (size_t i = 0; i < assignment.size(); ++i)
-            to_points[i] = pts[assignment[i]];
-
-        auto tform = find_projective_transform(from_points, to_points);
-        dlib::transform_image(img_, out_, dlib::interpolate_bilinear(), tform);
-        return inv(tform);
-    }
-
-    template <
-        typename image_type
-        >
-    void extract_image_4points (
-        const image_type& img,
-        image_type& out,
-        const std::array<dlib::line,4>& lines
-    )
-    {
-        return extract_image_4points(img, out, find_convex_quadrilateral(lines));
-    }
-}
-// clang-format on
-
 int main(const int argc, const char** argv)
 try
 {
@@ -332,8 +267,7 @@ try
                         corner.x() += rnd.get_double_in_range(-amount / 2., amount / 2.);
                         corner.y() += rnd.get_double_in_range(-amount / 2., amount / 2.);
                     }
-                    const auto ptform =
-                        omnious::extract_image_4points(image, sample.first, corners);
+                    const auto ptform = extract_image_4points(image, sample.first, corners);
                     for (auto& box : sample.second)
                     {
                         corners[0] = ptform(box.rect.tl_corner());
