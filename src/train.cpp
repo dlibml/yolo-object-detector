@@ -379,11 +379,11 @@ try
         dlib::image_window win;
         while (true)
         {
-            std::pair<rgb_image, std::vector<dlib::yolo_rect>> temp;
-            train_data.dequeue(temp);
+            std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
+            train_data.dequeue(sample);
             win.clear_overlay();
-            win.set_image(temp.first);
-            for (const auto& r : temp.second)
+            win.set_image(sample.first);
+            for (const auto& r : sample.second)
             {
                 auto color = string_to_color(r.label);
                 // make semi-transparent and cross-out the ignored boxes
@@ -408,12 +408,12 @@ try
     {
         images.clear();
         bboxes.clear();
-        std::pair<rgb_image, std::vector<dlib::yolo_rect>> temp;
+        std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
         while (images.size() < trainer.get_mini_batch_size())
         {
-            train_data.dequeue(temp);
-            images.push_back(temp.first);
-            bboxes.push_back(temp.second);
+            train_data.dequeue(sample);
+            images.push_back(sample.first);
+            bboxes.push_back(sample.second);
         }
         trainer.train_one_step(images, bboxes);
     };
