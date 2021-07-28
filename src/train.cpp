@@ -10,32 +10,6 @@
 
 using rgb_image = dlib::matrix<dlib::rgb_pixel>;
 
-struct hyperparams
-{
-    double learning_rate = 0.001;
-    double min_learning_rate = 1e-6;
-    size_t patience = 10000;
-    size_t batch_size = 8;
-    size_t burnin = 1000;
-    size_t image_size = 512;
-    size_t num_workers = 4;
-    size_t num_gpus = 1;
-    double mirror_prob = 0.5;
-    double mosaic_prob = 0.5;
-    double crop_prob = 0.5;
-    double blur_prob = 0.5;
-    double perspective_prob = 0.5;
-    double color_offset_prob = 0.5;
-    double gamma_magnitude = 0.5;
-    double color_magnitude = 0.2;
-    double angle = 5;
-    double shift = 0.5;
-    double iou_ignore_threshold = 0.5;
-    double iou_anchor_threshold = 1.0;
-    float momentum = 0.9;
-    float weight_decay = 0.0005;
-};
-
 int main(const int argc, const char** argv)
 try
 {
@@ -91,29 +65,28 @@ try
     parser.check_option_arg_range<double>("color", 0, 1);
     parser.check_option_arg_range<double>("blur", 0, 1);
     parser.check_sub_option("crop", "shift");
-    hyperparams hp;
-    hp.learning_rate = get_option(parser, "learning-rate", 0.001);
-    hp.min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
-    hp.patience = get_option(parser, "patience", 10000);
-    hp.batch_size = get_option(parser, "batch", 8);
-    hp.burnin = get_option(parser, "burnin", 1000);
-    hp.image_size = get_option(parser, "size", 512);
-    hp.num_workers = get_option(parser, "workers", 4);
-    hp.num_gpus = get_option(parser, "gpus", 1);
-    hp.mirror_prob = get_option(parser, "mirror", 0.5);
-    hp.mosaic_prob = get_option(parser, "mosaic", 0.5);
-    hp.crop_prob = get_option(parser, "crop", 0.5);
-    hp.blur_prob = get_option(parser, "blur", 0.5);
-    hp.perspective_prob = get_option(parser, "perspective", 0.5);
-    hp.color_offset_prob = get_option(parser, "color-offset", 0.5);
-    hp.gamma_magnitude = get_option(parser, "gamma", 0.5);
-    hp.color_magnitude = get_option(parser, "color", 0.2);
-    hp.angle = get_option(parser, "angle", 5);
-    hp.shift = get_option(parser, "shift", 0.5);
-    hp.iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
-    hp.iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
-    hp.momentum = get_option(parser, "momentum", 0.9);
-    hp.weight_decay = get_option(parser, "weight-decay", 0.0005);
+    const double learning_rate = get_option(parser, "learning-rate", 0.001);
+    const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
+    const size_t patience = get_option(parser, "patience", 10000);
+    const size_t batch_size = get_option(parser, "batch", 8);
+    const size_t burnin = get_option(parser, "burnin", 1000);
+    const size_t image_size = get_option(parser, "size", 512);
+    const size_t num_workers = get_option(parser, "workers", 4);
+    const size_t num_gpus = get_option(parser, "gpus", 1);
+    const double mirror_prob = get_option(parser, "mirror", 0.5);
+    const double mosaic_prob = get_option(parser, "mosaic", 0.5);
+    const double crop_prob = get_option(parser, "crop", 0.5);
+    const double blur_prob = get_option(parser, "blur", 0.5);
+    const double perspective_prob = get_option(parser, "perspective", 0.5);
+    const double color_offset_prob = get_option(parser, "color-offset", 0.5);
+    const double gamma_magnitude = get_option(parser, "gamma", 0.5);
+    const double color_magnitude = get_option(parser, "color", 0.2);
+    const double angle = get_option(parser, "angle", 5);
+    const double shift = get_option(parser, "shift", 0.5);
+    const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
+    const double iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
+    const float momentum = get_option(parser, "momentum", 0.9);
+    const float weight_decay = get_option(parser, "weight-decay", 0.0005);
     const std::string experiment_name = get_option(parser, "name", "yolo");
     const std::string sync_file_name = experiment_name + "_sync";
     const std::string net_file_name = experiment_name + ".dnn";
@@ -147,8 +120,8 @@ try
         options.labels.push_back(label.first);
         string_to_color(label.first);
     }
-    options.iou_ignore_threshold = hp.iou_ignore_threshold;
-    options.iou_anchor_threshold = hp.iou_anchor_threshold;
+    options.iou_ignore_threshold = iou_ignore_threshold;
+    options.iou_anchor_threshold = iou_anchor_threshold;
 
     // These are the anchors computed on the COCO dataset, presented in the YOLOv4 paper.
     // options.add_anchors<rgpnet::ytag8>({{12, 16}, {19, 36}, {40, 28}});
@@ -177,16 +150,16 @@ try
     // The training process can be unstable at the beginning.  For this reason, we exponentially
     // increase the learning rate during the first burnin steps.
     const dlib::matrix<double> learning_rate_schedule =
-        hp.learning_rate * pow(dlib::linspace(1e-12, 1, hp.burnin), 4);
+        learning_rate * pow(dlib::linspace(1e-12, 1, burnin), 4);
 
     // In case we have several GPUs, we can tell the dnn_trainer to make use of them.
-    std::vector<int> gpus(hp.num_gpus);
+    std::vector<int> gpus(num_gpus);
     std::iota(gpus.begin(), gpus.end(), 0);
     // We initialize the trainer here, as it will be used in several contexts, depending on the
     // arguments passed the the program.
-    auto trainer = dlib::dnn_trainer(net, dlib::sgd(hp.weight_decay, hp.momentum), gpus);
+    auto trainer = dlib::dnn_trainer(net, dlib::sgd(weight_decay, momentum), gpus);
     trainer.be_verbose();
-    trainer.set_mini_batch_size(hp.batch_size);
+    trainer.set_mini_batch_size(batch_size);
     trainer.set_learning_rate_schedule(learning_rate_schedule);
     trainer.set_synchronization_file(sync_file_name, std::chrono::minutes(30));
     std::cout << trainer;
@@ -210,7 +183,7 @@ try
             load_image(image, data_path + "/" + im.filename);
             win.set_title(im.filename);
             win.set_image(image);
-            const auto tform = preprocess_image(image, resized, hp.image_size);
+            const auto tform = preprocess_image(image, resized, image_size);
             auto detections = net.process(resized, threshold);
             postprocess_detections(tform, detections);
             std::cout << "# detections: " << detections.size() << std::endl;
@@ -226,26 +199,24 @@ try
     }
 
     // Create some data loaders which will load the data, and perform som data augmentation.
-    dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(100 * hp.batch_size);
-    const auto loader = [&hp, &data_path, &dataset, &train_data](time_t seed)
-    {
+    dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(100 * batch_size);
+    const auto loader = [&](time_t seed) {
         dlib::rand rnd(time(nullptr) + seed);
         dlib::random_cropper cropper;
         cropper.set_seed(time(nullptr) + seed);
-        cropper.set_chip_dims(hp.image_size, hp.image_size);
+        cropper.set_chip_dims(image_size, image_size);
         cropper.set_max_object_size(0.9);
         cropper.set_min_object_size(24, 24);
         cropper.set_min_object_coverage(0.7);
-        cropper.set_max_rotation_degrees(hp.angle);
-        cropper.set_translate_amount(hp.shift);
-        if (hp.mirror_prob == 0)
+        cropper.set_max_rotation_degrees(angle);
+        cropper.set_translate_amount(shift);
+        if (mirror_prob == 0)
             cropper.set_randomly_flip(false);
         cropper.set_background_crops_fraction(0);
 
-        auto get_sample = [&](const double crop_prob = 0.5)
-        {
+        auto get_sample = [&](const double crop_prob = 0.5) {
             std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
-            rgb_image image, rotated, blurred;
+            rgb_image image, rotated, blurred, transformed(image_size, image_size);
             const auto idx = rnd.get_random_64bit_number() % dataset.images.size();
             const auto& image_info = dataset.images.at(idx);
             try
@@ -255,7 +226,7 @@ try
             catch (const dlib::image_load_error& e)
             {
                 std::cerr << "ERROR: " << e.what() << std::endl;
-                sample.first.set_size(hp.image_size, hp.image_size);
+                sample.first.set_size(image_size, image_size);
                 dlib::assign_all_pixels(sample.first, dlib::rgb_pixel(0, 0, 0));
                 sample.second = {};
                 return sample;
@@ -274,78 +245,77 @@ try
                 dlib::rectangle_transform tform = rotate_image(
                     image,
                     rotated,
-                    rnd.get_double_in_range(-hp.angle * dlib::pi / 180, hp.angle * dlib::pi / 180),
+                    rnd.get_double_in_range(-angle * dlib::pi / 180, angle * dlib::pi / 180),
                     dlib::interpolate_bilinear());
                 for (auto& box : sample.second)
                     box.rect = tform(box.rect);
 
-                tform = letterbox_image(rotated, sample.first, hp.image_size);
+                tform = letterbox_image(rotated, sample.first, image_size);
                 for (auto& box : sample.second)
                     box.rect = tform(box.rect);
 
-                if (rnd.get_random_double() < hp.mirror_prob)
+                if (rnd.get_random_double() < mirror_prob)
                 {
                     tform = flip_image_left_right(sample.first);
                     for (auto& box : sample.second)
                         box.rect = tform(box.rect);
                 }
-                if (rnd.get_random_double() < hp.blur_prob)
+                if (rnd.get_random_double() < blur_prob)
                 {
                     dlib::gaussian_blur(sample.first, blurred);
                     sample.first = blurred;
                 }
-                if (rnd.get_random_double() < hp.perspective_prob)
+                if (rnd.get_random_double() < perspective_prob)
                 {
-                    image = sample.first;
-                    const dlib::drectangle r(0, 0, image.nc() - 1, image.nr() - 1);
-                    std::array<dlib::dpoint, 4> corners{
+                    const dlib::drectangle r(0, 0, image_size - 1, image_size - 1);
+                    std::array<dlib::dpoint, 4> ps{
                         r.tl_corner(),
                         r.tr_corner(),
                         r.bl_corner(),
                         r.br_corner()};
-                    const double amount = hp.image_size / 4.;
-                    for (auto& corner : corners)
+                    const double amount = 0.05;
+                    for (auto& corner : ps)
                     {
-                        corner.x() += rnd.get_double_in_range(-amount / 2, amount / 2);
-                        corner.y() += rnd.get_double_in_range(-amount / 2, amount / 2);
+                        corner.x() += rnd.get_double_in_range(-amount, amount) * image_size;
+                        corner.y() += rnd.get_double_in_range(-amount, amount) * image_size;
                     }
-                    const auto ptform = extract_image_4points(image, sample.first, corners);
+                    const auto ptform = extract_image_4points(sample.first, transformed, ps);
+                    sample.first = transformed;
                     for (auto& box : sample.second)
                     {
-                        corners[0] = ptform(box.rect.tl_corner());
-                        corners[1] = ptform(box.rect.tr_corner());
-                        corners[2] = ptform(box.rect.bl_corner());
-                        corners[3] = ptform(box.rect.br_corner());
-                        box.rect.left() = std::min(
-                            {corners[0].x(), corners[1].x(), corners[2].x(), corners[3].x()});
-                        box.rect.top() = std::min(
-                            {corners[0].y(), corners[1].y(), corners[2].y(), corners[3].y()});
-                        box.rect.right() = std::max(
-                            {corners[0].x(), corners[1].x(), corners[2].x(), corners[3].x()});
-                        box.rect.bottom() = std::max(
-                            {corners[0].y(), corners[1].y(), corners[2].y(), corners[3].y()});
+                        ps[0] = ptform(box.rect.tl_corner());
+                        ps[1] = ptform(box.rect.tr_corner());
+                        ps[2] = ptform(box.rect.bl_corner());
+                        ps[3] = ptform(box.rect.br_corner());
+                        const auto lr = std::minmax({ps[0].x(), ps[1].x(), ps[2].x(), ps[3].x()});
+                        const auto ud = std::minmax({ps[0].y(), ps[1].y(), ps[2].y(), ps[3].y()});
+                        box.rect.left() = lr.first;
+                        box.rect.top() = ud.first;
+                        box.rect.right() = lr.second;
+                        box.rect.bottom() = ud.second;
                     }
                 }
             }
 
-            if (rnd.get_random_double() < hp.color_offset_prob)
+            if (rnd.get_random_double() < color_offset_prob)
                 dlib::apply_random_color_offset(sample.first, rnd);
             else
-                disturb_colors(sample.first, rnd, hp.gamma_magnitude, hp.color_magnitude);
+                disturb_colors(sample.first, rnd, gamma_magnitude, color_magnitude);
 
             return sample;
         };
 
         while (train_data.is_enabled())
         {
-            if (rnd.get_random_double() < hp.mosaic_prob)
+            if (rnd.get_random_double() < mosaic_prob)
             {
                 const double scale = 0.5;
-                const long s = hp.image_size * scale;
+                const long s = image_size * scale;
                 std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
-                sample.first.set_size(hp.image_size, hp.image_size);
+                sample.first.set_size(image_size, image_size);
                 const auto short_dim = cropper.get_min_object_length_short_dim();
                 const auto long_dim = cropper.get_min_object_length_long_dim();
+                const auto min_coverage = cropper.get_min_object_coverage();
                 const std::vector<std::pair<long, long>> pos{{0, 0}, {0, s}, {s, 0}, {s, s}};
                 for (const auto& [x, y] : pos)
                 {
@@ -356,9 +326,16 @@ try
                     for (auto& b : tile.second)
                     {
                         b.rect = translate_rect(scale_rect(b.rect, scale), x, y);
+                        // ignore small items
                         if ((b.rect.height() < long_dim and b.rect.width() < long_dim) or
                             (b.rect.height() < short_dim or b.rect.width() < short_dim))
                             b.ignore = true;
+
+                        // ignore items that are not well covered by the current tile
+                        const double coverage = b.rect.intersect(r).area() / b.rect.area();
+                        if (not b.ignore and coverage < min_coverage)
+                            b.ignore = true;
+
                         sample.second.push_back(b);
                     }
                 }
@@ -366,13 +343,13 @@ try
             }
             else
             {
-                train_data.enqueue(get_sample(hp.crop_prob));
+                train_data.enqueue(get_sample(crop_prob));
             }
         }
     };
 
     std::vector<std::thread> data_loaders;
-    for (size_t i = 0; i < hp.num_workers; ++i)
+    for (size_t i = 0; i < num_workers; ++i)
         data_loaders.emplace_back([loader, i]() { loader(i + 1); });
 
     // It is always a good idea to visualize the training samples.  By passing the --visualize
@@ -407,8 +384,7 @@ try
     std::vector<std::vector<dlib::yolo_rect>> bboxes;
 
     // The main training loop, that we will reuse for the warmup and the rest of the training.
-    const auto train = [&images, &bboxes, &train_data, &trainer]()
-    {
+    const auto train = [&images, &bboxes, &train_data, &trainer]() {
         images.clear();
         bboxes.clear();
         std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
@@ -421,16 +397,16 @@ try
         trainer.train_one_step(images, bboxes);
     };
 
-    if (trainer.get_train_one_step_calls() < hp.burnin)
+    if (trainer.get_train_one_step_calls() < burnin)
     {
-        std::cout << "training started with " << hp.burnin << " burn-in steps" << std::endl;
-        while (trainer.get_train_one_step_calls() < hp.burnin)
+        std::cout << "training started with " << burnin << " burn-in steps" << std::endl;
+        while (trainer.get_train_one_step_calls() < burnin)
             train();
         std::cout << "burn-in finished" << std::endl;
-        trainer.set_learning_rate(hp.learning_rate);
-        trainer.set_min_learning_rate(hp.min_learning_rate);
+        trainer.set_learning_rate(learning_rate);
+        trainer.set_min_learning_rate(min_learning_rate);
         trainer.set_learning_rate_shrink_factor(0.1);
-        trainer.set_iterations_without_progress_threshold(hp.patience);
+        trainer.set_iterations_without_progress_threshold(patience);
         trainer.get_net();
         std::cout << trainer << std::endl;
     }
