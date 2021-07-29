@@ -78,10 +78,10 @@ try
         ratio_covered = std::stod(parser.option("nms").argument(1));
     }
 
-#if 1
     model_infer model;
     auto& net = model.net;
-
+    bool export_model = false;
+    size_t num_steps = 0;
     if (not dnn_path.empty())
     {
         dlib::deserialize(dnn_path) >> net;
@@ -91,9 +91,11 @@ try
         auto trainer = model.get_trainer();
         trainer.set_synchronization_file(sync_path);
         trainer.get_net();
+        num_steps = trainer.get_train_one_step_calls();
         std::cerr << "Lodaded network from " << sync_path << std::endl;
         std::cerr << "current learning rate: " << trainer.get_learning_rate() << std::endl;
-        std::cerr << "# training steps: " << trainer.get_train_one_step_calls() << std::endl;
+        std::cerr << "# training steps: " << num_steps << std::endl;
+        export_model = true;
     }
     else
     {
@@ -106,7 +108,6 @@ try
         std::cout << net << std::endl;
     else
         std::cout << net.loss_details() << std::endl;
-#endif
 
     dlib::image_dataset_metadata::dataset dataset;
     dlib::image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_file.full_name());
@@ -292,6 +293,18 @@ try
               << std::setw(12) << weighted_f1_score / num_boxes
               << std::endl;
     // clang-format on
+
+    if (export_model)
+    {
+        std::stringstream filename;
+        filename << sync_path << "_step:" << std::setw(6) << std::setfill('0') << num_steps;
+        filename << "_map:" << std::setprecision(4) << map / hits.size();
+        filename << "_wf1:" << std::setprecision(4) << weighted_f1_score / num_boxes;
+        filename << ".dnn";
+        std::cout << "model exported as: " << filename.str() << std::endl;
+        net.clean();
+        dlib::serialize(filename.str()) << net;
+    }
 
     return EXIT_SUCCESS;
 }
