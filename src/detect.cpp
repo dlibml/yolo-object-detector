@@ -99,8 +99,7 @@ try
         nms_ratio_covered = std::stod(parser.option("nms").argument(1));
     }
 
-    model_infer model;
-    auto& net = model.net;
+    net_infer_type net;
 
     if (not dnn_path.empty())
     {
@@ -108,7 +107,7 @@ try
     }
     else if (not sync_path.empty() and dlib::file_exists(sync_path))
     {
-        auto trainer = model.get_trainer();
+        auto trainer = dlib::dnn_trainer(net);
         trainer.set_synchronization_file(sync_path);
         trainer.get_net();
     }
@@ -194,7 +193,7 @@ try
         if (not fin.good())
             throw std::runtime_error("Error reading " + mapping_path);
         std::string line;
-        for (const auto& label : model.net.loss_details().get_options().labels)
+        for (const auto& label : net.loss_details().get_options().labels)
         {
             getline(fin, line);
             std::cerr << "mapping: " << label << " => " << line << std::endl;

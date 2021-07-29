@@ -135,17 +135,16 @@ try
     options.add_anchors<ytag16>({{53, 88}, {85, 59}, {99, 103}});
     options.add_anchors<ytag32>({{188, 213}, {255, 454}, {465, 418}});
 
-    model_train model(options);
-    auto& net = model.net;
+    net_train_type net(options);
     setup_detector(net, options);
     if (parser.option("architecture"))
         std::cerr << net << std::endl;
 
     if (not tune_net_path.empty())
     {
-        model_train tune;
-        dlib::deserialize(tune_net_path) >> tune.net;
-        dlib::layer<57>(net).subnet() = dlib::layer<57>(tune.net).subnet();
+        net_train_type pretrained_net;
+        dlib::deserialize(tune_net_path) >> pretrained_net;
+        dlib::layer<57>(net).subnet() = dlib::layer<57>(pretrained_net).subnet();
     }
 
     // The training process can be unstable at the beginning.  For this reason, we exponentially
@@ -158,7 +157,7 @@ try
     std::iota(gpus.begin(), gpus.end(), 0);
     // We initialize the trainer here, as it will be used in several contexts, depending on the
     // arguments passed the the program.
-    auto trainer = model.get_trainer(weight_decay, momentum, gpus);
+    auto trainer = dlib::dnn_trainer(net, dlib::sgd(weight_decay, momentum), gpus);
     trainer.be_verbose();
     trainer.set_mini_batch_size(batch_size);
     trainer.set_learning_rate_schedule(learning_rate_schedule);
@@ -201,10 +200,8 @@ try
 
     // Create some data loaders which will load the data, and perform som data augmentation.
     dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(100 * batch_size);
-    const auto loader = [&](time_t seed)
-    {
+    const auto loader = [&](time_t seed) {
         dlib::rand rnd(time(nullptr) + seed);
-        rgb_image image, rotated, blurred;
         dlib::random_cropper cropper;
         cropper.set_seed(time(nullptr) + seed);
         cropper.set_chip_dims(image_size, image_size);
@@ -217,9 +214,9 @@ try
             cropper.set_randomly_flip(false);
         cropper.set_background_crops_fraction(0);
 
-        const auto get_sample = [&](const double crop_prob = 0.5)
-        {
+        auto get_sample = [&](const double crop_prob = 0.5) {
             std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
+            rgb_image image, rotated, blurred, transformed(image_size, image_size);
             const auto idx = rnd.get_random_64bit_number() % dataset.images.size();
             const auto& image_info = dataset.images.at(idx);
             try
@@ -266,46 +263,44 @@ try
                 if (rnd.get_random_double() < blur_prob)
                 {
                     dlib::gaussian_blur(sample.first, blurred);
-                    std::swap(sample.first, blurred);
+                    sample.first = blurred;
                 }
                 if (rnd.get_random_double() < perspective_prob)
                 {
-                    image = sample.first;
-                    const dlib::drectangle r(0, 0, image.nc() - 1, image.nr() - 1);
-                    std::array<dlib::dpoint, 4> corners{
+                    const dlib::drectangle r(0, 0, image_size - 1, image_size - 1);
+                    std::array<dlib::dpoint, 4> ps{
                         r.tl_corner(),
                         r.tr_corner(),
                         r.bl_corner(),
                         r.br_corner()};
-                    const double amount = image_size / 4.;
-                    for (auto& corner : corners)
+                    const double amount = 0.05;
+                    for (auto& corner : ps)
                     {
-                        corner.x() += rnd.get_double_in_range(-amount / 2., amount / 2.);
-                        corner.y() += rnd.get_double_in_range(-amount / 2., amount / 2.);
+                        corner.x() += rnd.get_double_in_range(-amount, amount) * image_size;
+                        corner.y() += rnd.get_double_in_range(-amount, amount) * image_size;
                     }
-                    const auto ptform = extract_image_4points(image, sample.first, corners);
+                    const auto ptform = extract_image_4points(sample.first, transformed, ps);
+                    sample.first = transformed;
                     for (auto& box : sample.second)
                     {
-                        corners[0] = ptform(box.rect.tl_corner());
-                        corners[1] = ptform(box.rect.tr_corner());
-                        corners[2] = ptform(box.rect.bl_corner());
-                        corners[3] = ptform(box.rect.br_corner());
-                        box.rect.left() = std::min(
-                            {corners[0].x(), corners[1].x(), corners[2].x(), corners[3].x()});
-                        box.rect.top() = std::min(
-                            {corners[0].y(), corners[1].y(), corners[2].y(), corners[3].y()});
-                        box.rect.right() = std::max(
-                            {corners[0].x(), corners[1].x(), corners[2].x(), corners[3].x()});
-                        box.rect.bottom() = std::max(
-                            {corners[0].y(), corners[1].y(), corners[2].y(), corners[3].y()});
+                        ps[0] = ptform(box.rect.tl_corner());
+                        ps[1] = ptform(box.rect.tr_corner());
+                        ps[2] = ptform(box.rect.bl_corner());
+                        ps[3] = ptform(box.rect.br_corner());
+                        const auto lr = std::minmax({ps[0].x(), ps[1].x(), ps[2].x(), ps[3].x()});
+                        const auto ud = std::minmax({ps[0].y(), ps[1].y(), ps[2].y(), ps[3].y()});
+                        box.rect.left() = lr.first;
+                        box.rect.top() = ud.first;
+                        box.rect.right() = lr.second;
+                        box.rect.bottom() = ud.second;
                     }
                 }
             }
 
-            if (rnd.get_random_double() > color_offset_prob)
-                disturb_colors(sample.first, rnd, gamma_magnitude, color_magnitude);
-            else
+            if (rnd.get_random_double() < color_offset_prob)
                 dlib::apply_random_color_offset(sample.first, rnd);
+            else
+                disturb_colors(sample.first, rnd, gamma_magnitude, color_magnitude);
 
             return sample;
         };
@@ -315,46 +310,32 @@ try
             if (rnd.get_random_double() < mosaic_prob)
             {
                 const double scale = 0.5;
-                const long tile_size = image_size * scale;
+                const long s = image_size * scale;
                 std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
                 sample.first.set_size(image_size, image_size);
                 const auto short_dim = cropper.get_min_object_length_short_dim();
                 const auto long_dim = cropper.get_min_object_length_long_dim();
-                for (size_t i = 0; i < 4; ++i)
+                const auto min_coverage = cropper.get_min_object_coverage();
+                const std::vector<std::pair<long, long>> pos{{0, 0}, {0, s}, {s, 0}, {s, s}};
+                for (const auto& [x, y] : pos)
                 {
-                    long x = 0, y = 0;
-                    switch (i)
-                    {
-                    case 0:
-                        x = 0 * tile_size;
-                        y = 0 * tile_size;
-                        break;
-                    case 1:
-                        x = 0 * tile_size;
-                        y = 1 * tile_size;
-                        break;
-                    case 2:
-                        x = 1 * tile_size;
-                        y = 0 * tile_size;
-                        break;
-                    case 3:
-                        x = 1 * tile_size;
-                        y = 1 * tile_size;
-                        break;
-                    default:
-                        DLIB_CASSERT(false, "Something went terribly wrong");
-                    }
-
                     auto tile = get_sample(0);  // do not use random cropping here
-                    const dlib::rectangle r(x, y, x + tile_size, y + tile_size);
+                    const dlib::rectangle r(x, y, x + s, y + s);
                     auto si = dlib::sub_image(sample.first, r);
                     resize_image(tile.first, si);
                     for (auto& b : tile.second)
                     {
                         b.rect = translate_rect(scale_rect(b.rect, scale), x, y);
+                        // ignore small items
                         if ((b.rect.height() < long_dim and b.rect.width() < long_dim) or
                             (b.rect.height() < short_dim or b.rect.width() < short_dim))
                             b.ignore = true;
+
+                        // ignore items that are not well covered by the current tile
+                        const double coverage = b.rect.intersect(r).area() / b.rect.area();
+                        if (not b.ignore and coverage < min_coverage)
+                            b.ignore = true;
+
                         sample.second.push_back(b);
                     }
                 }
@@ -403,8 +384,7 @@ try
     std::vector<std::vector<dlib::yolo_rect>> bboxes;
 
     // The main training loop, that we will reuse for the warmup and the rest of the training.
-    const auto train = [&images, &bboxes, &train_data, &trainer]()
-    {
+    const auto train = [&images, &bboxes, &train_data, &trainer]() {
         images.clear();
         bboxes.clear();
         std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
