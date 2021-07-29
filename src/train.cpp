@@ -13,6 +13,7 @@ using rgb_image = dlib::matrix<dlib::rgb_pixel>;
 int main(const int argc, const char** argv)
 try
 {
+    const auto num_threads = std::thread::hardware_concurrency();
     dlib::command_line_parser parser;
     parser.add_option("architecture", "print the network architecture");
     parser.add_option("name", "name used for sync and net files (default: yolo)", 1);
@@ -31,7 +32,10 @@ try
     parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
     parser.add_option("tune", "path to the network to fine-tune", 1);
     parser.add_option("weight-decay", "sgd weight decay (default: 0.0005)", 1);
-    parser.add_option("workers", "number of worker data loader threads (default: 4)", 1);
+    parser.add_option(
+        "workers",
+        "number data loaders (default: " + std::to_string(num_threads) + ")",
+        1);
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max random rotation in degrees (default: 5)", 1);
     parser.add_option("blur", "probability of blurring the image (default: 0.5)", 1);
@@ -71,7 +75,7 @@ try
     const size_t batch_size = get_option(parser, "batch", 8);
     const size_t burnin = get_option(parser, "burnin", 1000);
     const size_t image_size = get_option(parser, "size", 512);
-    const size_t num_workers = get_option(parser, "workers", 4);
+    const size_t num_workers = get_option(parser, "workers", num_threads);
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const double mirror_prob = get_option(parser, "mirror", 0.5);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
@@ -200,7 +204,8 @@ try
 
     // Create some data loaders which will load the data, and perform som data augmentation.
     dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(100 * batch_size);
-    const auto loader = [&](time_t seed) {
+    const auto loader = [&](time_t seed)
+    {
         dlib::rand rnd(time(nullptr) + seed);
         dlib::random_cropper cropper;
         cropper.set_seed(time(nullptr) + seed);
@@ -214,7 +219,8 @@ try
             cropper.set_randomly_flip(false);
         cropper.set_background_crops_fraction(0);
 
-        auto get_sample = [&](const double crop_prob = 0.5) {
+        auto get_sample = [&](const double crop_prob = 0.5)
+        {
             std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
             rgb_image image, rotated, blurred, transformed(image_size, image_size);
             const auto idx = rnd.get_random_64bit_number() % dataset.images.size();
@@ -384,7 +390,8 @@ try
     std::vector<std::vector<dlib::yolo_rect>> bboxes;
 
     // The main training loop, that we will reuse for the warmup and the rest of the training.
-    const auto train = [&images, &bboxes, &train_data, &trainer]() {
+    const auto train = [&images, &bboxes, &train_data, &trainer]()
+    {
         images.clear();
         bboxes.clear();
         std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;

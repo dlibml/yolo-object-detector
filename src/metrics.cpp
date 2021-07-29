@@ -35,6 +35,7 @@ struct image_info
 auto main(const int argc, const char** argv) -> int
 try
 {
+    const auto num_threads = std::thread::hardware_concurrency();
     dlib::command_line_parser parser;
     parser.add_option("batch", "batch size for inference (default: 32)", 1);
     parser.add_option("conf", "detection confidence threshold (default: 0.25)", 1);
@@ -43,7 +44,10 @@ try
     parser.add_option("nms-agnostic", "class-agnositc NMS");
     parser.add_option("size", "image size for inference (default: 512)", 1);
     parser.add_option("sync", "load this sync file", 1);
-    parser.add_option("workers", "number of data loaders (default: 4)", 1);
+    parser.add_option(
+        "workers",
+        "number of data loaders (default: " + std::to_string(num_threads) + ")",
+        1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("print", "print the network architecture");
@@ -65,7 +69,7 @@ try
 
     const size_t batch_size = dlib::get_option(parser, "batch", 32);
     const size_t image_size = dlib::get_option(parser, "size", 512);
-    const size_t num_workers = dlib::get_option(parser, "workers", 512);
+    const size_t num_workers = dlib::get_option(parser, "workers", num_threads);
     const double conf_thresh = dlib::get_option(parser, "conf", 0.25);
     const std::string dnn_path = dlib::get_option(parser, "dnn", "");
     const std::string sync_path = dlib::get_option(parser, "sync", "");

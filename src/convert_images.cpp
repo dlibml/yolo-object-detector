@@ -19,13 +19,13 @@ auto create_directories(const std::string& path) -> void
 auto main(const int argc, const char** argv) -> int
 try
 {
-    auto num_workers = std::thread::hardware_concurrency();
+    const auto num_threads = std::thread::hardware_concurrency();
     dlib::command_line_parser parser;
     parser.add_option("output", "path to the output directory", 1);
     parser.add_option("quality", "JPEG quality factor (default: 75)", 1);
     parser.add_option(
         "workers",
-        "number of threads (default: " + std::to_string(num_workers) + ")",
+        "number of threads (default: " + std::to_string(num_threads) + ")",
         1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
@@ -40,6 +40,7 @@ try
 
     parser.check_option_arg_range<int>("quality", 0, 100);
     const int quality = get_option(parser, "quality", 75);
+    const size_t num_workers = get_option(parser, "workers", num_threads);
     const std::string output_root = get_option(parser, "output", "");
     if (output_root.empty())
     {
@@ -48,7 +49,6 @@ try
     }
 
     create_directories(output_root);
-
 
     std::vector<dlib::file> dataset_files;
     for (size_t i = 0; i < parser.number_of_arguments(); ++i)
