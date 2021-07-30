@@ -23,9 +23,13 @@ try
     parser.set_group_name("Training Options");
     parser.add_option("batch", "mini batch size (default: 8)", 1);
     parser.add_option("burnin", "learning rate burn-in steps (default: 1000)", 1);
+    parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
     parser.add_option("iou-anchor", "extra anchors IoU treshold (default: 1)", 1);
+    parser.add_option("lambda-obj", "weight for the positive obj class (default: 1)", 1);
+    parser.add_option("lambda-box", "weight for the box regression loss (default: 1)", 1);
+    parser.add_option("lambda-cls", "weight for the classification loss (default: 1)", 1);
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
     parser.add_option("momentum", "sgd momentum (default: 0.9)", 1);
@@ -68,10 +72,15 @@ try
     parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
     parser.check_option_arg_range<double>("color", 0, 1);
     parser.check_option_arg_range<double>("blur", 0, 1);
+    parser.check_incompatible_options("patience", "cosine-epochs");
     parser.check_sub_option("crop", "shift");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 10000);
+    const size_t cosine_epochs = get_option(parser, "cosine-epochs", 0);
+    const double lambda_obj = get_option(parser, "lambda-obj", 1.0);
+    const double lambda_box = get_option(parser, "lambda-box", 1.0);
+    const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
     const size_t batch_size = get_option(parser, "batch", 8);
     const size_t burnin = get_option(parser, "burnin", 1000);
     const size_t image_size = get_option(parser, "size", 512);
@@ -126,6 +135,9 @@ try
     }
     options.iou_ignore_threshold = iou_ignore_threshold;
     options.iou_anchor_threshold = iou_anchor_threshold;
+    options.lambda_obj = lambda_obj;
+    options.lambda_box = lambda_box;
+    options.lambda_cls = lambda_cls;
 
     // These are the anchors computed on the COCO dataset, presented in the YOLOv4 paper.
     // options.add_anchors<rgpnet::ytag8>({{12, 16}, {19, 36}, {40, 28}});
@@ -151,11 +163,6 @@ try
         dlib::layer<57>(net).subnet() = dlib::layer<57>(pretrained_net).subnet();
     }
 
-    // The training process can be unstable at the beginning.  For this reason, we exponentially
-    // increase the learning rate during the first burnin steps.
-    const dlib::matrix<double> learning_rate_schedule =
-        learning_rate * pow(dlib::linspace(1e-12, 1, burnin), 4);
-
     // In case we have several GPUs, we can tell the dnn_trainer to make use of them.
     std::vector<int> gpus(num_gpus);
     std::iota(gpus.begin(), gpus.end(), 0);
@@ -164,7 +171,6 @@ try
     auto trainer = dlib::dnn_trainer(net, dlib::sgd(weight_decay, momentum), gpus);
     trainer.be_verbose();
     trainer.set_mini_batch_size(batch_size);
-    trainer.set_learning_rate_schedule(learning_rate_schedule);
     trainer.set_synchronization_file(sync_file_name, std::chrono::minutes(30));
     std::cout << trainer;
 
@@ -404,19 +410,39 @@ try
         trainer.train_one_step(images, bboxes);
     };
 
+    // The training process can be unstable at the beginning.  For this reason, we
+    // exponentially increase the learning rate during the first burnin steps.
     if (trainer.get_train_one_step_calls() < burnin)
     {
+        const dlib::matrix<double> learning_rate_schedule =
+            learning_rate * pow(dlib::linspace(1e-12, 1, burnin), 4);
+
+        trainer.set_learning_rate_schedule(learning_rate_schedule);
         std::cout << "training started with " << burnin << " burn-in steps" << std::endl;
         while (trainer.get_train_one_step_calls() < burnin)
             train();
         std::cout << "burn-in finished" << std::endl;
+    }
+
+    if (cosine_epochs > 0)
+    {
+        const size_t cosine_steps = cosine_epochs * dataset.images.size() / batch_size;
+        std::cout << "cosine scheduler for " << cosine_epochs << " epochs (" << cosine_steps
+                  << " steps)" << std::endl;
+        const dlib::matrix<double> learning_rate_schedule =
+            min_learning_rate + 0.5 * (min_learning_rate + learning_rate) *
+                                    (1 + dlib::cos(dlib::linspace(0, cosine_steps, cosine_steps)));
+        trainer.set_learning_rate_schedule(learning_rate_schedule);
+    }
+    else
+    {
         trainer.set_learning_rate(learning_rate);
         trainer.set_min_learning_rate(min_learning_rate);
         trainer.set_learning_rate_shrink_factor(0.1);
         trainer.set_iterations_without_progress_threshold(patience);
-        trainer.get_net();
-        std::cout << trainer << std::endl;
     }
+    trainer.get_net();
+    std::cout << trainer << std::endl;
 
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
         train();
