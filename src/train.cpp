@@ -82,7 +82,7 @@ try
     const double lambda_box = get_option(parser, "lambda-box", 1.0);
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
     const size_t batch_size = get_option(parser, "batch", 8);
-    const size_t burnin = get_option(parser, "burnin", 1000);
+    const size_t burnin_steps = get_option(parser, "burnin", 1000);
     const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", num_threads);
     const size_t num_gpus = get_option(parser, "gpus", 1);
@@ -411,29 +411,31 @@ try
 
     // The training process can be unstable at the beginning.  For this reason, we
     // exponentially increase the learning rate during the first burnin steps.
-    if (trainer.get_train_one_step_calls() < burnin)
+    if (trainer.get_train_one_step_calls() < burnin_steps)
     {
         const dlib::matrix<double> learning_rate_schedule =
-            learning_rate * pow(dlib::linspace(1e-12, 1, burnin), 4);
+            learning_rate * pow(dlib::linspace(1e-12, 1, burnin_steps), 4);
 
         trainer.set_learning_rate_schedule(learning_rate_schedule);
-        std::cout << "training started with " << burnin << " burn-in steps" << std::endl;
         if (trainer.get_train_one_step_calls() == 0)
+        {
+            std::cout << "training started with " << burnin_steps << " burn-in steps" << std::endl;
             std::cout << trainer;
-        while (trainer.get_train_one_step_calls() < burnin)
+        }
+        while (trainer.get_train_one_step_calls() < burnin_steps)
             train();
-        std::cout << "burn-in finished" << std::endl;
         trainer.get_net(dlib::force_flush_to_disk::no);
     }
 
     if (cosine_epochs > 0)
     {
         const size_t cosine_steps = cosine_epochs * dataset.images.size() / batch_size;
-        std::cout << "cosine scheduler for " << cosine_epochs << " epochs (" << cosine_steps
-                  << " steps)" << std::endl;
+        if (trainer.get_train_one_step_calls() == burnin_steps)
+            std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
+                      << cosine_steps << " steps)" << std::endl;
         // clang-format off
         const dlib::matrix<double> learning_rate_schedule =
-        min_learning_rate + 0.5 * (min_learning_rate + learning_rate) *
+        min_learning_rate + 0.5 * (learning_rate - min_learning_rate) *
         (1 + dlib::cos(dlib::linspace(0, cosine_steps, cosine_steps) * dlib::pi / cosine_steps));
         // clang-format on
         trainer.set_learning_rate_schedule(learning_rate_schedule);
