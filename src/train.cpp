@@ -423,6 +423,7 @@ try
         while (trainer.get_train_one_step_calls() < burnin)
             train();
         std::cout << "burn-in finished" << std::endl;
+        trainer.get_net(dlib::force_flush_to_disk::no);
     }
 
     if (cosine_epochs > 0)
@@ -430,9 +431,11 @@ try
         const size_t cosine_steps = cosine_epochs * dataset.images.size() / batch_size;
         std::cout << "cosine scheduler for " << cosine_epochs << " epochs (" << cosine_steps
                   << " steps)" << std::endl;
+        // clang-format off
         const dlib::matrix<double> learning_rate_schedule =
-            min_learning_rate + 0.5 * (min_learning_rate + learning_rate) *
-                                    (1 + dlib::cos(dlib::linspace(0, cosine_steps, cosine_steps)));
+        min_learning_rate + 0.5 * (min_learning_rate + learning_rate) *
+        (1 + dlib::cos(dlib::linspace(0, cosine_steps, cosine_steps) * dlib::pi / cosine_steps));
+        // clang-format on
         trainer.set_learning_rate_schedule(learning_rate_schedule);
     }
     else
