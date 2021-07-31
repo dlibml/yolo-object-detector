@@ -418,7 +418,8 @@ try
 
         trainer.set_learning_rate_schedule(learning_rate_schedule);
         std::cout << "training started with " << burnin << " burn-in steps" << std::endl;
-        std::cout << trainer;
+        if (trainer.get_train_one_step_calls() == 0)
+            std::cout << trainer;
         while (trainer.get_train_one_step_calls() < burnin)
             train();
         std::cout << "burn-in finished" << std::endl;
@@ -441,15 +442,20 @@ try
         trainer.set_learning_rate_shrink_factor(0.1);
         trainer.set_iterations_without_progress_threshold(patience);
     }
+
     trainer.get_net();
-    std::cout << trainer << std::endl;
+    if (trainer.get_train_one_step_calls() == 0)
+        std::cout << trainer << std::endl;
+    else
+        std::cerr << trainer << std::endl;
 
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
         train();
 
+    trainer.get_net();
+    std::cout << trainer << std::endl;
     std::cout << "training done" << std::endl;
 
-    trainer.get_net();
     train_data.disable();
     for (auto& worker : data_loaders)
         worker.join();
