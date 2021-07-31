@@ -1,141 +1,44 @@
-#include "model.h"
-#include "utils.h"
+#include "metrics.h"
 
-#include <dlib/cmd_line_parser.h>
-#include <dlib/console_progress_indicator.h>
-#include <dlib/data_io.h>
-#include <dlib/image_io.h>
-
-using rgb_image = dlib::matrix<dlib::rgb_pixel>;
-
-struct result
+test_data_loader::test_data_loader(
+    const std::string& dataset_path,
+    long image_size,
+    dlib::pipe<image_info>& data,
+    size_t num_workers)
+    : image_size(image_size),
+      data(data),
+      num_workers(num_workers)
 {
-    result() = default;
-    double tp = 0;
-    double fp = 0;
-    double fn = 0;
-    double precision() const { return retrieved() == 0 ? 0 : tp / retrieved(); }
-    double recall() const { return relevant() == 0 ? 0 : tp / relevant(); }
-    double f1_score() const { return pr() == 0 ? 0 : 2.0 * precision() * recall() / pr(); }
-    double support() const { return relevant(); }
-
-    private:
-    double retrieved() const { return tp + fp; }
-    double relevant() const { return tp + fn; }
-    double pr() const { return precision() + recall(); }
-};
-
-struct image_info
-{
-    rgb_image image;
-    dlib::image_dataset_metadata::image info;
-    dlib::rectangle_transform tform;
-};
-
-auto main(const int argc, const char** argv) -> int
-try
-{
-    const auto num_threads = std::thread::hardware_concurrency();
-    dlib::command_line_parser parser;
-    parser.add_option("batch", "batch size for inference (default: 32)", 1);
-    parser.add_option("conf", "detection confidence threshold (default: 0.25)", 1);
-    parser.add_option("dnn", "load this network file", 1);
-    parser.add_option("nms", "IoU and area covered ratio thresholds (default: 0.45 1)", 2);
-    parser.add_option("nms-agnostic", "class-agnositc NMS");
-    parser.add_option("size", "image size for inference (default: 512)", 1);
-    parser.add_option("sync", "load this sync file", 1);
-    parser.add_option(
-        "workers",
-        "number of data loaders (default: " + std::to_string(num_threads) + ")",
-        1);
-    parser.set_group_name("Help Options");
-    parser.add_option("h", "alias for --help");
-    parser.add_option("print", "print the network architecture");
-    parser.add_option("help", "display this message and exit");
-    parser.parse(argc, argv);
-
-    if (parser.number_of_arguments() == 0 or parser.option("h") or parser.option("help"))
-    {
-        std::cout << "Usage: " << argv[0] << " [OPTION]... PATH/TO/DATASET/FILE.xml" << std::endl;
-        parser.print_options();
-        return EXIT_SUCCESS;
-    }
-    parser.check_incompatible_options("dnn", "sync");
-    parser.check_option_arg_range<size_t>("size", 224, 2048);
-    parser.check_option_arg_range<double>("nms", 0, 1);
-
-    dlib::file dataset_file(parser[0]);
-    const auto dataset_dir = dlib::get_parent_directory(dataset_file).full_name();
-
-    const size_t batch_size = dlib::get_option(parser, "batch", 32);
-    const size_t image_size = dlib::get_option(parser, "size", 512);
-    const size_t num_workers = dlib::get_option(parser, "workers", num_threads);
-    const double conf_thresh = dlib::get_option(parser, "conf", 0.25);
-    const std::string dnn_path = dlib::get_option(parser, "dnn", "");
-    const std::string sync_path = dlib::get_option(parser, "sync", "");
-    const bool classwise_nms = not parser.option("nms-agnostic");
-    double iou_threshold = 0.45;
-    double ratio_covered = 1.0;
-    if (parser.option("nms"))
-    {
-        iou_threshold = std::stod(parser.option("nms").argument(0));
-        ratio_covered = std::stod(parser.option("nms").argument(1));
-    }
-
-    bool export_model = false;
-    size_t num_steps = 0;
-    net_infer_type net;
-
-    if (not dnn_path.empty())
-    {
-        dlib::deserialize(dnn_path) >> net;
-    }
-    else if (not sync_path.empty() and dlib::file_exists(sync_path))
-    {
-        auto trainer = dlib::dnn_trainer(net);
-        trainer.set_synchronization_file(sync_path);
-        trainer.get_net();
-        num_steps = trainer.get_train_one_step_calls();
-        std::cerr << "Lodaded network from " << sync_path << std::endl;
-        std::cerr << "current learning rate: " << trainer.get_learning_rate() << std::endl;
-        std::cerr << "# training steps: " << num_steps << std::endl;
-        export_model = true;
-    }
-    else
-    {
-        std::cout << "ERROR: could not load the network." << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    net.loss_details().adjust_nms(iou_threshold, ratio_covered, classwise_nms);
-    if (parser.option("print"))
-        std::cout << net << std::endl;
-    else
-        std::cout << net.loss_details() << std::endl;
-
-    dlib::image_dataset_metadata::dataset dataset;
+    dlib::file dataset_file(dataset_path);
+    dataset_dir = dlib::get_parent_directory(dataset_file).full_name();
     dlib::image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_file.full_name());
-    dlib::pipe<image_info> data(1000);
-    const auto data_loader = [&](const size_t num_workers)
-    {
-        dlib::parallel_for(
-            num_workers,
-            0,
-            dataset.images.size(),
-            [&](size_t i)
-            {
-                rgb_image image;
-                image_info temp;
-                dlib::load_image(image, dataset_dir + "/" + dataset.images[i].filename);
-                temp.info = dataset.images[i];
-                temp.tform = preprocess_image(image, temp.image, image_size);
-                data.enqueue(temp);
-            });
-    };
+}
 
-    // start the data loaders
-    std::thread data_loaders([&]() { data_loader(num_workers); });
+void test_data_loader::run()
+{
+    dlib::parallel_for(
+        num_workers,
+        0,
+        dataset.images.size(),
+        [&](size_t i)
+        {
+            dlib::matrix<dlib::rgb_pixel> image;
+            image_info temp;
+            dlib::load_image(image, dataset_dir + "/" + dataset.images[i].filename);
+            temp.info = dataset.images[i];
+            temp.tform = preprocess_image(image, temp.image, image_size);
+            data.enqueue(temp);
+        });
+}
 
+std::pair<double, double> compute_map(
+    net_infer_type& net,
+    const dlib::image_dataset_metadata::dataset& dataset,
+    const size_t batch_size,
+    dlib::pipe<image_info>& data,
+    double conf_thresh,
+    std::ostream& out)
+{
     std::map<std::string, result> results;
     std::map<std::string, std::vector<std::pair<double, bool>>> hits;
     std::map<std::string, unsigned long> missing;
@@ -155,7 +58,7 @@ try
     while (num_processed != dataset.images.size())
     {
         image_info temp;
-        std::vector<rgb_image> images;
+        std::vector<dlib::matrix<dlib::rgb_pixel>> images;
         std::vector<image_info> details;
         while (images.size() < batch_size)
         {
@@ -225,10 +128,7 @@ try
         std::cerr << "\t\t\t\tProgress: " << num_processed << "/" << dataset.images.size() << " ("
                   << std::fixed << std::setprecision(3) << percent << "%)        \r" << std::flush;
     }
-    std::cout << std::endl;
-
-    data.disable();
-    data_loaders.join();
+    out << std::endl;
 
     double map = 0;
     double macro_precision = 0;
@@ -253,7 +153,7 @@ try
         weighted_recall += r.recall() * r.support();
         weighted_f1_score += r.f1_score() * r.support();
         // clang-format off
-        std::cout << dlib::rpad(item.first + ": ", padding)
+        out << dlib::rpad(item.first + ": ", padding)
                   << std::setprecision(2) << std::right << std::fixed
                   << std::setw(12) << ap * 100. << "%"
                   << std::setprecision(4)
@@ -273,9 +173,9 @@ try
     for (const auto& im : dataset.images)
         num_boxes += im.boxes.size();
 
-    std::cout << "--" << std::endl;
+    out << "--" << std::endl;
     // clang-format off
-    std::cout << dlib::rpad(std::string("macro: "), padding)
+    out << dlib::rpad(std::string("macro: "), padding)
               << std::setprecision(2) << std::right << std::fixed
               << std::setw(12) << map * 100. / hits.size() << "%"
               << std::setprecision(4)
@@ -283,13 +183,13 @@ try
               << std::setw(12) << macro_recall / results.size()
               << std::setw(12) << macro_f1_score / results.size()
               << std::endl;
-    std::cout << dlib::rpad(std::string("micro: "), padding)
+    out << dlib::rpad(std::string("micro: "), padding)
               << "             "
               << std::setw(12) << micro.precision()
               << std::setw(12) << micro.recall()
               << std::setw(12) << micro.f1_score()
               << std::endl;
-    std::cout << dlib::rpad(std::string("weighted: "), padding)
+    out << dlib::rpad(std::string("weighted: "), padding)
               << std::setprecision(4) << std::right << std::fixed
               << "             "
               << std::setw(12) << weighted_precision / num_boxes
@@ -297,23 +197,22 @@ try
               << std::setw(12) << weighted_f1_score / num_boxes
               << std::endl;
     // clang-format on
-
-    if (export_model)
-    {
-        std::stringstream filename;
-        filename << sync_path << "_step:" << std::setw(6) << std::setfill('0') << num_steps;
-        filename << "_map:" << std::setprecision(4) << map / hits.size();
-        filename << "_wf1:" << std::setprecision(4) << weighted_f1_score / num_boxes;
-        filename << ".dnn";
-        std::cout << "model exported as: " << filename.str() << std::endl;
-        net.clean();
-        dlib::serialize(filename.str()) << net;
-    }
-
-    return EXIT_SUCCESS;
+    return {map / hits.size(), weighted_f1_score / num_boxes};
 }
-catch (const std::exception& e)
+
+void save_model(
+    net_infer_type& net,
+    const std::string& sync_path,
+    long num_steps,
+    double map,
+    double wf1)
 {
-    std::cout << e.what() << std::endl;
-    return EXIT_FAILURE;
+    std::stringstream filename;
+    filename << sync_path << "_step:" << std::setw(6) << std::setfill('0') << num_steps;
+    filename << "_map:" << std::fixed << std::setprecision(4) << map;
+    filename << "_wf1:" << std::fixed << std::setprecision(4) << wf1;
+    filename << ".dnn";
+    net.clean();
+    dlib::serialize(filename.str()) << net;
+    std::cout << "model saved as: " << filename.str() << std::endl;
 }

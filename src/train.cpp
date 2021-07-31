@@ -1,3 +1,4 @@
+#include "metrics.h"
 #include "model.h"
 #include "utils.h"
 
@@ -429,7 +430,8 @@ try
 
     if (cosine_epochs > 0)
     {
-        const size_t cosine_steps = cosine_epochs * dataset.images.size() / batch_size;
+        const size_t cosine_steps =
+            cosine_epochs * dataset.images.size() / batch_size - burnin_steps;
         if (trainer.get_train_one_step_calls() == burnin_steps)
             std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
                       << cosine_steps << " steps)" << std::endl;
@@ -454,8 +456,39 @@ try
     else
         std::cerr << trainer << std::endl;
 
+    double best_map = 0;
+    double best_wf1 = 0;
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
+    {
         train();
+        const auto num_steps = trainer.get_train_one_step_calls();
+        const auto epoch = num_steps * trainer.get_mini_batch_size() / dataset.images.size();
+        // check if we just started a new epoch
+        if ((num_steps - 1) * trainer.get_mini_batch_size() / dataset.images.size() < epoch)
+        {
+            std::cout << "EPOCH NUMBER " << epoch << std::endl;
+            net_infer_type tnet(trainer.get_net(dlib::force_flush_to_disk::yes));
+            dlib::pipe<image_info> test_data(1000);
+            test_data_loader test_loader(
+                parser[0] + "/testing.xml",
+                image_size,
+                test_data,
+                num_workers);
+            std::thread test_loaders([&test_loader]() { test_loader.run(); });
+            const auto [map, wf1] =
+                compute_map(tnet, dataset, 2 * batch_size / num_gpus, test_data, 0.25, std::cerr);
+
+            if (map > best_map or wf1 > best_wf1)
+                save_model(tnet, experiment_name, num_steps, map, wf1);
+            best_map = std::max(map, best_map);
+            best_wf1 = std::max(wf1, best_wf1);
+            std::cout << "mAP: " << map << " (best: " << best_map << "), wf1: " << wf1
+                      << " (best: " << best_wf1 << ")" << std::endl;
+
+            test_data.disable();
+            test_loaders.join();
+        }
+    }
 
     trainer.get_net();
     std::cout << trainer << std::endl;
