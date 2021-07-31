@@ -172,7 +172,6 @@ try
     trainer.be_verbose();
     trainer.set_mini_batch_size(batch_size);
     trainer.set_synchronization_file(sync_file_name, std::chrono::minutes(30));
-    std::cout << trainer;
 
     // If the training has started and a synchronization file has already been saved to disk,
     // we can re-run this program with the --test option and a confidence threshold to see
@@ -419,6 +418,7 @@ try
 
         trainer.set_learning_rate_schedule(learning_rate_schedule);
         std::cout << "training started with " << burnin << " burn-in steps" << std::endl;
+        std::cout << trainer;
         while (trainer.get_train_one_step_calls() < burnin)
             train();
         std::cout << "burn-in finished" << std::endl;
