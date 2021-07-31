@@ -41,13 +41,14 @@ try
     parser.add_option("images", "path to directory with images", 1);
     parser.add_option("output", "output file to write out the processed input", 1);
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
+    parser.add_option("xml", "export the network to xml and exit", 1);
     parser.set_group_name("Pseudo-labelling Options");
     parser.add_option("check", "check that all files in the dataset exist");
     parser.add_option("update", "update this dataset with pseudo-labels", 1);
     parser.add_option("overlap", "overlap between truth and pseudo-labels", 2);
     parser.set_group_name("Help Options");
+    parser.add_option("architecture", "print the network architecture and exit");
     parser.add_option("h", "alias for --help");
-    parser.add_option("print", "print the network architecture");
     parser.add_option("help", "display this message and exit");
     parser.parse(argc, argv);
 
@@ -57,6 +58,15 @@ try
         webcam_window::print_keyboard_shortcuts();
         return EXIT_SUCCESS;
     }
+
+    net_infer_type net;
+
+    if (parser.option("architecture"))
+    {
+        std::cout << net << std::endl;
+        return EXIT_SUCCESS;
+    }
+
     // check for incompatible input options
     const auto input_options = std::array{"image", "images", "input", "webcam"};
     for (size_t i = 0; i < input_options.size(); ++i)
@@ -90,6 +100,7 @@ try
     const std::string output_path = dlib::get_option(parser, "output", "");
     const std::string mapping_path = dlib::get_option(parser, "mapping", "");
     const std::string dataset_path = dlib::get_option(parser, "update", "");
+    const std::string xml_path = dlib::get_option(parser, "xml", "");
     float fps = dlib::get_option(parser, "fps", 30);
     double nms_iou_threshold = 0.45;
     double nms_ratio_covered = 1.0;
@@ -98,8 +109,6 @@ try
         nms_iou_threshold = std::stod(parser.option("nms").argument(0));
         nms_ratio_covered = std::stod(parser.option("nms").argument(1));
     }
-
-    net_infer_type net;
 
     if (not dnn_path.empty())
     {
@@ -118,10 +127,14 @@ try
     }
 
     net.loss_details().adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
-    if (parser.option("print"))
-        std::cout << net << std::endl;
-    else
-        std::cout << net.loss_details() << std::endl;
+    std::cout << net.loss_details() << std::endl;
+
+    if (not xml_path.empty())
+    {
+        std::clog << "exporting net to " << xml_path << std::endl;
+        dlib::net_to_xml(net, xml_path);
+        return EXIT_SUCCESS;
+    }
 
     if (not dataset_path.empty())
     {
