@@ -487,7 +487,8 @@ try
                 save_model(tnet, experiment_name, num_steps, map, wf1);
             best_map = std::max(map, best_map);
             best_wf1 = std::max(wf1, best_wf1);
-            std::cout << "mAP: " << map << " (best: " << best_map << "), wf1: " << wf1
+            std::cout << "mean average precision: " << std::fixed << std::setprecision(4) << map
+                      << " (best: " << best_map << "), weighted f1 score: " << wf1
                       << " (best: " << best_wf1 << ")" << std::endl;
 
             test_data.disable();
