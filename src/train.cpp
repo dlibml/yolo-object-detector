@@ -210,7 +210,20 @@ try
 
     // Create some data loaders which will load the data, and perform som data augmentation.
     dlib::pipe<std::pair<rgb_image, std::vector<dlib::yolo_rect>>> train_data(100 * batch_size);
-    const auto loader = [&](time_t seed)
+    const auto loader = [angle,
+                         blur_prob,
+                         color_magnitude,
+                         color_offset_prob,
+                         crop_prob,
+                         gamma_magnitude,
+                         image_size,
+                         mirror_prob,
+                         mosaic_prob,
+                         perspective_prob,
+                         shift,
+                         &data_path,
+                         &dataset,
+                         &train_data](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
         dlib::random_cropper cropper;
@@ -225,9 +238,9 @@ try
             cropper.set_randomly_flip(false);
         cropper.set_background_crops_fraction(0);
 
-        auto get_sample = [&](const double crop_prob = 0.5)
+        const auto get_sample = [&](const double crop_prob = 0.5)
         {
-            std::pair<rgb_image, std::vector<dlib::yolo_rect>> sample;
+            std::pair<rgb_image, std::vector<dlib::yolo_rect>> result;
             rgb_image image, rotated, blurred, transformed(image_size, image_size);
             const auto idx = rnd.get_random_64bit_number() % dataset.images.size();
             const auto& image_info = dataset.images.at(idx);
@@ -238,44 +251,44 @@ try
             catch (const dlib::image_load_error& e)
             {
                 std::cerr << "ERROR: " << e.what() << std::endl;
-                sample.first.set_size(image_size, image_size);
-                dlib::assign_all_pixels(sample.first, dlib::rgb_pixel(0, 0, 0));
-                sample.second = {};
-                return sample;
+                result.first.set_size(image_size, image_size);
+                dlib::assign_all_pixels(result.first, dlib::rgb_pixel(0, 0, 0));
+                result.second = {};
+                return result;
             }
             for (const auto& box : image_info.boxes)
-                sample.second.emplace_back(box.rect, 1, box.label);
+                result.second.emplace_back(box.rect, 1, box.label);
 
             // We alternate between augmenting the full image and random cropping
             if (rnd.get_random_double() < crop_prob)
             {
-                std::vector<dlib::yolo_rect> boxes = sample.second;
-                cropper(image, boxes, sample.first, sample.second);
+                std::vector<dlib::yolo_rect> boxes = result.second;
+                cropper(image, boxes, result.first, result.second);
             }
             else
             {
                 dlib::rectangle_transform tform = rotate_image(
                     image,
                     rotated,
-                    rnd.get_double_in_range(-angle * dlib::pi / 180, angle * dlib::pi / 180),
+                    rnd.get_double_in_range(-1, 1) * angle * dlib::pi / 180,
                     dlib::interpolate_bilinear());
-                for (auto& box : sample.second)
+                for (auto& box : result.second)
                     box.rect = tform(box.rect);
 
-                tform = letterbox_image(rotated, sample.first, image_size);
-                for (auto& box : sample.second)
+                tform = letterbox_image(rotated, result.first, image_size);
+                for (auto& box : result.second)
                     box.rect = tform(box.rect);
 
                 if (rnd.get_random_double() < mirror_prob)
                 {
-                    tform = flip_image_left_right(sample.first);
-                    for (auto& box : sample.second)
+                    tform = flip_image_left_right(result.first);
+                    for (auto& box : result.second)
                         box.rect = tform(box.rect);
                 }
                 if (rnd.get_random_double() < blur_prob)
                 {
-                    dlib::gaussian_blur(sample.first, blurred);
-                    sample.first = blurred;
+                    dlib::gaussian_blur(result.first, blurred);
+                    result.first = blurred;
                 }
                 if (rnd.get_random_double() < perspective_prob)
                 {
@@ -291,9 +304,9 @@ try
                         corner.x() += rnd.get_double_in_range(-amount, amount) * image_size;
                         corner.y() += rnd.get_double_in_range(-amount, amount) * image_size;
                     }
-                    const auto ptform = extract_image_4points(sample.first, transformed, ps);
-                    sample.first = transformed;
-                    for (auto& box : sample.second)
+                    const auto ptform = extract_image_4points(result.first, transformed, ps);
+                    result.first = transformed;
+                    for (auto& box : result.second)
                     {
                         ps[0] = ptform(box.rect.tl_corner());
                         ps[1] = ptform(box.rect.tr_corner());
@@ -310,11 +323,11 @@ try
             }
 
             if (rnd.get_random_double() < color_offset_prob)
-                dlib::apply_random_color_offset(sample.first, rnd);
+                dlib::apply_random_color_offset(result.first, rnd);
             else
-                disturb_colors(sample.first, rnd, gamma_magnitude, color_magnitude);
+                disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
 
-            return sample;
+            return result;
         };
 
         while (train_data.is_enabled())
@@ -348,7 +361,7 @@ try
                         if (not b.ignore and coverage < min_coverage)
                             b.ignore = true;
 
-                        sample.second.push_back(b);
+                        sample.second.push_back(std::move(b));
                     }
                 }
                 train_data.enqueue(sample);
@@ -404,8 +417,8 @@ try
         while (images.size() < trainer.get_mini_batch_size())
         {
             train_data.dequeue(sample);
-            images.push_back(sample.first);
-            bboxes.push_back(sample.second);
+            images.push_back(std::move(sample.first));
+            bboxes.push_back(std::move(sample.second));
         }
         trainer.train_one_step(images, bboxes);
     };
