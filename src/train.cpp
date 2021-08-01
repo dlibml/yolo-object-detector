@@ -428,26 +428,30 @@ try
         trainer.get_net(dlib::force_flush_to_disk::no);
     }
 
-    if (cosine_epochs > 0)
+    // setup the trainer after the burn-in
+    if (trainer.get_test_one_step_calls() == burnin_steps)
     {
-        const size_t cosine_steps =
-            cosine_epochs * dataset.images.size() / batch_size - burnin_steps;
-        if (trainer.get_train_one_step_calls() == burnin_steps)
-            std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
-                      << cosine_steps << " steps)" << std::endl;
-        // clang-format off
-        const dlib::matrix<double> learning_rate_schedule =
-        min_learning_rate + 0.5 * (learning_rate - min_learning_rate) *
-        (1 + dlib::cos(dlib::linspace(0, cosine_steps, cosine_steps) * dlib::pi / cosine_steps));
-        // clang-format on
-        trainer.set_learning_rate_schedule(learning_rate_schedule);
-    }
-    else
-    {
-        trainer.set_learning_rate(learning_rate);
-        trainer.set_min_learning_rate(min_learning_rate);
-        trainer.set_learning_rate_shrink_factor(0.1);
-        trainer.set_iterations_without_progress_threshold(patience);
+        if (cosine_epochs > 0)
+        {
+            const size_t cosine_steps =
+                cosine_epochs * dataset.images.size() / batch_size - burnin_steps;
+            if (trainer.get_train_one_step_calls() == burnin_steps)
+                std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
+                          << cosine_steps << " steps)" << std::endl;
+            // clang-format off
+            const dlib::matrix<double> learning_rate_schedule =
+            min_learning_rate + 0.5 * (learning_rate - min_learning_rate) *
+            (1 + dlib::cos(dlib::linspace(0, cosine_steps, cosine_steps) * dlib::pi / cosine_steps));
+            // clang-format on
+            trainer.set_learning_rate_schedule(learning_rate_schedule);
+        }
+        else
+        {
+            trainer.set_learning_rate(learning_rate);
+            trainer.set_min_learning_rate(min_learning_rate);
+            trainer.set_learning_rate_shrink_factor(0.1);
+            trainer.set_iterations_without_progress_threshold(patience);
+        }
     }
 
     trainer.get_net();
@@ -467,7 +471,7 @@ try
         if ((num_steps - 1) * trainer.get_mini_batch_size() / dataset.images.size() < epoch)
         {
             std::cout << "EPOCH NUMBER " << epoch << std::endl;
-            net_infer_type tnet(trainer.get_net(dlib::force_flush_to_disk::yes));
+            net_infer_type tnet(trainer.get_net());
             dlib::pipe<image_info> test_data(1000);
             test_data_loader test_loader(
                 parser[0] + "/testing.xml",
