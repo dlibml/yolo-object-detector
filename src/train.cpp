@@ -439,18 +439,18 @@ try
         while (trainer.get_train_one_step_calls() < burnin_steps)
             train();
         trainer.get_net(dlib::force_flush_to_disk::no);
+        std::cout << "burn-in finished" << std::endl;
     }
 
     // setup the trainer after the burn-in
-    if (trainer.get_test_one_step_calls() == burnin_steps)
+    if (trainer.get_train_one_step_calls() == burnin_steps)
     {
         if (cosine_epochs > 0)
         {
             const size_t cosine_steps =
                 cosine_epochs * dataset.images.size() / batch_size - burnin_steps;
-            if (trainer.get_train_one_step_calls() == burnin_steps)
-                std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
-                          << cosine_steps << " steps)" << std::endl;
+            std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
+                      << cosine_steps << " steps)" << std::endl;
             // clang-format off
             const dlib::matrix<double> learning_rate_schedule =
             min_learning_rate + 0.5 * (learning_rate - min_learning_rate) *
