@@ -475,8 +475,13 @@ try
                 test_data,
                 num_workers);
             std::thread test_loaders([&test_loader]() { test_loader.run(); });
-            const auto [map, wf1] =
-                compute_map(tnet, dataset, 2 * batch_size / num_gpus, test_data, 0.25, std::cerr);
+            const auto [map, wf1] = compute_map(
+                tnet,
+                test_loader.get_dataset(),
+                2 * batch_size / num_gpus,
+                test_data,
+                0.25,
+                std::cerr);
 
             if (map > best_map or wf1 > best_wf1)
                 save_model(tnet, experiment_name, num_steps, map, wf1);

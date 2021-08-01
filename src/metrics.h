@@ -40,6 +40,7 @@ class test_data_loader
         dlib::pipe<image_info>& data,
         size_t num_workers = std::thread::hardware_concurrency());
 
+    dlib::image_dataset_metadata::dataset get_dataset() const;
     void run();
 
     private:
@@ -56,8 +57,7 @@ std::pair<double, double> compute_map(
     const size_t batch_size,
     dlib::pipe<image_info>& data,
     double conf_thresh = 0.25,
-    std::ostream& out = std::cout
-);
+    std::ostream& out = std::cout);
 
 void save_model(
     net_infer_type& net,
