@@ -104,6 +104,7 @@ try
     const std::string experiment_name = get_option(parser, "name", "yolo");
     const std::string sync_file_name = experiment_name + "_sync";
     const std::string net_file_name = experiment_name + ".dnn";
+    const std::string best_metrics_path = experiment_name + "best_metrics.dat";
     const std::string tune_net_path = get_option(parser, "tune", "");
 
     const std::string data_path = parser[0];
@@ -475,6 +476,8 @@ try
 
     double best_map = 0;
     double best_wf1 = 0;
+    if (dlib::file_exists(best_metrics_path))
+        dlib::deserialize(best_metrics_path) >> best_map >> best_wf1;
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
     {
         train();
@@ -507,6 +510,7 @@ try
             std::cout << "mean average precision: " << std::fixed << std::setprecision(4) << map
                       << " (best: " << best_map << "), weighted f1 score: " << wf1
                       << " (best: " << best_wf1 << ")" << std::endl;
+            dlib::serialize(best_metrics_path) << best_map << best_wf1;
 
             test_data.disable();
             test_loaders.join();
