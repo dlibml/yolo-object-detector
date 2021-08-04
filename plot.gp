@@ -1,5 +1,7 @@
 #!/usr/bin/env gnuplot
 
+reset session
+
 set term png size 1800,960
 set output 'loss.png'
 set grid
@@ -12,9 +14,12 @@ set multiplot title 'YOLO'
 
 set size 0.67,0.5
 set origin 0,0.5
-set yrange [0:20]
+stats "< awk '$1==\"step#:\" {print $2, $8}' training.log" every ::1 using 1:2;
+max_y = floor(STATS_min_y * 10);
+set yrange [0:max_y]
 set title 'loss'
 set xlabel 'step'
+
 plot "< awk '$1==\"step#:\" {print $2, $8}' training.log" using 1:2 title 'train' w lines ls 1
 
 set size 0.33,0.5
