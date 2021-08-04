@@ -61,7 +61,7 @@ try
 
     bool export_model = false;
     size_t num_steps = 0;
-    net_infer_type net;
+    net_train_type net;
 
     if (not dnn_path.empty())
     {
@@ -98,7 +98,8 @@ try
     // start the data loaders
     std::thread data_loaders([&data_loader]() { data_loader.run(); });
 
-    const auto metrics = compute_metrics(net, dataset, batch_size, data, conf_thresh);
+    net_infer_type tnet(net);
+    const auto metrics = compute_metrics(tnet, dataset, batch_size, data, conf_thresh);
 
     data.disable();
     data_loaders.join();

@@ -504,7 +504,7 @@ try
                 std::cerr);
 
             if (metrics.map > best_map or metrics.weighted_f > best_wf1)
-                save_model(tnet, experiment_name, num_steps, metrics.map, metrics.weighted_f);
+                save_model(net, experiment_name, num_steps, metrics.map, metrics.weighted_f);
             best_map = std::max(metrics.map, best_map);
             best_wf1 = std::max(metrics.weighted_f, best_wf1);
 

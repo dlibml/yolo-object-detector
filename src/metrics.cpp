@@ -209,7 +209,7 @@ metrics_details compute_metrics(
 }
 
 void save_model(
-    net_infer_type& net,
+    net_train_type& net,
     const std::string& sync_path,
     long num_steps,
     double map,
