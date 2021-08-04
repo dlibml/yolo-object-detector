@@ -104,7 +104,7 @@ try
     const std::string experiment_name = get_option(parser, "name", "yolo");
     const std::string sync_file_name = experiment_name + "_sync";
     const std::string net_file_name = experiment_name + ".dnn";
-    const std::string best_metrics_path = experiment_name + "best_metrics.dat";
+    const std::string best_metrics_path = experiment_name + "_best_metrics.dat";
     const std::string tune_net_path = get_option(parser, "tune", "");
 
     const std::string data_path = parser[0];
@@ -478,16 +478,16 @@ try
     double best_wf1 = 0;
     if (dlib::file_exists(best_metrics_path))
         dlib::deserialize(best_metrics_path) >> best_map >> best_wf1;
+    const auto num_steps_per_epoch = dataset.images.size() / trainer.get_mini_batch_size();
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
     {
         train();
         const auto num_steps = trainer.get_train_one_step_calls();
-        const auto epoch = num_steps * trainer.get_mini_batch_size() / dataset.images.size();
-        // check if we just started a new epoch
-        if ((num_steps - 1) * trainer.get_mini_batch_size() / dataset.images.size() < epoch)
+        if (num_steps % num_steps_per_epoch == 0)
         {
-            std::cout << "EPOCH NUMBER " << epoch << std::endl;
+            const auto epoch = num_steps * trainer.get_mini_batch_size() / dataset.images.size();
             net_infer_type tnet(trainer.get_net());
+            std::cerr << "computing mean average precison for epoch " << epoch << std::endl;
             dlib::pipe<image_info> test_data(1000);
             test_data_loader test_loader(
                 parser[0] + "/testing.xml",
@@ -495,7 +495,7 @@ try
                 test_data,
                 num_workers);
             std::thread test_loaders([&test_loader]() { test_loader.run(); });
-            const auto [map, wf1] = compute_map(
+            const auto metrics = compute_metrics(
                 tnet,
                 test_loader.get_dataset(),
                 2 * batch_size / num_gpus,
@@ -503,13 +503,16 @@ try
                 0.25,
                 std::cerr);
 
-            if (map > best_map or wf1 > best_wf1)
-                save_model(tnet, experiment_name, num_steps, map, wf1);
-            best_map = std::max(map, best_map);
-            best_wf1 = std::max(wf1, best_wf1);
-            std::cout << "mean average precision: " << std::fixed << std::setprecision(4) << map
-                      << " (best: " << best_map << "), weighted f1 score: " << wf1
-                      << " (best: " << best_wf1 << ")" << std::endl;
+            if (metrics.map > best_map or metrics.weighted_f > best_wf1)
+                save_model(tnet, experiment_name, num_steps, metrics.map, metrics.weighted_f);
+            best_map = std::max(metrics.map, best_map);
+            best_wf1 = std::max(metrics.weighted_f, best_wf1);
+
+            std::cout << "           mAP    MPr    MRc    MF1    µPr    µRc    µF1    wPr    wRc "
+                         "   wF1\n";
+            std::cout << "EPOCH " << epoch << ": " << std::fixed << std::setprecision(4) << metrics
+                      << std::endl;
+
             dlib::serialize(best_metrics_path) << best_map << best_wf1;
 
             test_data.disable();

@@ -98,13 +98,13 @@ try
     // start the data loaders
     std::thread data_loaders([&data_loader]() { data_loader.run(); });
 
-    const auto [map, wf1] = compute_map(net, dataset, batch_size, data, conf_thresh);
+    const auto metrics = compute_metrics(net, dataset, batch_size, data, conf_thresh);
 
     data.disable();
     data_loaders.join();
 
     if (export_model)
-        save_model(net, sync_path, num_steps, map, wf1);
+        save_model(net, sync_path, num_steps, metrics.map, metrics.weighted_f);
 
     return EXIT_SUCCESS;
 }

@@ -36,7 +36,7 @@ void test_data_loader::run()
         });
 }
 
-std::pair<double, double> compute_map(
+metrics_details compute_metrics(
     net_infer_type& net,
     const dlib::image_dataset_metadata::dataset& dataset,
     const size_t batch_size,
@@ -135,13 +135,7 @@ std::pair<double, double> compute_map(
     }
     out << std::endl;
 
-    double map = 0;
-    double macro_precision = 0;
-    double macro_recall = 0;
-    double macro_f1_score = 0;
-    double weighted_precision = 0;
-    double weighted_recall = 0;
-    double weighted_f1_score = 0;
+    metrics_details metrics;
     result micro;
     for (auto& item : hits)
     {
@@ -151,16 +145,16 @@ std::pair<double, double> compute_map(
         micro.tp += r.tp;
         micro.fp += r.fp;
         micro.fn += r.fn;
-        macro_precision += r.precision();
-        macro_recall += r.recall();
-        macro_f1_score += r.f1_score();
-        weighted_precision += r.precision() * r.support();
-        weighted_recall += r.recall() * r.support();
-        weighted_f1_score += r.f1_score() * r.support();
+        metrics.macro_p += r.precision();
+        metrics.macro_r += r.recall();
+        metrics.macro_f += r.f1_score();
+        metrics.weighted_p += r.precision() * r.support();
+        metrics.weighted_r += r.recall() * r.support();
+        metrics.weighted_f += r.f1_score() * r.support();
         // clang-format off
         out << dlib::rpad(item.first + ": ", padding)
-                  << std::setprecision(2) << std::right << std::fixed
-                  << std::setw(12) << ap * 100. << "%"
+                  << std::setprecision(4) << std::right << std::fixed
+                  << std::setw(12) << ap
                   << std::setprecision(4)
                   << std::setw(12) << r.precision()
                   << std::setw(12) << r.recall()
@@ -172,37 +166,46 @@ std::pair<double, double> compute_map(
                   << std::setw(12) << r.support()
                   << std::endl;
         // clang-format on
-        map += ap;
+        metrics.map += ap;
     }
     size_t num_boxes = 0;
     for (const auto& im : dataset.images)
         num_boxes += im.boxes.size();
 
+    metrics.map /= hits.size();
+    metrics.macro_p /= results.size();
+    metrics.macro_r /= results.size();
+    metrics.macro_f /= results.size();
+    metrics.micro_p = micro.precision();
+    metrics.micro_r = micro.recall();
+    metrics.micro_f = micro.f1_score();
+    metrics.weighted_p /= num_boxes;
+    metrics.weighted_r /= num_boxes;
+    metrics.weighted_f /= num_boxes;
     out << "--" << std::endl;
     // clang-format off
     out << dlib::rpad(std::string("macro: "), padding)
-              << std::setprecision(2) << std::right << std::fixed
-              << std::setw(12) << map * 100. / hits.size() << "%"
-              << std::setprecision(4)
-              << std::setw(12) << macro_precision / results.size()
-              << std::setw(12) << macro_recall / results.size()
-              << std::setw(12) << macro_f1_score / results.size()
+              << std::setprecision(4) << std::right << std::fixed
+              << std::setw(12) << metrics.map
+              << std::setw(12) << metrics.macro_p
+              << std::setw(12) << metrics.macro_r
+              << std::setw(12) << metrics.macro_f
               << std::endl;
     out << dlib::rpad(std::string("micro: "), padding)
-              << "             "
-              << std::setw(12) << micro.precision()
-              << std::setw(12) << micro.recall()
-              << std::setw(12) << micro.f1_score()
+              << "            "
+              << std::setw(12) << metrics.micro_p
+              << std::setw(12) << metrics.micro_r
+              << std::setw(12) << metrics.micro_f
               << std::endl;
     out << dlib::rpad(std::string("weighted: "), padding)
               << std::setprecision(4) << std::right << std::fixed
-              << "             "
-              << std::setw(12) << weighted_precision / num_boxes
-              << std::setw(12) << weighted_recall / num_boxes
-              << std::setw(12) << weighted_f1_score / num_boxes
+              << "            "
+              << std::setw(12) << metrics.weighted_p
+              << std::setw(12) << metrics.weighted_r
+              << std::setw(12) << metrics.weighted_f
               << std::endl;
     // clang-format on
-    return {map / hits.size(), weighted_f1_score / num_boxes};
+    return metrics;
 }
 
 void save_model(

@@ -51,7 +51,29 @@ class test_data_loader
     size_t num_workers;
 };
 
-std::pair<double, double> compute_map(
+struct metrics_details
+{
+    double map = 0;
+    double macro_p = 0;
+    double macro_r = 0;
+    double macro_f = 0;
+    double micro_p = 0;
+    double micro_r = 0;
+    double micro_f = 0;
+    double weighted_p = 0;
+    double weighted_r = 0;
+    double weighted_f = 0;
+};
+
+inline std::ostream& operator<<(std::ostream& out, const metrics_details& item)
+{
+    out << item.map << ' ' << item.macro_p << ' ' << item.macro_r << ' ' << item.macro_f << ' '
+        << item.micro_p << ' ' << item.micro_r << ' ' << item.micro_f << ' ' << item.weighted_p
+        << ' ' << item.weighted_r << ' ' << item.weighted_f;
+    return out;
+}
+
+metrics_details compute_metrics(
     net_infer_type& net,
     const dlib::image_dataset_metadata::dataset& dataset,
     const size_t batch_size,
