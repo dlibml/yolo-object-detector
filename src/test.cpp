@@ -74,8 +74,8 @@ try
         trainer.get_net();
         num_steps = trainer.get_train_one_step_calls();
         std::cerr << "Lodaded network from " << sync_path << std::endl;
-        std::cerr << "current learning rate: " << trainer.get_learning_rate() << std::endl;
-        std::cerr << "# training steps: " << num_steps << std::endl;
+        std::cerr << "learning rate:  " << trainer.get_learning_rate() << std::endl;
+        std::cerr << "training steps: " << num_steps << std::endl;
         export_model = true;
     }
     else
