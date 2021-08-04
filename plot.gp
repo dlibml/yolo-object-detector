@@ -31,6 +31,7 @@ plot "< awk '$1==\"step#:\" {print $2, $5}' training.log" using 1:2 title '' w l
 
 set size 0.25,0.5
 
+set key right bottom
 set origin 0,0
 set title 'mAP\@0.5'
 set yrange [0:1]
