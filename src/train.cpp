@@ -508,10 +508,12 @@ try
             best_map = std::max(metrics.map, best_map);
             best_wf1 = std::max(metrics.weighted_f, best_wf1);
 
-            std::cout << "\n           mAP    MPr    MRc    MF1    µPr    µRc    µF1    wPr    wRc "
+            std::cout << "\n"
+                      << "           mAP    mPr    mRc    mF1    µPr    µRc    µF1    wPr    wRc "
                          "   wF1\n";
             std::cout << "EPOCH " << epoch << ": " << std::fixed << std::setprecision(4) << metrics
-                      << "\n" << std::endl;
+                      << "\n"
+                      << std::endl;
 
             dlib::serialize(best_metrics_path) << best_map << best_wf1;
 
