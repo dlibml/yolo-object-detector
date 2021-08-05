@@ -91,6 +91,26 @@ namespace rgpnet
                       btag1<typename vovnet::def<ACT, BN>::template dark_osa_module5<256, 128,
                             typename vovnet::def<ACT, BN>::template stem<INPUT>>>>>>>>>>>>>;
 
+        template <typename INPUT> using stem = conblock<128, 3, 2, conblock<64, 3, 2, conblock<32, 3, 1, INPUT>>>;
+
+        template <long num_filters_out, long num_filters_in, typename SUBNET>
+        using dark_osa_module5_id = vovnet::id_mapping<typename vovnet::def<ACT, BN>::template
+                                    dark_osa_module5<num_filters_out, num_filters_in, SUBNET>>;
+
+        template <typename SUBNET> using dark_osa_module5_id_128 = dark_osa_module5_id<128, 32, SUBNET>;
+        template <typename SUBNET> using dark_osa_module5_id_256 = dark_osa_module5_id<256, 64, SUBNET>;
+        template <typename SUBNET> using dark_osa_module5_id_384 = dark_osa_module5_id<384, 96, SUBNET>;
+        template <typename SUBNET> using dark_osa_module5_id_512 = dark_osa_module5_id<512, 128, SUBNET>;
+
+        template <typename INPUT>
+        using backbone_99 = repeat<3, dark_osa_module5_id_512,
+                            typename vovnet::def<ACT, BN>::template con3<512, 2,
+                      btag3<repeat<9, dark_osa_module5_id_384,
+                            typename vovnet::def<ACT, BN>::template con3<384, 2,
+                      btag2<repeat<3, dark_osa_module5_id_256,
+                            typename vovnet::def<ACT, BN>::template con3<256, 2,
+                      btag1<repeat<1, dark_osa_module5_id_128, stem<INPUT>>>>>>>>>>>;
+
         // --------------------------------- RGPNet --------------------------------- //
 
         template <long num_filters, typename SUBNET>
@@ -148,10 +168,16 @@ namespace rgpnet
         ytag16<sig<con<1, 1, 1, 1, 1, atag3<adaptor3<askip4<
         ytag32<sig<con<1, 1, 1, 1, 1, atag4<adaptor4<
         spp<backbone_39<input_rgb_image>>>>>>>>>>>>>>>>>>>;
+
+        using net_type_99 = loss_yolo<ytag8, ytag16, ytag32,
+        ytag8<sig<con<1, 1, 1, 1, 1, adaptor2<askip3<
+        ytag16<sig<con<1, 1, 1, 1, 1, atag3<adaptor3<askip4<
+        ytag32<sig<con<1, 1, 1, 1, 1, atag4<adaptor4<
+        spp<backbone_99<input_rgb_image>>>>>>>>>>>>>>>>>>>;
     };
 
-    using train = def<relu, bn_con>::net_type_39;
-    using infer = def<relu, affine>::net_type_39;
+    using train = def<leaky_relu, bn_con>::net_type_99;
+    using infer = def<leaky_relu, affine>::net_type_99;
 
     // clang-format on
 }  // namespace rgpnet
