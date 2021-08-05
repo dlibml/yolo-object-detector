@@ -23,7 +23,7 @@ try
     parser.add_option("visualize", "visualize data augmentation instead of training");
     parser.set_group_name("Training Options");
     parser.add_option("batch", "mini batch size (default: 8)", 1);
-    parser.add_option("burnin", "learning rate burn-in steps (default: 1000)", 1);
+    parser.add_option("burnin", "learning rate burn-in epochs (default: 3)", 1);
     parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
@@ -83,7 +83,7 @@ try
     const double lambda_box = get_option(parser, "lambda-box", 1.0);
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
     const size_t batch_size = get_option(parser, "batch", 8);
-    const size_t burnin_steps = get_option(parser, "burnin", 1000);
+    const size_t burnin_epochs = get_option(parser, "burnin", 3);
     const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", num_threads);
     const size_t num_gpus = get_option(parser, "gpus", 1);
@@ -424,6 +424,9 @@ try
         trainer.train_one_step(images, bboxes);
     };
 
+    const auto num_steps_per_epoch = dataset.images.size() / trainer.get_mini_batch_size();
+    const auto burnin_steps = burnin_epochs * num_steps_per_epoch;
+
     // The training process can be unstable at the beginning.  For this reason, we
     // exponentially increase the learning rate during the first burnin steps.
     if (trainer.get_train_one_step_calls() < burnin_steps)
@@ -434,7 +437,8 @@ try
         trainer.set_learning_rate_schedule(learning_rate_schedule);
         if (trainer.get_train_one_step_calls() == 0)
         {
-            std::cout << "training started with " << burnin_steps << " burn-in steps" << std::endl;
+            std::cout << "training started with " << burnin_epochs << " burn-in epochs ("
+                      << burnin_steps << " steps)" << std::endl;
             std::cout << trainer;
         }
         while (trainer.get_train_one_step_calls() < burnin_steps)
@@ -448,10 +452,9 @@ try
     {
         if (cosine_epochs > 0)
         {
-            const size_t cosine_steps =
-                cosine_epochs * dataset.images.size() / batch_size - burnin_steps;
-            std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
-                      << cosine_steps << " steps)" << std::endl;
+            const size_t cosine_steps = cosine_epochs * num_steps_per_epoch - burnin_steps;
+            std::cout << "training with cosine scheduler for " << cosine_epochs - burnin_epochs
+                      << " epochs (" << cosine_steps << " steps)" << std::endl;
             // clang-format off
             const dlib::matrix<double> learning_rate_schedule =
             min_learning_rate + 0.5 * (learning_rate - min_learning_rate) *
@@ -478,7 +481,6 @@ try
     double best_wf1 = 0;
     if (dlib::file_exists(best_metrics_path))
         dlib::deserialize(best_metrics_path) >> best_map >> best_wf1;
-    const auto num_steps_per_epoch = dataset.images.size() / trainer.get_mini_batch_size();
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
     {
         train();
