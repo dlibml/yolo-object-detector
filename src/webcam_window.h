@@ -5,46 +5,6 @@
 #include <dlib/image_transforms.h>
 #include <tools/imglab/src/metadata_editor.h>
 
-namespace dlib
-{
-    template <typename T, typename traits, typename alloc> auto string_dims(
-        const std::basic_string<T, traits, alloc>& str,
-        const std::shared_ptr<font>& f_ptr = default_font::get_font())
-    {
-        using string = std::basic_string<T, traits, alloc>;
-
-        const font& f = *f_ptr;
-
-        long height = f.height();
-        long width = 0;
-        for (typename string::size_type i = 0; i < str.size(); ++i)
-        {
-            // ignore the '\r' character
-            if (str[i] == '\r')
-                continue;
-
-            // A combining character should be applied to the previous character, and we
-            // therefore make one step back. If a combining comes right after a newline,
-            // then there must be some kind of error in the string, and we don't combine.
-            if (is_combining_char(str[i]))
-            {
-                width -= f[str[i]].width();
-            }
-
-            if (str[i] == '\n')
-            {
-                height += f.height();
-                width = f.left_overflow();
-                continue;
-            }
-
-            const letter& l = f[str[i]];
-            width += l.width();
-        }
-        return std::make_pair(width, height);
-    }
-}  // namespace dlib
-
 struct drawing_options
 {
     drawing_options() = default;
@@ -133,7 +93,7 @@ inline void draw_bounding_boxes(
             }
 
             const dlib::ustring label = dlib::convert_utf8_to_utf32(sout.str());
-            const auto [lw, lh] = string_dims(label, opts.get_font());
+            const auto [lw, lh] = compute_string_dims(label, opts.get_font());
 
             // the default case: label outside the top left corner of the box
             dlib::point label_pos(r.left(), r.top() - lh - offset);
