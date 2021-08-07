@@ -128,10 +128,7 @@ metrics_details compute_metrics(
             }
         }
         num_processed += images.size();
-        const auto percent = num_processed * 100. / dataset.images.size();
         progress.print_status(num_processed, false, std::cerr);
-        std::cerr << "\t\t\t\tProgress: " << num_processed << "/" << dataset.images.size() << " ("
-                  << std::fixed << std::setprecision(3) << percent << "%)        \r" << std::flush;
     }
     out << std::endl;
 
