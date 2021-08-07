@@ -176,11 +176,7 @@ try
                     image_info.boxes.push_back(std::move(box));
                 }
             }
-            const auto percent = (i + 1) * 100. / dataset.images.size();
             progress.print_status(i + 1, false, std::cerr);
-            std::cerr << "\t\t\t\tProgress: " << i + 1 << "/" << dataset.images.size() << " ("
-                      << std::fixed << std::setprecision(3) << percent << "%)        \r"
-                      << std::flush;
         }
         std::cerr << std::endl;
         chdir.revert();
