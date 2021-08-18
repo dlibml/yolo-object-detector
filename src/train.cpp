@@ -302,8 +302,8 @@ try
                     const double amount = 0.05;
                     for (auto& corner : ps)
                     {
-                        corner.x() += rnd.get_double_in_range(-amount, amount) * image_size;
-                        corner.y() += rnd.get_double_in_range(-amount, amount) * image_size;
+                        corner.x() += rnd.get_double_in_range(-1, 1) * amount * image_size;
+                        corner.y() += rnd.get_double_in_range(-1, 1) * amount * image_size;
                     }
                     const auto ptform = extract_image_4points(result.first, transformed, ps);
                     result.first = transformed;
@@ -431,12 +431,11 @@ try
     // exponentially increase the learning rate during the first burnin steps.
     if (trainer.get_train_one_step_calls() < burnin_steps)
     {
-        const dlib::matrix<double> learning_rate_schedule =
-            learning_rate * pow(dlib::linspace(1e-12, 1, burnin_steps), 4);
-
-        trainer.set_learning_rate_schedule(learning_rate_schedule);
         if (trainer.get_train_one_step_calls() == 0)
         {
+            const dlib::matrix<double> learning_rate_schedule =
+                learning_rate * pow(dlib::linspace(1e-12, 1, burnin_steps), 4);
+            trainer.set_learning_rate_schedule(learning_rate_schedule);
             std::cout << "training started with " << burnin_epochs << " burn-in epochs ("
                       << burnin_steps << " steps)" << std::endl;
             std::cout << trainer;
