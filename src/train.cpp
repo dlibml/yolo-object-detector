@@ -156,7 +156,11 @@ try
     net_train_type net(options);
     setup_detector(net, options);
     if (parser.option("architecture"))
+    {
+        rgb_image dummy(image_size, image_size);
+        net(dummy);
         std::cerr << net << std::endl;
+    }
 
     if (not tune_net_path.empty())
     {
