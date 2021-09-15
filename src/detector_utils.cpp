@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "detector_utils.h"
 
 dlib::rectangle_transform preprocess_image(
     const dlib::matrix<dlib::rgb_pixel>& image,

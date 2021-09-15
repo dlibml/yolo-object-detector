@@ -1,6 +1,6 @@
 #include "metrics.h"
 #include "model.h"
-#include "utils.h"
+#include "detector_utils.h"
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/data_io.h>
@@ -164,9 +164,9 @@ try
 
     if (not tune_net_path.empty())
     {
-        net_train_type pretrained_net;
-        dlib::deserialize(tune_net_path) >> pretrained_net;
-        dlib::layer<57>(net).subnet() = dlib::layer<57>(pretrained_net).subnet();
+        // net_train_type pretrained_net;
+        dlib::deserialize(tune_net_path) >> net;
+        // dlib::layer<57>(net).subnet() = dlib::layer<57>(pretrained_net).subnet();
     }
 
     // In case we have several GPUs, we can tell the dnn_trainer to make use of them.

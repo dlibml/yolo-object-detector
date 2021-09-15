@@ -1,0 +1,72 @@
+#include "drawing_utils.h"
+
+void draw_bounding_boxes(
+    dlib::matrix<dlib::rgb_pixel>& image,
+    const std::vector<dlib::yolo_rect>& detections,
+    drawing_options& opts)
+{
+    // We want to draw most confident detections on top, so we iterate in reverse order
+    for (auto det = detections.rbegin(); det != detections.rend(); ++det)
+    {
+        const auto& d = *det;
+        const auto offset = opts.thickness / 2;
+        const auto color = opts.string_to_color(d.label);
+        dlib::lab_pixel lab;
+        dlib::assign_pixel(lab, color);
+        if (lab.l < 128)
+            opts.font_color = dlib::rgb_pixel(255, 255, 255);
+        else
+            opts.font_color = dlib::rgb_pixel(0, 0, 0);
+        dlib::rectangle r(d.rect);
+        r.left() = dlib::put_in_range(offset, image.nc() - 1 - offset, r.left());
+        r.top() = dlib::put_in_range(offset, image.nr() - 1 - offset, r.top());
+        r.right() = dlib::put_in_range(offset, image.nc() - 1 - offset, r.right());
+        r.bottom() = dlib::put_in_range(offset, image.nr() - 1 - offset, r.bottom());
+        if (opts.fill > 0)
+        {
+            const dlib::rgb_alpha_pixel fill(color.red, color.green, color.blue, opts.fill);
+            dlib::fill_rect(image, r, fill);
+        }
+        dlib::draw_rectangle(image, r, color, opts.thickness);
+
+        if (opts.draw_labels)
+        {
+            std::ostringstream sout;
+            sout << std::fixed << std::setprecision(0);
+            if (opts.multilabel)
+            {
+                for (size_t i = 0; i < d.labels.size() - 1; ++i)
+                {
+                    sout << opts.mapping[d.labels[i].second];
+                    if (opts.draw_confidence)
+                        sout << " (" << d.labels[i].first * 100 << "%)";
+                    sout << ", ";
+                }
+                sout << opts.mapping[d.labels[d.labels.size() - 1].second];
+                if (opts.draw_confidence)
+                    sout << " (" << d.labels[d.labels.size() - 1].first * 100 << "%)";
+            }
+            else
+            {
+                sout << opts.mapping[d.label];
+                if (opts.draw_confidence)
+                    sout << " (" << d.detection_confidence * 100 << "%)";
+            }
+
+            const dlib::ustring label = dlib::convert_utf8_to_utf32(sout.str());
+            const auto [lw, lh] = compute_string_dims(label, opts.get_font());
+
+            // the default case: label outside the top left corner of the box
+            dlib::point label_pos(r.left(), r.top() - lh - offset);
+            dlib::rectangle bg(lw + opts.thickness, lh);
+
+            // draw label inside the bounding box (move it downwards)
+            if (label_pos.y() < 0)
+                label_pos.y() += lh;
+
+            bg = move_rect(bg, label_pos.x() - offset, label_pos.y());
+            fill_rect(image, bg, color);
+            draw_string(image, dlib::point(label_pos), label, opts.font_color, opts.get_font());
+        }
+    }
+}

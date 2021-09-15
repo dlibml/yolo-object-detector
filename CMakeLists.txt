@@ -72,22 +72,24 @@ macro(add_dlib_library name)
     install(TARGETS ${name} DESTINATION lib)
 endmacro()
 
-fetch_content(dlib master https://github.com/davisking/dlib.git)
+fetch_content(dlib fused-convolution https://github.com/arrufat/dlib.git)
 fetch_content(json v3.9.1 https://github.com/nlohmann/json.git)
 
 add_dlib_executable(compute_anchors)
 
-add_dlib_library(utils)
-add_dlib_library(metrics PRIVATE utils)
+add_dlib_library(drawing_utils)
+
+add_dlib_library(detector_utils)
+add_dlib_library(metrics PRIVATE detector_utils)
 
 add_dlib_executable(train)
-target_link_libraries(train PRIVATE metrics utils)
+target_link_libraries(train PRIVATE metrics detector_utils)
 
 add_dlib_executable(test)
-target_link_libraries(test PRIVATE metrics utils)
+target_link_libraries(test PRIVATE metrics detector_utils)
 
 add_dlib_executable(detect)
-target_link_libraries(detect PRIVATE utils ${OpenCV_LIBS})
+target_link_libraries(detect PRIVATE detector_utils drawing_utils ${OpenCV_LIBS})
 target_include_directories(detect PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 add_dlib_executable(kfashion)
