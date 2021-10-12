@@ -72,7 +72,7 @@ macro(add_dlib_library name)
     install(TARGETS ${name} DESTINATION lib)
 endmacro()
 
-fetch_content(dlib fused-convolution https://github.com/arrufat/dlib.git)
+fetch_content(dlib master https://github.com/davisking/dlib.git)
 fetch_content(json v3.9.1 https://github.com/nlohmann/json.git)
 
 add_dlib_executable(compute_anchors)
