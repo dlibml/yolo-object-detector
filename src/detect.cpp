@@ -24,10 +24,12 @@ try
     parser.set_group_name("Detector Options");
     parser.add_option("conf", "detection confidence threshold (default: 0.25)", 1);
     parser.add_option("dnn", "load this network file", 1);
+    parser.add_option("fuse", "fuse network layers and save the net", 1);
     parser.add_option("nms", "IoU and area covered thresholds (default: 0.45 1)", 2);
     parser.add_option("no-classwise", "disable classwise NMS");
     parser.add_option("size", "image size for inference (default: 512)", 1);
     parser.add_option("sync", "load this sync file", 1);
+
     parser.set_group_name("Display Options");
     parser.add_option("fill", "fill bounding boxes with transparency", 1);
     parser.add_option("font", "path to custom bdf font", 1);
@@ -37,6 +39,7 @@ try
     parser.add_option("no-labels", "do not draw label names");
     parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
     parser.set_group_name("I/O Options");
+
     parser.add_option("fps", "force frames per second (default: 30)", 1);
     parser.add_option("input", "input file to process instead of the camera", 1);
     parser.add_option("image", "path to image file", 1);
@@ -44,10 +47,12 @@ try
     parser.add_option("output", "output file to write out the processed input", 1);
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
     parser.add_option("xml", "export the network to xml and exit", 1);
+
     parser.set_group_name("Pseudo-labelling Options");
     parser.add_option("check", "check that all files in the dataset exist");
     parser.add_option("update", "update this dataset with pseudo-labels", 1);
     parser.add_option("overlap", "overlap between truth and pseudo-labels", 2);
+
     parser.set_group_name("Help Options");
     parser.add_option("architecture", "print the network architecture and exit");
     parser.add_option("h", "alias for --help");
@@ -104,6 +109,7 @@ try
     const std::string mapping_path = dlib::get_option(parser, "mapping", "");
     const std::string dataset_path = dlib::get_option(parser, "update", "");
     const std::string xml_path = dlib::get_option(parser, "xml", "");
+    const std::string fused_path = dlib::get_option(parser, "fuse", "");
     float fps = dlib::get_option(parser, "fps", 30);
     double nms_iou_threshold = 0.45;
     double nms_ratio_covered = 1.0;
@@ -131,6 +137,11 @@ try
 
     net.loss_details().adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
     std::cout << net.loss_details() << std::endl;
+    if (not fused_path.empty())
+    {
+        dlib::fuse_layers(net);
+        dlib::serialize(fused_path) << net;
+    }
 
     if (not xml_path.empty())
     {
