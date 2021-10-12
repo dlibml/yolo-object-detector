@@ -64,6 +64,16 @@ namespace rgpnet
         template <typename SUBNET> using osa_module_id_1024 = id_mapping<osa_module_1024<SUBNET>>;
 
         template <typename INPUT>
+        using backbone_39 = osa_module_id_1024<osa_module_1024<
+                            maxpool<
+                      btag3<osa_module_id_768<osa_module_768<
+                            maxpool<
+                      btag2<osa_module_512<
+                            maxpool<
+                      btag1<osa_module_256<
+                            stem<INPUT>>>>>>>>>>>>>;
+
+        template <typename INPUT>
         using backbone_57 = repeat<2, osa_module_id_1024, osa_module_1024<
                             maxpool<
                       btag3<repeat<3, osa_module_id_768, osa_module_768<
@@ -119,7 +129,7 @@ namespace rgpnet
                tag1<SUBNET>>>>>>>>>>>;
 
         template <typename INPUT>
-        using backbone = btag4<backbone_57<INPUT>>;
+        using backbone = btag4<backbone_39<INPUT>>;
 
         using net_type = loss_yolo<ytag8, ytag16, ytag32,
         ytag8<sig<con<1, 1, 1, 1, 1, adaptor2<askip3<
