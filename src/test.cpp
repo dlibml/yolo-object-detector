@@ -1,6 +1,6 @@
 #include "metrics.h"
 #include "model.h"
-#include "utils.h"
+#include "detector_utils.h"
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/console_progress_indicator.h>
@@ -33,7 +33,7 @@ try
 
     if (parser.number_of_arguments() == 0 or parser.option("h") or parser.option("help"))
     {
-        std::cout << "Usage: " << argv[0] << " [OPTION]... PATH/TO/DATASET/FILE.xml" << std::endl;
+        std::cout << "Usage: " << argv[0] << " [OPTION]… PATH/TO/DATASET/FILE.xml" << std::endl;
         parser.print_options();
         return EXIT_SUCCESS;
     }

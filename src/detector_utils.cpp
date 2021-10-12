@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "detector_utils.h"
 
 dlib::rectangle_transform preprocess_image(
     const dlib::matrix<dlib::rgb_pixel>& image,
@@ -18,6 +18,17 @@ void postprocess_detections(
 
 void setup_detector(net_train_type& net, const dlib::yolo_options& options)
 {
+    // clang-format off
+    visit_computational_layers(net, [](dlib::leaky_relu_& l) { l = dlib::leaky_relu_(0.1); });
+    visit_computational_layers(dlib::layer<rgpnet::btag4>(net), [](auto& l) { dlib::disable_bias(l); });
+    // dlib::visit_computational_layers(net, [](auto& l)
+    // {
+    //     dlib::set_learning_rate_multiplier(l, 1);
+    //     dlib::set_bias_learning_rate_multiplier(l, 1);
+    //     dlib::set_weight_decay_multiplier(l, 1);
+    //     dlib::set_bias_weight_decay_multiplier(l, 1);
+    // });
+    // clang-format on
     dlib::disable_duplicative_biases(net);
     const long num_classes = options.labels.size();
     const long num_anchors_1 = options.anchors.at(dlib::tag_id<ytag8>::id).size();

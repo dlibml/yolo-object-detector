@@ -1,6 +1,6 @@
 #include "metrics.h"
 #include "model.h"
-#include "utils.h"
+#include "detector_utils.h"
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/data_io.h>
@@ -23,7 +23,7 @@ try
     parser.add_option("visualize", "visualize data augmentation instead of training");
     parser.set_group_name("Training Options");
     parser.add_option("batch", "mini batch size (default: 8)", 1);
-    parser.add_option("burnin", "learning rate burn-in steps (default: 1000)", 1);
+    parser.add_option("warmup", "learning rate warm-up epochs (default: 3)", 1);
     parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
@@ -34,7 +34,7 @@ try
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
     parser.add_option("momentum", "sgd momentum (default: 0.9)", 1);
-    parser.add_option("patience", "number of steps without progress (default: 10000)", 1);
+    parser.add_option("patience", "number of epochs without progress (default: 3)", 1);
     parser.add_option("tune", "path to the network to fine-tune", 1);
     parser.add_option("weight-decay", "sgd weight decay (default: 0.0005)", 1);
     parser.add_option(
@@ -52,6 +52,7 @@ try
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.5)", 1);
     parser.add_option("shift", "crop shift relative to box size (default: 0.5)", 1);
+    parser.add_option("solarize", "probability of solarize (default: 0.2)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
     parser.add_option("help", "display this message and exit");
@@ -77,13 +78,13 @@ try
     parser.check_sub_option("crop", "shift");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
-    const size_t patience = get_option(parser, "patience", 10000);
+    const size_t patience = get_option(parser, "patience", 3);
     const size_t cosine_epochs = get_option(parser, "cosine-epochs", 0);
     const double lambda_obj = get_option(parser, "lambda-obj", 1.0);
     const double lambda_box = get_option(parser, "lambda-box", 1.0);
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
     const size_t batch_size = get_option(parser, "batch", 8);
-    const size_t burnin_steps = get_option(parser, "burnin", 1000);
+    const size_t warmup_epochs = get_option(parser, "warmup", 3);
     const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", num_threads);
     const size_t num_gpus = get_option(parser, "gpus", 1);
@@ -97,6 +98,7 @@ try
     const double color_magnitude = get_option(parser, "color", 0.2);
     const double angle = get_option(parser, "angle", 5);
     const double shift = get_option(parser, "shift", 0.5);
+    const double solarize_prob = get_option(parser, "solarize", 0.2);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
     const double iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
     const float momentum = get_option(parser, "momentum", 0.9);
@@ -156,13 +158,17 @@ try
     net_train_type net(options);
     setup_detector(net, options);
     if (parser.option("architecture"))
+    {
+        rgb_image dummy(image_size, image_size);
+        net(dummy);
         std::cerr << net << std::endl;
+    }
 
     if (not tune_net_path.empty())
     {
-        net_train_type pretrained_net;
-        dlib::deserialize(tune_net_path) >> pretrained_net;
-        dlib::layer<57>(net).subnet() = dlib::layer<57>(pretrained_net).subnet();
+        // net_train_type pretrained_net;
+        dlib::deserialize(tune_net_path) >> net;
+        // dlib::layer<57>(net).subnet() = dlib::layer<57>(pretrained_net).subnet();
     }
 
     // In case we have several GPUs, we can tell the dnn_trainer to make use of them.
@@ -222,6 +228,7 @@ try
                          mosaic_prob,
                          perspective_prob,
                          shift,
+                         solarize_prob,
                          &data_path,
                          &dataset,
                          &train_data](time_t seed)
@@ -302,8 +309,8 @@ try
                     const double amount = 0.05;
                     for (auto& corner : ps)
                     {
-                        corner.x() += rnd.get_double_in_range(-amount, amount) * image_size;
-                        corner.y() += rnd.get_double_in_range(-amount, amount) * image_size;
+                        corner.x() += rnd.get_double_in_range(-1, 1) * amount * image_size;
+                        corner.y() += rnd.get_double_in_range(-1, 1) * amount * image_size;
                     }
                     const auto ptform = extract_image_4points(result.first, transformed, ps);
                     result.first = transformed;
@@ -327,6 +334,19 @@ try
                 dlib::apply_random_color_offset(result.first, rnd);
             else
                 disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
+
+            if (rnd.get_random_double() < solarize_prob)
+            {
+                for (auto& p : result.first)
+                {
+                    if (p.red > 128)
+                        p.red = 128 - p.red;
+                    if (p.green > 128)
+                        p.green = 128 - p.green;
+                    if (p.blue > 128)
+                        p.blue = 128 - p.blue;
+                }
+            }
 
             return result;
         };
@@ -424,34 +444,35 @@ try
         trainer.train_one_step(images, bboxes);
     };
 
-    // The training process can be unstable at the beginning.  For this reason, we
-    // exponentially increase the learning rate during the first burnin steps.
-    if (trainer.get_train_one_step_calls() < burnin_steps)
-    {
-        const dlib::matrix<double> learning_rate_schedule =
-            learning_rate * pow(dlib::linspace(1e-12, 1, burnin_steps), 4);
+    const auto num_steps_per_epoch = dataset.images.size() / trainer.get_mini_batch_size();
+    const auto warmup_steps = warmup_epochs * num_steps_per_epoch;
 
-        trainer.set_learning_rate_schedule(learning_rate_schedule);
+    // The training process can be unstable at the beginning.  For this reason, we
+    // exponentially increase the learning rate during the first warmup steps.
+    if (trainer.get_train_one_step_calls() < warmup_steps)
+    {
         if (trainer.get_train_one_step_calls() == 0)
         {
-            std::cout << "training started with " << burnin_steps << " burn-in steps" << std::endl;
+            const dlib::matrix<double> learning_rate_schedule = dlib::linspace(1e-99, learning_rate, warmup_steps);
+            trainer.set_learning_rate_schedule(learning_rate_schedule);
+            std::cout << "training started with " << warmup_epochs << " warm-up epochs ("
+                      << warmup_steps << " steps)" << std::endl;
             std::cout << trainer;
         }
-        while (trainer.get_train_one_step_calls() < burnin_steps)
+        while (trainer.get_train_one_step_calls() < warmup_steps)
             train();
         trainer.get_net(dlib::force_flush_to_disk::no);
-        std::cout << "burn-in finished" << std::endl;
+        std::cout << "warm-up finished" << std::endl;
     }
 
-    // setup the trainer after the burn-in
-    if (trainer.get_train_one_step_calls() == burnin_steps)
+    // setup the trainer after the warm-up
+    if (trainer.get_train_one_step_calls() == warmup_steps)
     {
         if (cosine_epochs > 0)
         {
-            const size_t cosine_steps =
-                cosine_epochs * dataset.images.size() / batch_size - burnin_steps;
-            std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
-                      << cosine_steps << " steps)" << std::endl;
+            const size_t cosine_steps = cosine_epochs * num_steps_per_epoch - warmup_steps;
+            std::cout << "training with cosine scheduler for " << cosine_epochs - warmup_epochs
+                      << " epochs (" << cosine_steps << " steps)" << std::endl;
             // clang-format off
             const dlib::matrix<double> learning_rate_schedule =
             min_learning_rate + 0.5 * (learning_rate - min_learning_rate) *
@@ -464,7 +485,7 @@ try
             trainer.set_learning_rate(learning_rate);
             trainer.set_min_learning_rate(min_learning_rate);
             trainer.set_learning_rate_shrink_factor(0.1);
-            trainer.set_iterations_without_progress_threshold(patience);
+            trainer.set_iterations_without_progress_threshold(patience * num_steps_per_epoch);
         }
     }
 
@@ -478,7 +499,6 @@ try
     double best_wf1 = 0;
     if (dlib::file_exists(best_metrics_path))
         dlib::deserialize(best_metrics_path) >> best_map >> best_wf1;
-    const auto num_steps_per_epoch = dataset.images.size() / trainer.get_mini_batch_size();
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
     {
         train();

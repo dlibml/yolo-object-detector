@@ -1,7 +1,7 @@
 #ifndef metrics_h_INCLUDED
 #define metrics_h_INCLUDED
 
-#include "utils.h"
+#include "detector_utils.h"
 
 #include <dlib/data_io.h>
 #include <dlib/pipe.h>

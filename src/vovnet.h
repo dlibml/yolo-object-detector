@@ -22,12 +22,12 @@ namespace vovnet
     {
         // The concatenate layer with custom number of outputs for OSA Module with 3 layers
         template <long num_filters, typename SUBNET>
-        using concatenate3 = ACT<BN<con<num_filters, 1, 1, 1, 1,
+        using osa3 = ACT<BN<con<num_filters, 1, 1, 1, 1,
         add_layer<concat_<vov_tag0, vov_tag1, vov_tag2, vov_tag3>, SUBNET>>>>;
 
         // The concatenate layer with custom number of outputs for OSA Module with 5 layers
         template <long num_filters, typename SUBNET>
-        using concatenate5 = ACT<BN<con<num_filters, 1, 1, 1, 1,
+        using osa5 = ACT<BN<con<num_filters, 1, 1, 1, 1,
         add_layer<concat_<vov_tag0, vov_tag1, vov_tag2, vov_tag3, vov_tag4, vov_tag5>, SUBNET>>>>;
 
         // 1-padded 3x3 convolution with custom number of filters, kernel size and stride
@@ -54,7 +54,7 @@ namespace vovnet
         // The VoVNet One-Shot Aggregation Module with 3 inner layers
         template <long num_filters_out, long num_filters_in, typename SUBNET>
         using osa_module3 = ese_module<num_filters_out,
-                            concatenate3<num_filters_out,
+                            osa3<num_filters_out,
                             vov_tag3<con3<num_filters_in, 1,
                             vov_tag2<con3<num_filters_in, 1,
                             vov_tag1<con3<num_filters_in, 1,
@@ -63,7 +63,7 @@ namespace vovnet
         // The VoVNet One-Shot Aggregation Module with 5 inner layers
         template <long num_filters_out, long num_filters_in, typename SUBNET>
         using osa_module5 = ese_module<num_filters_out,
-                            concatenate5<num_filters_out,
+                            osa5<num_filters_out,
                             vov_tag5<con3<num_filters_in, 1,
                             vov_tag4<con3<num_filters_in, 1,
                             vov_tag3<con3<num_filters_in, 1,
@@ -71,23 +71,10 @@ namespace vovnet
                             vov_tag1<con3<num_filters_in, 1,
                             vov_tag0<SUBNET>>>>>>>>>>>>>;
 
-        // The VoVNet One-Shot Aggregation Module with 5 inner layers
-        template <long num_filters_out, long num_filters_in, typename SUBNET>
-        using dark_osa_module5 = ese_module<num_filters_out,
-                                 concatenate5<num_filters_out,
-                                 vov_tag5<con3<num_filters_in, 1,
-                                 vov_tag4<con1<num_filters_in / 2,
-                                 vov_tag3<con3<num_filters_in, 1,
-                                 vov_tag2<con1<num_filters_in / 2,
-                                 vov_tag1<con3<num_filters_in, 1,
-                                 vov_tag0<SUBNET>>>>>>>>>>>>>;
-
         // some definitions to allow the use of the repeat layer
         template <typename SUBNET> using osa_module5_id_512 = id_mapping<osa_module5<512, 160, SUBNET>>;
         template <typename SUBNET> using osa_module5_id_768 = id_mapping<osa_module5<768, 192, SUBNET>>;
         template <typename SUBNET> using osa_module5_id_1024 = id_mapping<osa_module5<1024, 224, SUBNET>>;
-        template <typename SUBNET> using dark_osa_module5_id_768 = id_mapping<dark_osa_module5<768, 192, SUBNET>>;
-        template <typename SUBNET> using dark_osa_module5_id_1024 = id_mapping<dark_osa_module5<1024, 224, SUBNET>>;
 
         template <typename INPUT>
         using backbone_19_slim = osa_module3<512, 112,

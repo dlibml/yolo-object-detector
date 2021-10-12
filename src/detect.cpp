@@ -1,5 +1,6 @@
 #include "model.h"
-#include "utils.h"
+#include "detector_utils.h"
+#include "drawing_utils.h"
 #include "webcam_window.h"
 
 #include <dlib/cmd_line_parser.h>
@@ -28,6 +29,7 @@ try
     parser.add_option("size", "image size for inference (default: 512)", 1);
     parser.add_option("sync", "load this sync file", 1);
     parser.set_group_name("Display Options");
+    parser.add_option("fill", "fill bounding boxes with transparency", 1);
     parser.add_option("font", "path to custom bdf font", 1);
     parser.add_option("mapping", "mapping file to change labels names", 1);
     parser.add_option("multilabel", "allow multiple labels per detection");
@@ -82,6 +84,7 @@ try
     parser.check_incompatible_options("no-labels", "font");
     parser.check_incompatible_options("no-labels", "mapping");
     parser.check_option_arg_range<size_t>("size", 224, 2048);
+    parser.check_option_arg_range<size_t>("fill", 0, 255);
     parser.check_option_arg_range<size_t>("thickness", 0, 10);
     parser.check_option_arg_range<double>("conf", 0, 1);
     parser.check_option_arg_range<double>("nms", 0, 1);
@@ -186,6 +189,7 @@ try
     }
 
     drawing_options options(font_path);
+    options.fill = dlib::get_option(parser, "fill", 0);
     options.thickness = dlib::get_option(parser, "thickness", 5);
     options.multilabel = parser.option("multilabel");
     options.draw_labels = not parser.option("no-labels");

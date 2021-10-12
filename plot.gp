@@ -14,9 +14,10 @@ set multiplot title 'YOLO'
 
 set size 0.67,0.5
 set origin 0,0.5
-stats "< awk '$1==\"step#:\" {print $2, $8}' training.log" every ::1 using 1:2;
-max_y = floor(STATS_min_y * 10);
-set yrange [0:max_y]
+# stats "< awk '$1==\"step#:\" {print $2, $8}' training.log" every ::1 using 1:2;
+# max_y = floor(STATS_min_y * 1.5);
+# set yrange [0:max_y]
+set yrange [0:20]
 set title 'loss'
 set xlabel 'step'
 

@@ -17,6 +17,7 @@ namespace rgpnet
     template <typename SUBNET> using btag1 = add_tag_layer<8001, SUBNET>;
     template <typename SUBNET> using btag2 = add_tag_layer<8002, SUBNET>;
     template <typename SUBNET> using btag3 = add_tag_layer<8003, SUBNET>;
+    template <typename SUBNET> using btag4 = add_tag_layer<8004, SUBNET>;
     template <typename SUBNET> using bskip1 = add_skip_layer<btag1, SUBNET>;
     template <typename SUBNET> using bskip2 = add_skip_layer<btag2, SUBNET>;
     template <typename SUBNET> using bskip3 = add_skip_layer<btag3, SUBNET>;
@@ -34,10 +35,11 @@ namespace rgpnet
     template <typename SUBNET> using itag4 = add_tag_layer<5004, SUBNET>;
 
     // Custom tags for the adaptor modules
-    template <typename SUBNET> using atag = add_tag_layer<7000, SUBNET>;
-    template <typename SUBNET> using atag4 = add_tag_layer<7004, SUBNET>;
-    template <typename SUBNET> using atag3 = add_tag_layer<7003, SUBNET>;
+    template <typename SUBNET> using atag0 = add_tag_layer<7000, SUBNET>;
+    template <typename SUBNET> using atag1 = add_tag_layer<7001, SUBNET>;
     template <typename SUBNET> using atag2 = add_tag_layer<7002, SUBNET>;
+    template <typename SUBNET> using atag3 = add_tag_layer<7003, SUBNET>;
+    template <typename SUBNET> using atag4 = add_tag_layer<7004, SUBNET>;
     template <typename SUBNET> using askip2 = add_skip_layer<atag2, SUBNET>;
     template <typename SUBNET> using askip3 = add_skip_layer<atag3, SUBNET>;
     template <typename SUBNET> using askip4 = add_skip_layer<atag4, SUBNET>;
@@ -46,57 +48,48 @@ namespace rgpnet
     template <template <typename> class ACT, template <typename> class BN>
     struct def
     {
-        template <long nf, int ks, int s, typename SUBNET>
-        using conblock = ACT<BN<add_layer<con_<nf, ks, ks, s, s, ks / 2, ks / 2>, SUBNET>>>;
-
-        // ----------------------------- VoVNet Backbone ----------------------------- //
-
-        // the resnet basic block, where BN is bn_con or affine
-        template<long num_filters, typename SUBNET>
-        using basicblock = BN<con<num_filters, 3, 3, 1, 1,
-                ACT<BN<con<num_filters, 3, 3, 1, 1, SUBNET>>>>>;
-
-        // the darknet block
-        template<long num_filters, typename SUBNET>
-        using darkblock = BN<con<num_filters, 3, 3, 1, 1,
-                ACT<BN<con<num_filters / 2, 1, 1, 1, 1,
-                ACT<BN<con<num_filters, 3, 3, 1, 1, SUBNET>>>>>>>>;
-
-        // the resnet residual, where BLOCK is either basicblock or bottleneck
-        template<template<long, typename> class BLOCK, long num_filters, typename SUBNET>
-        using residual = add_prev1<BLOCK<num_filters, tag1<SUBNET>>>;
-
-        template <long num_filters, typename SUBNET>
-        using resblock = ACT<residual<darkblock, num_filters, SUBNET>>;
+        template <long out_filters, long in_filters,typename SUBNET>
+        using osa_module = typename vovnet::def<ACT, BN>::template osa_module5<out_filters, in_filters, SUBNET>;
+        template <typename SUBNET> using stem = typename vovnet::def<ACT, BN>::template stem<SUBNET>;
+        template <typename SUBNET> using maxpool = typename vovnet::def<ACT, BN>::template maxpool<SUBNET>;
+        template <typename SUBNET> using id_mapping = vovnet::id_mapping<SUBNET>;
+        template <typename SUBNET> using osa_module_64 = osa_module<64, 64, SUBNET>;
+        template <typename SUBNET> using osa_module_128 = osa_module<128, 96, SUBNET>;
+        template <typename SUBNET> using osa_module_256 = osa_module<256, 128, SUBNET>;
+        template <typename SUBNET> using osa_module_512 = osa_module<512, 160, SUBNET>;
+        template <typename SUBNET> using osa_module_768 = osa_module<768, 192, SUBNET>;
+        template <typename SUBNET> using osa_module_1024 = osa_module<1024, 224, SUBNET>;
+        template <typename SUBNET> using osa_module_id_512 = id_mapping<osa_module_512<SUBNET>>;
+        template <typename SUBNET> using osa_module_id_768 = id_mapping<osa_module_768<SUBNET>>;
+        template <typename SUBNET> using osa_module_id_1024 = id_mapping<osa_module_1024<SUBNET>>;
 
         template <typename INPUT>
-        using backbone_19s = typename vovnet::def<ACT, BN>::template osa_module3<512, 112,
-                             typename vovnet::def<ACT, BN>::template maxpool<
-                       btag3<typename vovnet::def<ACT, BN>::template osa_module3<384, 96,
-                             typename vovnet::def<ACT, BN>::template maxpool<
-                       btag2<typename vovnet::def<ACT, BN>::template osa_module3<256, 80,
-                             typename vovnet::def<ACT, BN>::template maxpool<
-                       btag1<typename vovnet::def<ACT, BN>::template osa_module3<112, 64,
-                             typename vovnet::def<ACT, BN>::template stem<INPUT>>>>>>>>>>>;
+        using backbone_39 = osa_module_id_1024<osa_module_1024<
+                            maxpool<
+                      btag3<osa_module_id_768<osa_module_768<
+                            maxpool<
+                      btag2<osa_module_512<
+                            maxpool<
+                      btag1<osa_module_256<
+                            stem<INPUT>>>>>>>>>>>>>;
 
         template <typename INPUT>
-        using backbone_39 = typename vovnet::def<ACT, BN>::template dark_osa_module5_id_1024<
-                            typename vovnet::def<ACT, BN>::template dark_osa_module5<1024, 224,
-                            typename vovnet::def<ACT, BN>::template maxpool<
-                      btag3<typename vovnet::def<ACT, BN>::template dark_osa_module5_id_768<
-                            typename vovnet::def<ACT, BN>::template dark_osa_module5<768, 192,
-                            typename vovnet::def<ACT, BN>::template maxpool<
-                      btag2<typename vovnet::def<ACT, BN>::template dark_osa_module5<512, 160,
-                            typename vovnet::def<ACT, BN>::template maxpool<
-                      btag1<typename vovnet::def<ACT, BN>::template dark_osa_module5<256, 128,
-                            typename vovnet::def<ACT, BN>::template stem<INPUT>>>>>>>>>>>>>;
+        using backbone_57 = repeat<2, osa_module_id_1024, osa_module_1024<
+                            maxpool<
+                      btag3<repeat<3, osa_module_id_768, osa_module_768<
+                            maxpool<
+                      btag2<osa_module_512<
+                            maxpool<
+                      btag1<osa_module_256<
+                            stem<INPUT>>>>>>>>>>>>>;
 
         // --------------------------------- RGPNet --------------------------------- //
 
         template <long num_filters, typename SUBNET>
-        using downsampler = add_layer<con_<num_filters, 3, 3, 2, 2, 1, 1>, SUBNET>;
+        using downsampler = ACT<BN<add_layer<con_<num_filters, 3, 3, 2, 2, 1, 1>, SUBNET>>>;
         template <long num_filters, typename SUBNET>
-        using upsampler = upsample<2, con<num_filters, 1, 1, 1, 1, SUBNET>>;
+        using upsampler = ACT<BN<add_layer<cont_<num_filters, 2, 2, 2, 2, 0, 0>, SUBNET>>>;
+        // using upsampler = upsample<2, con<num_filters, 1, 1, 1, 1, SUBNET>>;
 
         // The processed backbone levels that serve as the input of RGPNet
         template <typename SUBNET> using in_lvl1 = ACT<BN<con<feats1, 1, 1, 1, 1, bskip1<SUBNET>>>>;
@@ -111,47 +104,42 @@ namespace rgpnet
 
         // adaptor4 adds in_lvl4 and in_lvl3d
         template <typename SUBNET> using adaptor4 =
-        resblock<feats4, add_prev<itag4, in_lvl3d<itag4<in_lvl4<SUBNET>>>>>;
+        osa_module_512<concat2<itag4, atag0, atag0<in_lvl3d<itag4<in_lvl4<SUBNET>>>>>>;
 
         // adaptor3 adds in_lvl3, inlvl2d and in_lvl4u
         template <typename SUBNET> using adaptor3 =
-        resblock<feats3, add_prev<itag3,
-        add_prev<atag, in_lvl2d<atag<upsampler<feats3, SUBNET>>>>>>;
+        osa_module_256<concat3<itag3, atag0, atag1, atag1<in_lvl2d<atag0<upsampler<feats3, SUBNET>>>>>>;
 
         // adaptor2 adds in_lvl2, in_lvl1d, and inlvl3u
         template <typename SUBNET> using adaptor2 =
-        resblock<feats2, add_prev<itag2,
-        add_prev<atag, in_lvl1d<atag<upsampler<feats2, SUBNET>>>>>>;
+        osa_module_128<concat3<itag2, atag0, atag1, atag1<in_lvl1d<atag0<upsampler<feats2, SUBNET>>>>>>;
 
         // adaptor1 adds in_lvl1 and inlvl2u
         template <typename SUBNET> using adaptor1 =
-        resblock<feats1, add_prev<itag1, upsampler<feats1, SUBNET>>>;
+        osa_module_64<concat2<itag1, atag0, atag0<upsampler<feats1, SUBNET>>>>;
 
         template <typename SUBNET>
-        using spp = concat4<tag4, tag3, tag2, tag1,
+        using spp = con<512, 1, 1, 1, 1,
+                    concat4<tag4, tag3, tag2, tag1,
                tag4<max_pool<13, 13, 1, 1,
                     skip1<
                tag3<max_pool<9, 9, 1, 1,
                     skip1<
                tag2<max_pool<5, 5, 1, 1,
-               tag1<SUBNET>>>>>>>>>>;
+               tag1<SUBNET>>>>>>>>>>>;
 
-        // The RGPNet type definition
-        using net_type_19s = loss_yolo<ytag8, ytag16, ytag32,
+        template <typename INPUT>
+        using backbone = btag4<backbone_39<INPUT>>;
+
+        using net_type = loss_yolo<ytag8, ytag16, ytag32,
         ytag8<sig<con<1, 1, 1, 1, 1, adaptor2<askip3<
         ytag16<sig<con<1, 1, 1, 1, 1, atag3<adaptor3<askip4<
         ytag32<sig<con<1, 1, 1, 1, 1, atag4<adaptor4<
-        spp<backbone_19s<input_rgb_image>>>>>>>>>>>>>>>>>>>;
-
-        using net_type_39 = loss_yolo<ytag8, ytag16, ytag32,
-        ytag8<sig<con<1, 1, 1, 1, 1, adaptor2<askip3<
-        ytag16<sig<con<1, 1, 1, 1, 1, atag3<adaptor3<askip4<
-        ytag32<sig<con<1, 1, 1, 1, 1, atag4<adaptor4<
-        spp<backbone_39<input_rgb_image>>>>>>>>>>>>>>>>>>>;
+        spp<backbone<input_rgb_image>>>>>>>>>>>>>>>>>>>;
     };
 
-    using train = def<relu, bn_con>::net_type_39;
-    using infer = def<relu, affine>::net_type_39;
+    using train = def<leaky_relu, bn_con>::net_type;
+    using infer = def<leaky_relu, affine>::net_type;
 
     // clang-format on
 }  // namespace rgpnet
