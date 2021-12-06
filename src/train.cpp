@@ -22,7 +22,7 @@ try
     parser.add_option("test", "visually test with a threshold (default: 0.01)", 1);
     parser.add_option("visualize", "visualize data augmentation instead of training");
     parser.set_group_name("Training Options");
-    parser.add_option("batch", "mini batch size (default: 8)", 1);
+    parser.add_option("batch-gpu", "mini batch size per GPU (default: 8)", 1);
     parser.add_option("warmup", "learning rate warm-up epochs (default: 3)", 1);
     parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
@@ -83,11 +83,11 @@ try
     const double lambda_obj = get_option(parser, "lambda-obj", 1.0);
     const double lambda_box = get_option(parser, "lambda-box", 1.0);
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
-    const size_t batch_size = get_option(parser, "batch", 8);
+    const size_t num_gpus = get_option(parser, "gpus", 1);
+    const size_t batch_size = get_option(parser, "batch-gpu", 8) * num_gpus;
     const size_t warmup_epochs = get_option(parser, "warmup", 3);
     const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", num_threads);
-    const size_t num_gpus = get_option(parser, "gpus", 1);
     const double mirror_prob = get_option(parser, "mirror", 0.5);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
     const double crop_prob = get_option(parser, "crop", 0.5);
