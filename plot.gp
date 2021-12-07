@@ -21,7 +21,8 @@ set yrange [0:20]
 set title 'loss'
 set xlabel 'step'
 
-plot "< awk '$1==\"step#:\" {print $2, $8}' training.log" using 1:2 title 'train' w lines ls 1
+plot "< awk '$1==\"step#:\" {print $2, $8}' training.log" using 1:2 title 'train' w lines ls 1, \
+     "< awk '$1==\"step#:\" {print $2, $11}' training.log" using 1:2 title 'test' w lines ls 2
 
 set size 0.33,0.5
 set origin 0.67,0.5
