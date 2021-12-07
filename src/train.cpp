@@ -58,7 +58,7 @@ try
     parser.add_option("solarize", "probability of solarize (default: 0.2)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
-    parser.add_option("help", "display this message and exibatch ");
+    parser.add_option("help", "display this message and exit");
     parser.parse(argc, argv);
     if (parser.number_of_arguments() == 0 || parser.option("h") || parser.option("help"))
     {
