@@ -228,13 +228,13 @@ try
         std::cout << "# test images: " << test_dataset.images.size() << std::endl;
     }
     dlib::pipe<std::pair<rgb_image, std::vector<yolo_rect>>> test_data(10 * batch_size / num_gpus);
-    const auto test_loader = [&](time_t seed)
+    const auto test_loader = [&test_data, &test_dataset, &data_path, image_size](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
         while (test_data.is_enabled())
         {
             const auto idx = rnd.get_random_64bit_number() % test_dataset.images.size();
-            std::pair<rgb_image, std::vector<yolo_rect>> result;
+            std::pair<rgb_image, std::vector<yolo_rect>> sample;
             rgb_image image;
             const auto& image_info = test_dataset.images.at(idx);
             try
@@ -244,22 +244,36 @@ try
             catch (const image_load_error& e)
             {
                 std::cerr << "ERROR: " << e.what() << std::endl;
-                result.first.set_size(image_size, image_size);
-                assign_all_pixels(result.first, rgb_pixel(0, 0, 0));
-                result.second = {};
-                test_data.enqueue(result);
+                sample.first.set_size(image_size, image_size);
+                assign_all_pixels(sample.first, rgb_pixel(0, 0, 0));
+                sample.second = {};
+                test_data.enqueue(sample);
                 continue;
             }
-            const auto tform = preprocess_image(image, result.first, image_size);
+            const rectangle_transform tform = letterbox_image(image, sample.first, image_size);
             for (const auto& box : image_info.boxes)
-                result.second.emplace_back(tform(box.rect), 1, box.label);
-            test_data.enqueue(result);
+                sample.second.emplace_back(tform(box.rect), 1, box.label);
+            test_data.enqueue(sample);
         }
     };
 
     // Create some data loaders which will load the data, and perform som data augmentation.
     dlib::pipe<std::pair<rgb_image, std::vector<yolo_rect>>> train_data(100 * batch_size);
-    const auto train_loader = [&](time_t seed)
+    const auto train_loader = [angle,
+                               blur_prob,
+                               color_magnitude,
+                               color_offset_prob,
+                               crop_prob,
+                               gamma_magnitude,
+                               image_size,
+                               mirror_prob,
+                               mosaic_prob,
+                               perspective_prob,
+                               shift,
+                               solarize_prob,
+                               &data_path,
+                               &train_dataset,
+                               &train_data](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
         random_cropper cropper;
@@ -375,6 +389,12 @@ try
                         p.blue = 128 - p.blue;
                 }
             }
+
+            // Finally, ignore boxes whose center is not contained in the image
+            const auto image_rect = get_rect(result.first);
+            for (auto& box : result.second)
+                if (not image_rect.contains(center(box)))
+                    box.ignore = true;
 
             return result;
         };
