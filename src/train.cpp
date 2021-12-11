@@ -46,16 +46,16 @@ try
         1);
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max random rotation in degrees (default: 5)", 1);
-    parser.add_option("blur", "probability of blurring the image (default: 0.5)", 1);
+    parser.add_option("blur", "probability of blurring the image (default: 0.2)", 1);
     parser.add_option("color", "color magnitude (default: 0.2)", 1);
     parser.add_option("color-offset", "random color offset probability (default: 0.5)", 1);
-    parser.add_option("crop", "no-mosaic random crop probability (default: 0.5)", 1);
+    parser.add_option("crop", "random crop probability (default: 0.5)", 1);
     parser.add_option("gamma", "gamma magnitude (default: 0.5)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
-    parser.add_option("perspective", "perspective probability (default: 0.5)", 1);
-    parser.add_option("shift", "crop shift relative to box size (default: 0.5)", 1);
-    parser.add_option("solarize", "probability of solarize (default: 0.2)", 1);
+    parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
+    parser.add_option("shift", "crop shift relative to box size (default: 0.2)", 1);
+    parser.add_option("solarize", "probability of solarize (default: 0.1)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
     parser.add_option("help", "display this message and exit");
@@ -95,14 +95,14 @@ try
     const double mirror_prob = get_option(parser, "mirror", 0.5);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
     const double crop_prob = get_option(parser, "crop", 0.5);
-    const double blur_prob = get_option(parser, "blur", 0.5);
-    const double perspective_prob = get_option(parser, "perspective", 0.5);
+    const double blur_prob = get_option(parser, "blur", 0.2);
+    const double perspective_prob = get_option(parser, "perspective", 0.2);
     const double color_offset_prob = get_option(parser, "color-offset", 0.5);
     const double gamma_magnitude = get_option(parser, "gamma", 0.5);
     const double color_magnitude = get_option(parser, "color", 0.2);
     const double angle = get_option(parser, "angle", 5);
-    const double shift = get_option(parser, "shift", 0.5);
-    const double solarize_prob = get_option(parser, "solarize", 0.2);
+    const double shift = get_option(parser, "shift", 0.2);
+    const double solarize_prob = get_option(parser, "solarize", 0.1);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
     const double iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
     const float momentum = get_option(parser, "momentum", 0.9);
@@ -259,36 +259,22 @@ try
 
     // Create some data loaders which will load the data, and perform som data augmentation.
     dlib::pipe<std::pair<rgb_image, std::vector<yolo_rect>>> train_data(100 * batch_size);
-    const auto train_loader = [angle,
-                               blur_prob,
-                               color_magnitude,
-                               color_offset_prob,
-                               crop_prob,
-                               gamma_magnitude,
-                               image_size,
-                               mirror_prob,
-                               mosaic_prob,
-                               perspective_prob,
-                               shift,
-                               solarize_prob,
-                               &data_path,
-                               &train_dataset,
-                               &train_data](time_t seed)
+    const auto train_loader = [&](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
         random_cropper cropper;
         cropper.set_seed(time(nullptr) + seed);
         cropper.set_chip_dims(image_size, image_size);
         cropper.set_max_object_size(0.9);
-        cropper.set_min_object_size(24, 24);
-        cropper.set_min_object_coverage(0.7);
+        cropper.set_min_object_size(64, 32);
+        cropper.set_min_object_coverage(0.75);
         cropper.set_max_rotation_degrees(angle);
         cropper.set_translate_amount(shift);
         if (mirror_prob == 0)
             cropper.set_randomly_flip(false);
         cropper.set_background_crops_fraction(0);
 
-        const auto get_sample = [&](const double crop_prob = 0.5)
+        const auto get_sample = [&]()
         {
             std::pair<rgb_image, std::vector<yolo_rect>> result;
             rgb_image image, rotated, blurred, transformed(image_size, image_size);
@@ -343,11 +329,7 @@ try
                 if (rnd.get_random_double() < perspective_prob)
                 {
                     const drectangle r(0, 0, image_size - 1, image_size - 1);
-                    std::array<dpoint, 4> ps{
-                        r.tl_corner(),
-                        r.tr_corner(),
-                        r.bl_corner(),
-                        r.br_corner()};
+                    std::array ps{r.tl_corner(), r.tr_corner(), r.bl_corner(), r.br_corner()};
                     const double amount = 0.05;
                     for (auto& corner : ps)
                     {
@@ -363,11 +345,11 @@ try
                         ps[2] = ptform(box.rect.bl_corner());
                         ps[3] = ptform(box.rect.br_corner());
                         const auto lr = std::minmax({ps[0].x(), ps[1].x(), ps[2].x(), ps[3].x()});
-                        const auto ud = std::minmax({ps[0].y(), ps[1].y(), ps[2].y(), ps[3].y()});
+                        const auto tb = std::minmax({ps[0].y(), ps[1].y(), ps[2].y(), ps[3].y()});
                         box.rect.left() = lr.first;
-                        box.rect.top() = ud.first;
+                        box.rect.top() = tb.first;
                         box.rect.right() = lr.second;
-                        box.rect.bottom() = ud.second;
+                        box.rect.bottom() = tb.second;
                     }
                 }
             }
@@ -413,31 +395,31 @@ try
                 const std::vector<std::pair<long, long>> pos{{0, 0}, {0, s}, {s, 0}, {s, s}};
                 for (const auto& [x, y] : pos)
                 {
-                    auto tile = get_sample(0);  // do not use random cropping here
+                    auto tile = get_sample();
                     const rectangle r(x, y, x + s, y + s);
                     auto si = sub_image(sample.first, r);
                     resize_image(tile.first, si);
-                    for (auto& b : tile.second)
+                    for (auto& box : tile.second)
                     {
-                        b.rect = translate_rect(scale_rect(b.rect, scale), x, y);
+                        box.rect = translate_rect(scale_rect(box.rect, scale), x, y);
                         // ignore small items
-                        if ((b.rect.height() < long_dim and b.rect.width() < long_dim) or
-                            (b.rect.height() < short_dim or b.rect.width() < short_dim))
-                            b.ignore = true;
+                        if ((box.rect.height() < long_dim and box.rect.width() < long_dim) or
+                            (box.rect.height() < short_dim or box.rect.width() < short_dim))
+                            box.ignore = true;
 
                         // ignore items that are not well covered by the current tile
-                        const double coverage = b.rect.intersect(r).area() / b.rect.area();
-                        if (not b.ignore and coverage < min_coverage)
-                            b.ignore = true;
+                        const double coverage = box.rect.intersect(r).area() / box.rect.area();
+                        if (not box.ignore and coverage < min_coverage)
+                            box.ignore = true;
 
-                        sample.second.push_back(std::move(b));
+                        sample.second.push_back(std::move(box));
                     }
                 }
                 train_data.enqueue(sample);
             }
             else
             {
-                train_data.enqueue(get_sample(crop_prob));
+                train_data.enqueue(get_sample());
             }
         }
     };
@@ -568,26 +550,26 @@ try
                 trainer.set_test_iterations_without_progress_threshold(0);
             }
         }
-    }
-
-    trainer.get_net();
-    if (trainer.get_train_one_step_calls() == 0)
         std::cout << trainer << std::endl;
+    }
     else
+    {
+        // we print the trainer to std::cerr in case we resume the training.
         std::cerr << trainer << std::endl;
+    }
 
     double best_map = 0;
     double best_wf1 = 0;
     if (file_exists(best_metrics_path))
         deserialize(best_metrics_path) >> best_map >> best_wf1;
+    net_infer_type inet;
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
     {
-        train();
         const auto num_steps = trainer.get_train_one_step_calls();
-        if (num_steps % num_steps_per_epoch == 0)
+        if (num_steps > 0 and num_steps % num_steps_per_epoch == 0)
         {
             const auto epoch = num_steps / num_steps_per_epoch;
-            net_infer_type tnet(trainer.get_net());
+            inet = trainer.get_net();
             std::cerr << "computing mean average precison for epoch " << epoch << std::endl;
             dlib::pipe<image_info> test_data(1000);
             test_data_loader test_loader(
@@ -597,7 +579,7 @@ try
                 num_workers);
             std::thread test_loaders([&test_loader]() { test_loader.run(); });
             const auto metrics = compute_metrics(
-                tnet,
+                inet,
                 test_loader.get_dataset(),
                 2 * batch_size / num_gpus,
                 test_data,
@@ -621,6 +603,7 @@ try
             test_data.disable();
             test_loaders.join();
         }
+        train();
     }
 
     trainer.get_net();
