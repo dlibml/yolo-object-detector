@@ -562,14 +562,13 @@ try
     double best_wf1 = 0;
     if (file_exists(best_metrics_path))
         deserialize(best_metrics_path) >> best_map >> best_wf1;
-    net_infer_type inet;
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
     {
         const auto num_steps = trainer.get_train_one_step_calls();
         if (num_steps > 0 and num_steps % num_steps_per_epoch == 0)
         {
+            net_infer_type inet(trainer.get_net());
             const auto epoch = num_steps / num_steps_per_epoch;
-            inet = trainer.get_net();
             std::cerr << "computing mean average precison for epoch " << epoch << std::endl;
             dlib::pipe<image_info> test_data(1000);
             test_data_loader test_loader(
@@ -602,6 +601,7 @@ try
 
             test_data.disable();
             test_loaders.join();
+            inet.clean();
         }
         train();
     }
