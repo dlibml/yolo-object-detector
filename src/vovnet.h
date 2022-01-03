@@ -17,9 +17,15 @@ namespace vovnet
     template <typename SUBNET> using vov_tag5 = add_tag_layer<5055, SUBNET>;
     template <typename SUBNET> using id_mapping = add_prev<vov_tag0, SUBNET>;
 
-    template <template <typename> class ACT, template <typename> class BN>
+    template <
+        bool slim = false,
+        template <typename> class BN = bn_con,
+        template <typename> class ACT = relu>
     struct def
     {
+        // The slim factor for the OSA modules
+        const static long sf = slim ? 2 : 1;
+
         // The concatenate layer with custom number of outputs for OSA Module with 3 layers
         template <long num_filters, typename SUBNET>
         using osa3 = ACT<BN<con<num_filters, 1, 1, 1, 1,
@@ -72,77 +78,63 @@ namespace vovnet
                             vov_tag0<SUBNET>>>>>>>>>>>>>;
 
         // some definitions to allow the use of the repeat layer
-        template <typename SUBNET> using osa_module5_id_512 = id_mapping<osa_module5<512, 160, SUBNET>>;
-        template <typename SUBNET> using osa_module5_id_768 = id_mapping<osa_module5<768, 192, SUBNET>>;
-        template <typename SUBNET> using osa_module5_id_1024 = id_mapping<osa_module5<1024, 224, SUBNET>>;
+        template <typename SUBNET> using osa_module5_id_512 = id_mapping<osa_module5<512 / sf, 160 / sf, SUBNET>>;
+        template <typename SUBNET> using osa_module5_id_768 = id_mapping<osa_module5<768 / sf, 192 / sf, SUBNET>>;
+        template <typename SUBNET> using osa_module5_id_1024 = id_mapping<osa_module5<1024 / sf, 224 / sf, SUBNET>>;
 
         template <typename INPUT>
-        using backbone_19_slim = osa_module3<512, 112,
-                                 maxpool<osa_module3<384, 96,
-                                 maxpool<osa_module3<256, 80,
-                                 maxpool<osa_module3<112, 64,
-                                 stem<INPUT>>>>>>>>;
-
-        template <typename INPUT>
-        using backbone_19 = osa_module3<1024, 224,
-                            maxpool<osa_module3<768, 192,
-                            maxpool<osa_module3<512, 160,
-                            maxpool<osa_module3<256, 128,
+        using backbone_19 = osa_module3<1024 / sf, 224 / sf,
+                            maxpool<osa_module3<768 / sf, 192 / sf,
+                            maxpool<osa_module3<512 / sf, 160 / sf,
+                            maxpool<osa_module3<256 / sf, 128 / sf,
                             stem<INPUT>>>>>>>>;
 
         template <typename INPUT>
-        using backbone_27_slim = osa_module3<512, 112,
-                                 maxpool<osa_module5<384, 96,
-                                 maxpool<osa_module5<256, 80,
-                                 maxpool<osa_module5<112, 64,
-                                 stem<INPUT>>>>>>>>;
-
-        template <typename INPUT>
-        using backbone_27 = osa_module3<1024, 224,
-                            maxpool<osa_module5<768, 192,
-                            maxpool<osa_module5<512, 160,
-                            maxpool<osa_module5<256, 128,
+        using backbone_27 = osa_module5<1024 / sf, 224 / sf,
+                            maxpool<osa_module5<768 / sf, 192 / sf,
+                            maxpool<osa_module5<512 / sf, 160 / sf,
+                            maxpool<osa_module5<256 / sf, 128 / sf,
                             stem<INPUT>>>>>>>>;
 
         template <typename INPUT>
-        using backbone_39 = osa_module5_id_1024<osa_module5<1024, 224,
-                            maxpool<osa_module5_id_768<osa_module5<768, 192,
-                            maxpool<osa_module5<512, 160,
-                            maxpool<osa_module5<256, 128,
+        using backbone_39 = osa_module5_id_1024<osa_module5<1024 / sf, 224/ sf,
+                            maxpool<osa_module5_id_768<osa_module5<768 / sf, 192/ sf,
+                            maxpool<osa_module5<512 / sf, 160/ sf,
+                            maxpool<osa_module5<256 / sf, 128/ sf,
                             stem<INPUT>>>>>>>>>>;
 
         template <typename INPUT>
-        using backbone_57 = repeat<2, osa_module5_id_1024, osa_module5<1024, 224,
-                            maxpool<repeat<3, osa_module5_id_768, osa_module5<768, 192,
-                            maxpool<osa_module5<512, 160,
-                            maxpool<osa_module5<256, 128,
+        using backbone_57 = repeat<2, osa_module5_id_1024, osa_module5<1024 / sf, 224/ sf,
+                            maxpool<repeat<3, osa_module5_id_768, osa_module5<768 / sf, 192/ sf,
+                            maxpool<osa_module5<512 / sf, 160/ sf,
+                            maxpool<osa_module5<256 / sf, 128/ sf,
                             stem<INPUT>>>>>>>>>>;
 
         template <typename INPUT>
-        using backbone_99 = repeat<2, osa_module5_id_1024, osa_module5<1014, 224,
-                            maxpool<repeat<8, osa_module5_id_768, osa_module5<768, 192,
-                            maxpool<repeat<2, osa_module5_id_512, osa_module5<512, 160,
-                            maxpool<osa_module5<256, 128,
+        using backbone_99 = repeat<2, osa_module5_id_1024, osa_module5<1014 / sf, 224/ sf,
+                            maxpool<repeat<8, osa_module5_id_768, osa_module5<768 / sf, 192/ sf,
+                            maxpool<repeat<2, osa_module5_id_512, osa_module5<512 / sf, 160/ sf,
+                            maxpool<osa_module5<256 / sf, 128/ sf,
                             stem<INPUT>>>>>>>>>>>;
     };
 
     template <long num_filters, typename SUBNET>
     using classification_head = loss_multiclass_log<fc<num_filters, avg_pool_everything<SUBNET>>>;
 
-    using train_19_slim = classification_head<1000, def<relu, bn_con>::backbone_19_slim<input_rgb_image>>;
-    using infer_19_slim = classification_head<1000, def<relu, affine>::backbone_19_slim<input_rgb_image>>;
-    using train_19 = classification_head<1000, def<relu, bn_con>::backbone_19<input_rgb_image>>;
-    using infer_19 = classification_head<1000, def<relu, affine>::backbone_19<input_rgb_image>>;
-    using train_27_slim = classification_head<1000, def<relu, bn_con>::backbone_27_slim<input_rgb_image>>;
-    using infer_27_slim = classification_head<1000, def<relu, affine>::backbone_27_slim<input_rgb_image>>;
-    using train_27 = classification_head<1000, def<relu, bn_con>::backbone_27<input_rgb_image>>;
-    using infer_27 = classification_head<1000, def<relu, affine>::backbone_27<input_rgb_image>>;
-    using train_39 = classification_head<1000, def<relu, bn_con>::backbone_39<input_rgb_image>>;
-    using infer_39 = classification_head<1000, def<relu, affine>::backbone_39<input_rgb_image>>;
-    using train_57 = classification_head<1000, def<relu, bn_con>::backbone_57<input_rgb_image>>;
-    using infer_57 = classification_head<1000, def<relu, affine>::backbone_57<input_rgb_image>>;
-    using train_99 = classification_head<1000, def<relu, bn_con>::backbone_99<input_rgb_image>>;
-    using infer_99 = classification_head<1000, def<relu, affine>::backbone_99<input_rgb_image>>;
+    using train_19_slim = classification_head<1000, def<true, bn_con, relu>::backbone_19<input_rgb_image>>;
+    using infer_19_slim = classification_head<1000, def<true, affine, relu>::backbone_19<input_rgb_image>>;
+    using train_19 = classification_head<1000, def<false, bn_con, relu>::backbone_19<input_rgb_image>>;
+    using infer_19 = classification_head<1000, def<false, affine, relu>::backbone_19<input_rgb_image>>;
+    using train_27_slim = classification_head<1000, def<true, bn_con, relu>::backbone_27<input_rgb_image>>;
+    using infer_27_slim = classification_head<1000, def<true, affine, relu>::backbone_27<input_rgb_image>>;
+    using train_27 = classification_head<1000, def<false, bn_con, relu>::backbone_27<input_rgb_image>>;
+    using infer_27 = classification_head<1000, def<false, affine, relu>::backbone_27<input_rgb_image>>;
+    using train_39 = classification_head<1000, def<false, bn_con, relu>::backbone_39<input_rgb_image>>;
+    using infer_39 = classification_head<1000, def<false, affine, relu>::backbone_39<input_rgb_image>>;
+    using train_57 = classification_head<1000, def<false, bn_con, relu>::backbone_57<input_rgb_image>>;
+    using infer_57 = classification_head<1000, def<false, affine, relu>::backbone_57<input_rgb_image>>;
+    using train_99 = classification_head<1000, def<false, bn_con, relu>::backbone_99<input_rgb_image>>;
+    using infer_99 = classification_head<1000, def<false, affine, relu>::backbone_99<input_rgb_image>>;
     // clang-format on
 }  // namespace vovnet
 #endif  // VoVNet_H
