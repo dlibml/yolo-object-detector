@@ -48,10 +48,11 @@ namespace rgpnet
     template <template <typename> class ACT, template <typename> class BN>
     struct def
     {
+        const static bool slim = false;
         template <long out_filters, long in_filters,typename SUBNET>
-        using osa_module = typename vovnet::def<ACT, BN>::template osa_module5<out_filters, in_filters, SUBNET>;
-        template <typename SUBNET> using stem = typename vovnet::def<ACT, BN>::template stem<SUBNET>;
-        template <typename SUBNET> using maxpool = typename vovnet::def<ACT, BN>::template maxpool<SUBNET>;
+        using osa_module = typename vovnet::def<slim, BN, ACT>::template osa_module5<out_filters, in_filters, SUBNET>;
+        template <typename SUBNET> using stem = typename vovnet::def<slim, BN, ACT>::template stem<SUBNET>;
+        template <typename SUBNET> using maxpool = typename vovnet::def<slim, BN, ACT>::template maxpool<SUBNET>;
         template <typename SUBNET> using id_mapping = vovnet::id_mapping<SUBNET>;
         template <typename SUBNET> using osa_module_64 = osa_module<64, 64, SUBNET>;
         template <typename SUBNET> using osa_module_128 = osa_module<128, 96, SUBNET>;
@@ -62,6 +63,16 @@ namespace rgpnet
         template <typename SUBNET> using osa_module_id_512 = id_mapping<osa_module_512<SUBNET>>;
         template <typename SUBNET> using osa_module_id_768 = id_mapping<osa_module_768<SUBNET>>;
         template <typename SUBNET> using osa_module_id_1024 = id_mapping<osa_module_1024<SUBNET>>;
+
+        template <typename INPUT>
+        using backbone_27 = osa_module_1024<
+                            maxpool<
+                      btag3<osa_module_768<
+                            maxpool<
+                      btag2<osa_module_512<
+                            maxpool<
+                      btag1<osa_module_256<
+                            stem<INPUT>>>>>>>>>>>;
 
         template <typename INPUT>
         using backbone_39 = osa_module_id_1024<osa_module_1024<
@@ -129,7 +140,7 @@ namespace rgpnet
                tag1<SUBNET>>>>>>>>>>>;
 
         template <typename INPUT>
-        using backbone = btag4<backbone_39<INPUT>>;
+        using backbone = btag4<backbone_27<INPUT>>;
 
         using net_type = loss_yolo<ytag8, ytag16, ytag32,
         ytag8<sig<con<1, 1, 1, 1, 1, adaptor2<askip3<
