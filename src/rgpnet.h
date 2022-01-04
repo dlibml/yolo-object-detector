@@ -1,6 +1,7 @@
 #ifndef RGPNet_H
 #define RGPNet_H
 
+#include "loss_yolo.h"
 #include "vovnet.h"
 
 namespace rgpnet
@@ -142,7 +143,7 @@ namespace rgpnet
         template <typename INPUT>
         using backbone = btag4<backbone_27<INPUT>>;
 
-        using net_type = loss_yolo<ytag8, ytag16, ytag32,
+        using net_type = loss_yolo2<ytag8, ytag16, ytag32,
         ytag8<sig<con<1, 1, 1, 1, 1, adaptor2<askip3<
         ytag16<sig<con<1, 1, 1, 1, 1, atag3<adaptor3<askip4<
         ytag32<sig<con<1, 1, 1, 1, 1, atag4<adaptor4<

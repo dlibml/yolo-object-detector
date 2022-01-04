@@ -16,7 +16,7 @@ void postprocess_detections(
         d.rect = tform(d.rect);
 }
 
-void setup_detector(net_train_type& net, const dlib::yolo_options& options)
+void setup_detector(net_train_type& net, const dlib::yolo_options2& options)
 {
     using namespace dlib;
     visit_computational_layers(net, [](leaky_relu_& l) { l = leaky_relu_(0.1); });

@@ -1,6 +1,7 @@
 #include "detector_utils.h"
 #include "metrics.h"
 #include "model.h"
+#include "loss_yolo.h"
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/data_io.h>
@@ -132,7 +133,7 @@ try
     }
     std::cout << "# labels: " << labels.size() << std::endl;
 
-    yolo_options options;
+    yolo_options2 options;
     color_mapper string_to_color;
     for (const auto& label : labels)
     {

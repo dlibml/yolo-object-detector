@@ -38,6 +38,6 @@ void postprocess_detections(
     const dlib::rectangle_transform& tform,
     std::vector<dlib::yolo_rect>& detections);
 
-void setup_detector(net_train_type& net, const dlib::yolo_options& options);
+void setup_detector(net_train_type& net, const dlib::yolo_options2& options);
 
 #endif  // utils_h_INCLUDED
