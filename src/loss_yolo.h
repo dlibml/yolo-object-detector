@@ -128,6 +128,17 @@ namespace dlib
             }
 
             template <typename SUBNET>
+            static void get_strides(
+                const tensor& input_tensor,
+                const SUBNET& sub,
+                std::vector<std::pair<double, double>>& strides
+            )
+            {
+                yolo_helper_impl2<TAG_TYPE>::get_strides(input_tensor, sub, strides);
+                yolo_helper_impl2<TAG_TYPES...>::get_strides(input_tensor, sub, strides);
+            }
+
+            template <typename SUBNET>
             static void tensor_to_dets (
                 const tensor& input_tensor,
                 const SUBNET& sub,
@@ -165,6 +176,19 @@ namespace dlib
             constexpr static size_t tag_count() { return 1; }
 
             static void list_tags(std::ostream& out) { out << "tag" << tag_id<TAG_TYPE>::id; }
+
+            template <typename SUBNET>
+            static void get_strides(
+                const tensor& input_tensor,
+                const SUBNET& sub,
+                std::vector<std::pair<double, double>>& strides
+            )
+            {
+                const tensor& output_tensor = layer<TAG_TYPE>(sub).get_output();
+                const auto stride_x = static_cast<double>(input_tensor.nc()) / output_tensor.nc();
+                const auto stride_y = static_cast<double>(input_tensor.nr()) / output_tensor.nr();
+                strides.emplace_back(stride_x, stride_y);
+            }
 
             template <typename SUBNET>
             static void tensor_to_dets (
@@ -292,6 +316,7 @@ namespace dlib
                     double best_iou = 0;
                     size_t best_a = 0;
                     size_t best_tag_id = 0;
+                    running_stats<double> ious;
                     for (const auto& item : options.anchors)
                     {
                         const auto tag_id = item.first;
@@ -300,6 +325,7 @@ namespace dlib
                         {
                             const yolo_rect anchor(centered_drect(t_center, details[a].width, details[a].height));
                             const double iou = box_intersection_over_union(truth_box.rect, anchor.rect);
+                            ious.add(iou);
                             if (iou > best_iou)
                             {
                                 best_iou = iou;
@@ -309,10 +335,29 @@ namespace dlib
                         }
                     }
 
+                    double iou_anchor_threshold = options.iou_anchor_threshold;
+                    // ATSS: Adaptive Training Sample Selection
+                    if (options.iou_anchor_threshold < 0)
+                        iou_anchor_threshold = ious.mean() + ious.stddev();
+
+                    // std::cout << "truth: " << truth_box.rect.width() << 'x' << truth_box.rect.height() << '\n';
+                    // std::cout << stride_x << 'x' << stride_y << " => iou: " << iou_anchor_threshold << '\n';;
+                    // for (const auto& item : options.anchors)
+                    // {
+                    //     const auto details = item.second;
+                    //     for (size_t a = 0; a < details.size(); ++a)
+                    //     {
+                    //         const yolo_rect anchor(centered_drect(t_center, details[a].width, details[a].height));
+                    //         const double iou = box_intersection_over_union(truth_box.rect, anchor.rect);
+                    //         std::cout << anchor.rect.width() << 'x' << anchor.rect.height() << ": " << iou << '\n';
+                    //     }
+                    // }
+                    // std::cin.get();
+
                     for (size_t a = 0; a < anchors.size(); ++a)
                     {
                         // Update best anchor if it's from the current stride, and optionally other anchors
-                        if ((best_tag_id == tag_id<TAG_TYPE>::id && best_a == a) || options.iou_anchor_threshold < 1)
+                        if ((best_tag_id == tag_id<TAG_TYPE>::id && best_a == a) || iou_anchor_threshold < 1)
                         {
 
                             // do not update other anchors if they have low IoU
@@ -320,7 +365,7 @@ namespace dlib
                             {
                                 const yolo_rect anchor(centered_drect(t_center, anchors[a].width, anchors[a].height));
                                 const double iou = box_intersection_over_union(truth_box.rect, anchor.rect);
-                                if (iou < options.iou_anchor_threshold)
+                                if (iou < iou_anchor_threshold)
                                     continue;
                             }
 
