@@ -69,7 +69,7 @@ try
         return 0;
     }
     parser.check_option_arg_range<double>("iou-ignore", 0, 1);
-    parser.check_option_arg_range<double>("iou-anchor", -1, 1);
+    parser.check_option_arg_range<double>("iou-anchor", 0, 1);
     parser.check_option_arg_range<double>("mirror", 0, 1);
     parser.check_option_arg_range<double>("mosaic", 0, 1);
     parser.check_option_arg_range<double>("crop", 0, 1);
