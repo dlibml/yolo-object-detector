@@ -337,7 +337,7 @@ namespace dlib
 
                     double iou_anchor_threshold = options.iou_anchor_threshold;
                     // ATSS: Adaptive Training Sample Selection
-                    if (options.iou_anchor_threshold < 0)
+                    if (options.iou_anchor_threshold == 0)
                         iou_anchor_threshold = ious.mean() + ious.stddev();
 
                     // std::cout << "truth: " << truth_box.rect.width() << 'x' << truth_box.rect.height() << '\n';
