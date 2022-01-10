@@ -495,7 +495,7 @@ namespace dlib
 
         friend void serialize(const loss_yolo2_& item, std::ostream& out)
         {
-            serialize("loss_yolo_2", out);
+            serialize("loss_yolo_", out);
             size_t count = tag_count();
             serialize(count, out);
             serialize(item.options, out);
