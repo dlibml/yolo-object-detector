@@ -3,12 +3,14 @@
 #include <dlib/data_io.h>
 #include <dlib/svm.h>
 
-using sample_t = dlib::matrix<double, 2, 1>;
+using namespace dlib;
+
+using sample_t = matrix<double, 2, 1>;
 
 auto main(const int argc, const char** argv) -> int
 try
 {
-    dlib::command_line_parser parser;
+    command_line_parser parser;
     parser.add_option("dataset", "path to the dataset XML file", 1);
     parser.add_option("size", "image size to use during training (default: 512)", 1);
     parser.add_option("sides", "min and max sides covered for an anchor box group", 2);
@@ -23,14 +25,14 @@ try
     {
         parser.print_options();
         std::cout << "Notes:\n";
-        std::cout << dlib::wrap_string(
+        std::cout << wrap_string(
                          "1: --clusters and --iou are incompatible, because --iou "
                          "will find the number of clusters automatically.",
                          0,
                          3)
                   << std::endl;
         ;
-        std::cout << dlib::wrap_string(
+        std::cout << wrap_string(
                          "2: --sides and --clusters should be specified as many "
                          "times as strides, and they must match.",
                          0,
@@ -42,9 +44,9 @@ try
     parser.check_incompatible_options("clusters", "iou");
     parser.check_option_arg_range("iou", 0.0, 1.0);
 
-    const size_t image_size = dlib::get_option(parser, "size", 512);
-    const double min_iou = dlib::get_option(parser, "iou", 0.5);
-    const std::string dataset_path = dlib::get_option(parser, "dataset", "");
+    const size_t image_size = get_option(parser, "size", 512);
+    const double min_iou = get_option(parser, "iou", 0.5);
+    const std::string dataset_path = get_option(parser, "dataset", "");
     if (dataset_path.empty())
     {
         std::cout << "specify the data path directory" << std::endl;
@@ -71,8 +73,8 @@ try
     }
 
     // Load the dataset
-    dlib::image_dataset_metadata::dataset dataset;
-    dlib::image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_path);
+    image_dataset_metadata::dataset dataset;
+    image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_path);
 
     // Prepare the anchor box groups
     std::vector<size_t> clusters;
@@ -122,11 +124,11 @@ try
         double average_iou = 0;
         for (const auto& s : samples)
         {
-            const auto sample = dlib::centered_drect(dlib::dpoint(0, 0), s(0), s(1));
+            const auto sample = centered_drect(dpoint(0, 0), s(0), s(1));
             double best_iou = 0;
             for (const auto& a : anchors)
             {
-                const auto anchor = centered_drect(dlib::dpoint(0, 0), a(0), a(1));
+                const auto anchor = centered_drect(dpoint(0, 0), a(0), a(1));
                 best_iou = std::max(best_iou, box_intersection_over_union(sample, anchor));
             }
             average_iou += best_iou;
@@ -135,43 +137,48 @@ try
     };
 
     std::cout << "total number of boxes: " << num_boxes << std::endl;
+    double total_coverage = 0;
     if (parser.option("clusters"))
     {
         for (size_t i = 0; i < num_groups; ++i)
         {
             auto& samples = box_groups[i];
+            const auto sample_fraction = static_cast<double>(samples.size()) / num_boxes;
             const auto num_clusters = clusters[i];
-            dlib::randomize_samples(samples);
+            randomize_samples(samples);
             std::cout << "Computing anchors for " << samples.size() << " samples" << std::endl;
             std::vector<sample_t> anchors;
-            dlib::pick_initial_centers(num_clusters, anchors, samples);
-            dlib::find_clusters_using_kmeans(samples, anchors);
+            pick_initial_centers(num_clusters, anchors, samples);
+            find_clusters_using_kmeans(samples, anchors);
             std::sort(
                 anchors.begin(),
                 anchors.end(),
-                [](const auto& a, const auto& b) { return a(0) * a(1) < b(0) * b(1); });
+                [](const auto& a, const auto& b) { return prod(a) < prod(b); });
             for (const auto& c : anchors)
                 std::cout << "    " << round(c(0)) << 'x' << round(c(1)) << std::endl;
             // And check the average IoU of the newly computed anchor boxes and the training
             // samples.
-            std::cout << "  Average IoU: " << compute_average_iou(samples, anchors) << std::endl;
+            std::cout << "  Sample Fraction: " << sample_fraction << std::endl;
+            std::cout << "  Average IoU:     " << compute_average_iou(samples, anchors)
+                      << std::endl;
+            total_coverage += sample_fraction;
         }
+        std::cout << "\nTotal Coverage: " << total_coverage << std::endl;
     }
     else if (parser.option("iou"))
     {
         dlib::rand rnd;
-        dlib::test_box_overlap overlaps(min_iou);
+        test_box_overlap overlaps(min_iou);
 
         const auto count_overlaps = [](const std::vector<sample_t>& samples,
-                                       const dlib::test_box_overlap& overlaps,
+                                       const test_box_overlap& overlaps,
                                        const sample_t& ref_sample)
         {
-            const auto ref_box =
-                dlib::centered_drect(dlib::dpoint(0, 0), ref_sample(0), ref_sample(1));
+            const auto ref_box = centered_drect(dpoint(0, 0), ref_sample(0), ref_sample(1));
             size_t cnt = 0;
             for (const auto& s : samples)
             {
-                const auto b = dlib::centered_drect(dlib::dpoint(0, 0), s(0), s(1));
+                const auto b = centered_drect(dpoint(0, 0), s(0), s(1));
                 if (overlaps(b, ref_box))
                     ++cnt;
             }
@@ -179,7 +186,7 @@ try
         };
 
         const auto find_samples_overlapping_all_others =
-            [count_overlaps](std::vector<sample_t> samples, const dlib::test_box_overlap overlaps)
+            [count_overlaps](std::vector<sample_t> samples, const test_box_overlap overlaps)
         {
             std::vector<sample_t> exemplars;
             dlib::rand rnd;
@@ -187,7 +194,7 @@ try
             {
                 sample_t best_ref_sample;
                 best_ref_sample = 0, 0;
-                dlib::randomize_samples(samples);
+                randomize_samples(samples);
                 size_t best_cnt = 0;
                 for (size_t i = 0; i < 500; ++i)
                 {
@@ -200,14 +207,11 @@ try
                     }
                 }
 
-                const auto best_ref_box = dlib::centered_drect(
-                    dlib::dpoint(0, 0),
-                    best_ref_sample(0),
-                    best_ref_sample(1));
+                const auto best_ref_box =
+                    centered_drect(dpoint(0, 0), best_ref_sample(0), best_ref_sample(1));
                 for (size_t i = 0; i < samples.size(); ++i)
                 {
-                    const auto b =
-                        dlib::centered_drect(dlib::dpoint(0, 0), samples[i](0), samples[i](1));
+                    const auto b = centered_drect(dpoint(0, 0), samples[i](0), samples[i](1));
                     if (overlaps(b, best_ref_box))
                     {
                         std::swap(samples[i], samples.back());
