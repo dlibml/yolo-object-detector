@@ -1,6 +1,6 @@
+#include "detector_utils.h"
 #include "metrics.h"
 #include "model.h"
-#include "detector_utils.h"
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/console_progress_indicator.h>
@@ -27,7 +27,7 @@ try
         1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
-    parser.add_option("print", "print the network architecture");
+    parser.add_option("architecture", "print the network architecture");
     parser.add_option("help", "display this message and exit");
     parser.parse(argc, argv);
 
@@ -85,10 +85,10 @@ try
     }
 
     net.loss_details().adjust_nms(iou_threshold, ratio_covered, classwise_nms);
-    if (parser.option("print"))
+    if (parser.option("architecture"))
         std::cout << net << std::endl;
-    else
-        std::cout << net.loss_details() << std::endl;
+
+    print_loss_details(net);
 
     dlib::image_dataset_metadata::dataset dataset;
     dlib::image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_file.full_name());
