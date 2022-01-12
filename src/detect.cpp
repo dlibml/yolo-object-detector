@@ -136,7 +136,7 @@ try
     }
 
     net.loss_details().adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
-    std::cout << net.loss_details() << std::endl;
+    print_loss_details(net);
     if (not fused_path.empty())
     {
         dlib::fuse_layers(net);
