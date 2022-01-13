@@ -51,6 +51,7 @@ try
     parser.add_option("color-offset", "random color offset probability (default: 0.5)", 1);
     parser.add_option("crop", "random crop probability (default: 0.5)", 1);
     parser.add_option("gamma", "gamma magnitude (default: 0.5)", 1);
+    parser.add_option("coverage", "ignore objects not fully covered (default: 0.75)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
@@ -73,6 +74,7 @@ try
     parser.check_option_arg_range<double>("mosaic", 0, 1);
     parser.check_option_arg_range<double>("crop", 0, 1);
     parser.check_option_arg_range<double>("perspective", 0, 1);
+    parser.check_option_arg_range<double>("coverage", 0, 1);
     parser.check_option_arg_range<double>("color-offset", 0, 1);
     parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
     parser.check_option_arg_range<double>("color", 0, 1);
@@ -102,6 +104,7 @@ try
     const double color_magnitude = get_option(parser, "color", 0.2);
     const double angle = get_option(parser, "angle", 5);
     const double shift = get_option(parser, "shift", 0.2);
+    const double min_coverage = get_option(parser, "min-coverage", 0.75);
     const double solarize_prob = get_option(parser, "solarize", 0.1);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
     const double iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
@@ -267,7 +270,7 @@ try
         cropper.set_chip_dims(image_size, image_size);
         cropper.set_max_object_size(0.9);
         cropper.set_min_object_size(64, 32);
-        cropper.set_min_object_coverage(0.75);
+        cropper.set_min_object_coverage(min_coverage);
         cropper.set_max_rotation_degrees(angle);
         cropper.set_translate_amount(shift);
         if (mirror_prob == 0)
@@ -372,11 +375,14 @@ try
                 }
             }
 
-            // Finally, ignore boxes whose center is not contained in the image
+            // Finally, ignore boxes that are not well covered by the current image
             const auto image_rect = get_rect(result.first);
             for (auto& box : result.second)
-                if (not image_rect.contains(center(box)))
+            {
+                const auto coverage = box.rect.intersect(image_rect).area() / box.rect.area();
+                if (not box.ignore and coverage < min_coverage)
                     box.ignore = true;
+            }
 
             return result;
         };
@@ -389,9 +395,6 @@ try
                 const long s = image_size * scale;
                 std::pair<rgb_image, std::vector<yolo_rect>> sample;
                 sample.first.set_size(image_size, image_size);
-                const auto short_dim = cropper.get_min_object_length_short_dim();
-                const auto long_dim = cropper.get_min_object_length_long_dim();
-                const auto min_coverage = cropper.get_min_object_coverage();
                 const std::vector<std::pair<long, long>> pos{{0, 0}, {0, s}, {s, 0}, {s, s}};
                 for (const auto& [x, y] : pos)
                 {
@@ -402,16 +405,6 @@ try
                     for (auto& box : tile.second)
                     {
                         box.rect = translate_rect(scale_rect(box.rect, scale), x, y);
-                        // ignore small items
-                        if ((box.rect.height() < long_dim and box.rect.width() < long_dim) or
-                            (box.rect.height() < short_dim or box.rect.width() < short_dim))
-                            box.ignore = true;
-
-                        // ignore items that are not well covered by the current tile
-                        const double coverage = box.rect.intersect(r).area() / box.rect.area();
-                        if (not box.ignore and coverage < min_coverage)
-                            box.ignore = true;
-
                         sample.second.push_back(std::move(box));
                     }
                 }
