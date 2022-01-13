@@ -27,7 +27,6 @@ struct drawing_options
             }
         }
     };
-    dlib::rgb_pixel font_color = dlib::rgb_pixel(0, 0, 0);
     size_t thickness = 5;
     color_mapper string_to_color;
     bool draw_labels = true;

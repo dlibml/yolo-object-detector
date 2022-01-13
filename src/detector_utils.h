@@ -40,4 +40,6 @@ void postprocess_detections(
 
 void setup_detector(net_train_type& net, const dlib::yolo_options2& options);
 
+void print_loss_details(const net_infer_type& net);
+
 #endif  // utils_h_INCLUDED
