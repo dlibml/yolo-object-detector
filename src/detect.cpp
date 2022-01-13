@@ -1,6 +1,6 @@
-#include "model.h"
 #include "detector_utils.h"
 #include "drawing_utils.h"
+#include "model.h"
 #include "webcam_window.h"
 
 #include <dlib/cmd_line_parser.h>
@@ -241,7 +241,9 @@ try
         postprocess_detections(tform, detections);
         for (const auto& d : detections)
         {
-            std::cout << d.label << " " << d.detection_confidence << ": " << d.rect << "\n";
+            std::cout << d.label << " " << d.detection_confidence << ": ";
+            std::cout << center(d.rect) << " " << d.rect.width() << "x" << d.rect.height();
+            std::cout << "\n";
         }
         draw_bounding_boxes(image, detections, options);
         if (not output_path.empty())
@@ -269,7 +271,9 @@ try
             std::cout << file.full_name() << ": " << t << " ms" << std::endl;
             for (const auto& d : detections)
             {
-                std::cout << d.label << " " << d.detection_confidence << ": " << d.rect << "\n";
+                std::cout << d.label << " " << d.detection_confidence << ": ";
+                std::cout << center(d.rect) << " " << d.rect.width() << "x" << d.rect.height();
+                std::cout << "\n";
             }
             draw_bounding_boxes(image, detections, options);
             if (not output_path.empty())
