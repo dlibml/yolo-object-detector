@@ -52,7 +52,7 @@ try
     parser.add_option("color-offset", "random color offset probability (default: 0.5)", 1);
     parser.add_option("crop", "random crop probability (default: 0.5)", 1);
     parser.add_option("gamma", "gamma magnitude (default: 0.5)", 1);
-    parser.add_option("coverage", "ignore objects not fully covered (default: 0.75)", 1);
+    parser.add_option("min-coverage", "ignore objects partially covered (default: 0.75)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
@@ -75,7 +75,7 @@ try
     parser.check_option_arg_range<double>("mosaic", 0, 1);
     parser.check_option_arg_range<double>("crop", 0, 1);
     parser.check_option_arg_range<double>("perspective", 0, 1);
-    parser.check_option_arg_range<double>("coverage", 0, 1);
+    parser.check_option_arg_range<double>("min-coverage", 0, 1);
     parser.check_option_arg_range<double>("color-offset", 0, 1);
     parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
     parser.check_option_arg_range<double>("color", 0, 1);
