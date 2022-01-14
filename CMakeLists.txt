@@ -43,13 +43,14 @@ find_package(OpenCV REQUIRED)
 
 # Dependency management
 include(FetchContent)
+set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
+set(FETCHCONTENT_QUIET FALSE)
 macro(fetch_content name tag repository)
     FetchContent_Declare(
         ${name}
         GIT_REPOSITORY ${repository}
         GIT_TAG        ${tag}
         GIT_PROGRESS   TRUE
-        USES_TERMINAL_DOWNLOAD TRUE
         SOURCE_DIR     ${PROJECT_SOURCE_DIR}/external/${name}
     )
     message("-- Fetching ${name} ${tag}")
