@@ -41,6 +41,7 @@ try
     parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
     parser.add_option("load-options", "load drawing options file", 1);
     parser.add_option("save-options", "save drawing options file", 1);
+    parser.add_option("weighted", "use confidence as thickness");
 
     parser.set_group_name("I/O Options");
     parser.add_option("fps", "force frames per second (default: 30)", 1);
@@ -174,6 +175,7 @@ try
         options.multilabel = parser.option("multilabel");
         options.draw_labels = not parser.option("no-labels");
         options.draw_confidence = not parser.option("no-conf") and options.draw_labels;
+        options.weighted = parser.option("weighted");
     }
     if (not mapping_path.empty())
     {
