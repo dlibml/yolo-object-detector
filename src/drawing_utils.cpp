@@ -2,6 +2,34 @@
 
 using namespace dlib;
 
+
+void serialize(const drawing_options& item, std::ostream& out)
+{
+    serialize("drawing_options", out);
+    serialize(item.font_path, out);
+    serialize(item.thickness, out);
+    serialize(item.draw_labels, out);
+    serialize(item.draw_confidence, out);
+    serialize(item.multilabel, out);
+    serialize(item.fill, out);
+    serialize(item.mapping, out);
+}
+void deserialize(drawing_options& item, std::istream& in)
+{
+    std::string version;
+    deserialize(version, in);
+    if (version != "drawing_options")
+        throw serialization_error("error while deserializing drawing_options");
+    deserialize(item.font_path, in);
+    item.set_font(item.font_path);
+    deserialize(item.thickness, in);
+    deserialize(item.draw_labels, in);
+    deserialize(item.draw_confidence, in);
+    deserialize(item.multilabel, in);
+    deserialize(item.fill, in);
+    deserialize(item.mapping, in);
+}
+
 void draw_bounding_boxes(
     matrix<rgb_pixel>& image,
     const std::vector<yolo_rect>& detections,
@@ -63,10 +91,13 @@ void draw_bounding_boxes(
 
             // draw label inside the bounding box (move it downwards)
             if (label_pos.y() < 0)
-                label_pos += point(offset + 1, lh + offset + 1);
+                label_pos += point(offset, lh + offset - 1);
 
             bg = move_rect(bg, label_pos.x() - offset, label_pos.y());
-            fill_rect(image, bg, rgb_alpha_pixel(color.red, color.green, color.blue, 224));
+            if (opts.thickness == 1)
+                fill_rect(image, bg, rgb_alpha_pixel(color.red, color.green, color.blue, 224));
+            else
+                fill_rect(image, bg, rgb_alpha_pixel(color));
             draw_rectangle(image, bg, color, 1);
             draw_string(image, label_pos, label, font_color, opts.get_font());
         }
