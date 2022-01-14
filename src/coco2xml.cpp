@@ -78,10 +78,10 @@ try
         const auto bbox = annot["bbox"];
         DLIB_CASSERT(bbox.size() == 4);
         image_dataset_metadata::box box;
-        box.rect.left() = bbox[0];
-        box.rect.top() = bbox[1];
-        box.rect.right() = box.rect.left() + bbox[2].get<double>();
-        box.rect.bottom() = box.rect.top() + bbox[3].get<double>();
+        box.rect.left() = std::round(bbox[0].get<double>());
+        box.rect.top() = std::round(bbox[1].get<double>());
+        box.rect.right() = std::round(bbox[0].get<double>() + bbox[2].get<double>());
+        box.rect.bottom() = std::round(bbox[1].get<double>() + bbox[3].get<double>());
         const auto category_id = annot["category_id"].get<int>();
         const auto image_id = annot["image_id"].get<int>();
         box.label = categories.at(category_id).name;
