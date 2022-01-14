@@ -122,6 +122,7 @@ try
         nms_ratio_covered = std::stod(parser.option("nms").argument(1));
     }
 
+    // Try to load the network from either a weights file or a trainer state
     if (not dnn_path.empty())
     {
         deserialize(dnn_path) >> net;
@@ -141,70 +142,7 @@ try
         return EXIT_FAILURE;
     }
 
-    net.loss_details().adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
-    print_loss_details(net);
-    if (not fused_path.empty())
-    {
-        fuse_layers(net);
-        serialize(fused_path) << net;
-    }
-
-    if (not xml_path.empty())
-    {
-        std::clog << "exporting net to " << xml_path << std::endl;
-        net_to_xml(net, xml_path);
-        return EXIT_SUCCESS;
-    }
-
-    if (not dataset_path.empty())
-    {
-        const bool check_dataset = parser.option("check");
-        image_dataset_metadata::dataset dataset;
-        image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_path);
-        locally_change_current_dir chdir(get_parent_directory(file(dataset_path)));
-        rgb_image image, letterbox;
-        double overlap_iou_threshold = 0.45;
-        double overlap_ratio_covered = 1;
-        if (parser.option("overlap"))
-        {
-            overlap_iou_threshold = std::stod(parser.option("overlap").argument(0));
-            overlap_ratio_covered = std::stod(parser.option("overlap").argument(1));
-        }
-        test_box_overlap overlaps(overlap_iou_threshold, overlap_ratio_covered);
-        console_progress_indicator progress(dataset.images.size());
-        for (size_t i = 0; i < dataset.images.size(); ++i)
-        {
-            auto& image_info = dataset.images[i];
-            if (check_dataset)
-            {
-                if (not file_exists(image_info.filename))
-                    std::cout << image_info.filename << '\n';
-                continue;
-            }
-            load_image(image, image_info.filename);
-            const auto tform = preprocess_image(image, letterbox, image_size);
-            auto detections = net.process(letterbox, conf_thresh);
-            postprocess_detections(tform, detections);
-            std::vector<image_dataset_metadata::box> boxes;
-            for (const auto& pseudo : detections)
-            {
-                if (not overlaps_any_box(image_info.boxes, pseudo, overlaps, classwise_nms))
-                {
-                    image_dataset_metadata::box box;
-                    box.rect = pseudo.rect;
-                    box.label = pseudo.label;
-                    image_info.boxes.push_back(std::move(box));
-                }
-            }
-            progress.print_status(i + 1, false, std::cerr);
-        }
-        std::cerr << std::endl;
-        chdir.revert();
-        const auto new_path = dataset_path.substr(0, dataset_path.rfind('.')) + "-pseudo.xml";
-        image_dataset_metadata::save_image_dataset_metadata(dataset, new_path);
-        return EXIT_SUCCESS;
-    }
-
+    // General options for drawing bounding boxes on images
     drawing_options options;
     options.set_font(font_path);
     for (const auto& label : net.loss_details().get_options().labels)
@@ -254,6 +192,75 @@ try
     if (parser.option("save-options"))
         serialize(parser.option("save-options").argument()) << options;
 
+    // Setup the loss nms
+    net.loss_details().adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
+    print_loss_details(net);
+
+    // Export to XML
+    if (not xml_path.empty())
+    {
+        std::clog << "exporting net to " << xml_path << std::endl;
+        net_to_xml(net, xml_path);
+        return EXIT_SUCCESS;
+    }
+
+    // Fuse layers
+    if (not fused_path.empty())
+    {
+        fuse_layers(net);
+        serialize(fused_path) << net;
+    }
+
+    // Process the dataset if for pseudo labeling
+    if (not dataset_path.empty())
+    {
+        const bool check_dataset = parser.option("check");
+        image_dataset_metadata::dataset dataset;
+        image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_path);
+        locally_change_current_dir chdir(get_parent_directory(file(dataset_path)));
+        rgb_image image, letterbox;
+        double overlap_iou_threshold = 0.45;
+        double overlap_ratio_covered = 1;
+        if (parser.option("overlap"))
+        {
+            overlap_iou_threshold = std::stod(parser.option("overlap").argument(0));
+            overlap_ratio_covered = std::stod(parser.option("overlap").argument(1));
+        }
+        test_box_overlap overlaps(overlap_iou_threshold, overlap_ratio_covered);
+        console_progress_indicator progress(dataset.images.size());
+        for (size_t i = 0; i < dataset.images.size(); ++i)
+        {
+            auto& image_info = dataset.images[i];
+            if (check_dataset)
+            {
+                if (not file_exists(image_info.filename))
+                    std::cout << image_info.filename << '\n';
+                continue;
+            }
+            load_image(image, image_info.filename);
+            const auto tform = preprocess_image(image, letterbox, image_size);
+            auto detections = net.process(letterbox, conf_thresh);
+            postprocess_detections(tform, detections);
+            std::vector<image_dataset_metadata::box> boxes;
+            for (const auto& pseudo : detections)
+            {
+                if (not overlaps_any_box(image_info.boxes, pseudo, overlaps, classwise_nms))
+                {
+                    image_dataset_metadata::box box;
+                    box.rect = pseudo.rect;
+                    box.label = pseudo.label;
+                    image_info.boxes.push_back(std::move(box));
+                }
+            }
+            progress.print_status(i + 1, false, std::cerr);
+        }
+        std::cerr << std::endl;
+        chdir.revert();
+        const auto new_path = dataset_path.substr(0, dataset_path.rfind('.')) + "-pseudo.xml";
+        image_dataset_metadata::save_image_dataset_metadata(dataset, new_path);
+        return EXIT_SUCCESS;
+    }
+
     webcam_window win(conf_thresh);
     win.can_record = not output_path.empty();
 
@@ -278,6 +285,7 @@ try
         draw_bounding_boxes(image, detections, options);
         if (not output_path.empty())
             save_png(image, output_path);
+        win.set_title(parser.option("image").argument());
         win.set_image(image);
         win.wait_until_closed();
         return EXIT_SUCCESS;
@@ -309,6 +317,7 @@ try
             draw_bounding_boxes(image, detections, options);
             if (not output_path.empty())
                 save_png(image, output_path);
+            win.set_title(file.name());
             win.set_image(image);
             std::cin.get();
         }
