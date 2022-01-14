@@ -7,8 +7,37 @@
 struct drawing_options
 {
     drawing_options() = default;
-    drawing_options(const std::string& font_path)
+    drawing_options& operator=(const drawing_options& item)
     {
+        if (this == &item)
+            return *this;
+        thickness = item.thickness;
+        draw_labels = item.draw_labels;
+        draw_confidence = item.draw_confidence;
+        multilabel = item.multilabel;
+        fill = item.fill;
+        mapping = item.mapping;
+        font_path = item.font_path;
+        return *this;
+    }
+    size_t thickness = 5;
+    color_mapper string_to_color;
+    bool draw_labels = true;
+    bool draw_confidence = true;
+    bool multilabel = false;
+    uint8_t fill = 0;
+    std::map<std::string, std::string> mapping;
+    const std::shared_ptr<dlib::font>& get_font()
+    {
+        if (custom_font != nullptr)
+            font = custom_font;
+        else
+            font = default_font;
+        return font;
+    }
+    void set_font(const std::string& font_path)
+    {
+        this->font_path = font_path;
         if (not font_path.empty())
         {
             const auto font = std::make_shared<dlib::bdf_font>();
@@ -26,27 +55,16 @@ struct drawing_options
                           << std::endl;
             }
         }
-    };
-    size_t thickness = 5;
-    color_mapper string_to_color;
-    bool draw_labels = true;
-    bool draw_confidence = true;
-    bool multilabel = false;
-    uint8_t fill = 0;
-    std::map<std::string, std::string> mapping;
-    const std::shared_ptr<dlib::font>& get_font()
-    {
-        if (custom_font != nullptr)
-            font = custom_font;
-        else
-            font = default_font;
-        return font;
     }
 
     private:
     const std::shared_ptr<dlib::font> default_font = dlib::default_font::get_font();
     std::shared_ptr<dlib::bdf_font> custom_font;
     std::shared_ptr<dlib::font> font;
+    std::string font_path{};
+
+    friend void serialize(const drawing_options& item, std::ostream& out);
+    friend void deserialize(drawing_options& item, std::istream& in);
 };
 
 void draw_bounding_boxes(
