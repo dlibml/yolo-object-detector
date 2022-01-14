@@ -52,9 +52,9 @@ void print_loss_details(const net_infer_type& net)
     std::cout << "  lambda_obj: " << opts.lambda_obj << '\n';
     std::cout << "  lambda_box: " << opts.lambda_box << '\n';
     std::cout << "  lambda_cls: " << opts.lambda_cls << '\n';
-    std::cout << "  overlaps_nms: (" << opts.overlaps_nms.get_iou_thresh() << ","
+    std::cout << "  overlaps_nms: (" << opts.overlaps_nms.get_iou_thresh() << ", "
               << opts.overlaps_nms.get_percent_covered_thresh() << ")" << '\n';
-    std::cout << "  classwise_nms :" << std::boolalpha << opts.classwise_nms << '\n';
+    std::cout << "  classwise_nms: " << std::boolalpha << opts.classwise_nms << '\n';
     std::cout << "  " << opts.labels.size() << " labels:\n";
     for (size_t i = 0; i < opts.labels.size(); ++i)
         std::cout << "    " << std::setw(2) << i << ". " << opts.labels[i] << '\n';
