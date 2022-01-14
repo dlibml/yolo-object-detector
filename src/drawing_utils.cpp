@@ -12,6 +12,7 @@ void serialize(const drawing_options& item, std::ostream& out)
     serialize(item.draw_confidence, out);
     serialize(item.multilabel, out);
     serialize(item.fill, out);
+    serialize(item.weighted, out);
     serialize(item.mapping, out);
 }
 void deserialize(drawing_options& item, std::istream& in)
@@ -27,6 +28,7 @@ void deserialize(drawing_options& item, std::istream& in)
     deserialize(item.draw_confidence, in);
     deserialize(item.multilabel, in);
     deserialize(item.fill, in);
+    deserialize(item.weighted, in);
     deserialize(item.mapping, in);
 }
 
@@ -39,7 +41,7 @@ void draw_bounding_boxes(
     for (auto det = detections.rbegin(); det != detections.rend(); ++det)
     {
         const auto& d = *det;
-        const auto offset = opts.thickness / 2;
+        auto offset = opts.thickness / 2;
         const auto color = opts.string_to_color(d.label);
         lab_pixel lab;
         assign_pixel(lab, color);
@@ -56,7 +58,15 @@ void draw_bounding_boxes(
             const rgb_alpha_pixel fill(color.red, color.green, color.blue, opts.fill);
             fill_rect(image, r, fill);
         }
-        draw_rectangle(image, r, color, opts.thickness);
+        if (opts.weighted)
+        {
+            offset *= d.detection_confidence;
+            draw_rectangle(image, r, color, opts.thickness * d.detection_confidence);
+        }
+        else
+        {
+            draw_rectangle(image, r, color, opts.thickness);
+        }
 
         if (opts.draw_labels)
         {
