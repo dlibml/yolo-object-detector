@@ -6,11 +6,7 @@ using json = nlohmann::json;
 
 struct category
 {
-    category(const std::string& name, const std::string& supercategory)
-        : name(name),
-          super(supercategory)
-    {
-    }
+    category(const std::string& name, const std::string& super) : name(name), super(super) {}
     const std::string name{};
     const std::string super{};
 };
@@ -63,9 +59,7 @@ try
     }
     std::cout << "Number of categories: " << categories.size() << '\n';
     for (const auto& [id, c] : categories)
-    {
         std::cout << "id: " << id << ", name: " << c.name << ", super: " << c.super << '\n';
-    }
 
     // Parse the image sizes
     std::map<int, image_details> image_sizes;
@@ -82,15 +76,15 @@ try
     for (const auto& annot : annotations["annotations"])
     {
         const auto bbox = annot["bbox"];
-        assert(bbox.size() == 4);
+        DLIB_CASSERT(bbox.size() == 4);
         image_dataset_metadata::box box;
         box.rect.left() = bbox[0];
         box.rect.top() = bbox[1];
         box.rect.right() = box.rect.left() + bbox[2].get<double>();
         box.rect.bottom() = box.rect.top() + bbox[3].get<double>();
-        const auto id = annot["category_id"].get<int>();
+        const auto category_id = annot["category_id"].get<int>();
         const auto image_id = annot["image_id"].get<int>();
-        box.label = categories.at(id).name;
+        box.label = categories.at(category_id).name;
         image_boxes[image_id].push_back(box);
     }
 
