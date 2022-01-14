@@ -274,7 +274,7 @@ try
         cropper.set_seed(time(nullptr) + seed);
         cropper.set_chip_dims(image_size, image_size);
         cropper.set_max_object_size(0.9);
-        cropper.set_min_object_size(64, 32);
+        cropper.set_min_object_size(16, 8);
         cropper.set_min_object_coverage(min_coverage);
         cropper.set_max_rotation_degrees(angle);
         cropper.set_translate_amount(shift);
