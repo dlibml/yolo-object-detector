@@ -73,7 +73,7 @@ macro(add_dlib_library name)
 endmacro()
 
 fetch_content(dlib master https://github.com/davisking/dlib.git)
-fetch_content(json v3.9.1 https://github.com/nlohmann/json.git)
+fetch_content(json v3.10.5 https://github.com/nlohmann/json.git)
 
 add_dlib_executable(compute_anchors)
 
@@ -94,5 +94,8 @@ target_include_directories(detect PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 add_dlib_executable(kfashion)
 target_link_libraries(kfashion PRIVATE nlohmann_json::nlohmann_json)
+
+add_dlib_executable(coco2xml)
+target_link_libraries(coco2xml PRIVATE nlohmann_json::nlohmann_json)
 
 add_dlib_executable(convert_images)
