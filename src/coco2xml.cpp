@@ -50,11 +50,11 @@ try
 
     // Parse the COCO categories
     std::map<int, category> categories;
-    for (const auto& annot : annotations["categories"])
+    for (const auto& cat : annotations["categories"])
     {
-        const auto id = annot["id"].get<int>();
-        const auto name = annot["name"].get<std ::string>();
-        const auto supercategory = annot["supercategory"].get<std::string>();
+        const auto id = cat["id"].get<int>();
+        const auto name = cat["name"].get<std ::string>();
+        const auto supercategory = cat["supercategory"].get<std::string>();
         categories.emplace(id, category(name, supercategory));
     }
     std::cout << "Number of categories: " << categories.size() << '\n';
