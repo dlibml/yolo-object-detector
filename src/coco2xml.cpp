@@ -89,15 +89,15 @@ try
     }
 
     // Convert the COCO dataset into XML
-    for (const auto& ib : image_boxes)
+    for (const auto& [image_id, boxes] : image_boxes)
     {
         image_dataset_metadata::image image;
         std::ostringstream sout;
-        sout << set << "2017/" << std::setw(12) << std::setfill('0') << ib.first << ".jpg";
+        sout << set << "2017/" << std::setw(12) << std::setfill('0') << image_id << ".jpg";
         image.filename = sout.str();
-        image.boxes = ib.second;
-        image.width = image_sizes.at(ib.first).width;
-        image.height = image_sizes.at(ib.first).height;
+        image.boxes = boxes;
+        image.width = image_sizes.at(image_id).width;
+        image.height = image_sizes.at(image_id).height;
         dataset.images.push_back(std::move(image));
     }
     image_dataset_metadata::save_image_dataset_metadata(dataset, "coco_" + set + "2017.xml");
