@@ -41,6 +41,7 @@ try
     parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
     parser.add_option("load-options", "load drawing options file", 1);
     parser.add_option("save-options", "save drawing options file", 1);
+    parser.add_option("offset", "fix text position (default: 0 0)", 2);
     parser.add_option("weighted", "use confidence as thickness");
 
     parser.set_group_name("I/O Options");
@@ -91,6 +92,7 @@ try
     parser.check_incompatible_options("dnn", "sync");
     parser.check_incompatible_options("no-labels", "multilabel");
     parser.check_incompatible_options("no-labels", "font");
+    parser.check_incompatible_options("no-labels", "offset");
     parser.check_incompatible_options("no-labels", "mapping");
     parser.check_option_arg_range<size_t>("size", 224, 2048);
     parser.check_option_arg_range<size_t>("fill", 0, 255);
@@ -121,6 +123,12 @@ try
     {
         nms_iou_threshold = std::stod(parser.option("nms").argument(0));
         nms_ratio_covered = std::stod(parser.option("nms").argument(1));
+    }
+    point text_offset(0, 0);
+    if (parser.option("offset"))
+    {
+        text_offset.x() = std::stoi(parser.option("offset").argument(0));
+        text_offset.y() = std::stoi(parser.option("offset").argument(1));
     }
 
     // Try to load the network from either a weights file or a trainer state
@@ -155,6 +163,8 @@ try
     if (parser.option("load-options"))
     {
         deserialize(parser.option("load-options").argument()) >> options;
+        if (parser.option("font"))
+            options.set_font(font_path);
         if (parser.option("fill"))
             options.fill = get_option(parser, "fill", 0);
         if (parser.option("thickness"))
@@ -165,8 +175,10 @@ try
             options.draw_labels = not parser.option("no-labels");
         if (parser.option("no-conf"))
             options.draw_confidence = not parser.option("no-conf") and options.draw_labels;
-        if (parser.option("font"))
-            options.set_font(font_path);
+        if (parser.option("weighted"))
+            options.weighted = parser.option("weighted");
+        if (parser.option("offset"))
+            options.text_offset = text_offset;
     }
     else
     {
@@ -176,6 +188,7 @@ try
         options.draw_labels = not parser.option("no-labels");
         options.draw_confidence = not parser.option("no-conf") and options.draw_labels;
         options.weighted = parser.option("weighted");
+        options.text_offset = text_offset;
     }
     if (not mapping_path.empty())
     {

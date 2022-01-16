@@ -2,7 +2,6 @@
 
 using namespace dlib;
 
-
 void serialize(const drawing_options& item, std::ostream& out)
 {
     serialize("drawing_options", out);
@@ -14,6 +13,7 @@ void serialize(const drawing_options& item, std::ostream& out)
     serialize(item.fill, out);
     serialize(item.weighted, out);
     serialize(item.mapping, out);
+    serialize(item.text_offset, out);
 }
 void deserialize(drawing_options& item, std::istream& in)
 {
@@ -30,6 +30,7 @@ void deserialize(drawing_options& item, std::istream& in)
     deserialize(item.fill, in);
     deserialize(item.weighted, in);
     deserialize(item.mapping, in);
+    deserialize(item.text_offset, in);
 }
 
 void draw_bounding_boxes(
@@ -97,13 +98,17 @@ void draw_bounding_boxes(
 
             // the default case: label outside the top left corner of the box
             point label_pos(r.left(), r.top() - lh - offset + 1);
+            label_pos += opts.text_offset;
             rectangle bg(lw + opts.thickness, lh);
 
             // draw label inside the bounding box (move it downwards)
             if (label_pos.y() < 0)
                 label_pos += point(offset, lh + offset - 1);
 
-            bg = move_rect(bg, label_pos.x() - offset, label_pos.y());
+            bg = move_rect(
+                bg,
+                label_pos.x() - offset - opts.text_offset.x(),
+                label_pos.y() - opts.text_offset.y());
             if (opts.thickness == 1)
                 fill_rect(image, bg, rgb_alpha_pixel(color.red, color.green, color.blue, 224));
             else

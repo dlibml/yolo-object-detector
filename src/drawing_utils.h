@@ -19,6 +19,7 @@ struct drawing_options
         mapping = item.mapping;
         font_path = item.font_path;
         weighted = item.weighted;
+        text_offset = item.text_offset;
         return *this;
     }
     size_t thickness = 5;
@@ -28,6 +29,7 @@ struct drawing_options
     bool multilabel = false;
     uint8_t fill = 0;
     bool weighted = false;
+    dlib::point text_offset{0, 0};
     std::map<std::string, std::string> mapping;
     const std::shared_ptr<dlib::font>& get_font()
     {
