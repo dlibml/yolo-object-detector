@@ -99,7 +99,10 @@ void draw_bounding_boxes(
             // the default case: label outside the top left corner of the box
             point label_pos(r.left(), r.top() - lh - offset + 1);
             label_pos += opts.text_offset;
-            rectangle bg(lw + opts.thickness, lh);
+            long bg_offset = opts.thickness;
+            if (opts.weighted)
+                bg_offset = bg_offset * d.detection_confidence + 1;
+            rectangle bg(lw + bg_offset, lh);
 
             // draw label inside the bounding box (move it downwards)
             if (label_pos.y() < 0)
