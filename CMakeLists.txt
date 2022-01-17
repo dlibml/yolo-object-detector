@@ -79,6 +79,7 @@ fetch_content(json v3.10.5 https://github.com/nlohmann/json.git)
 add_dlib_executable(compute_anchors)
 
 add_dlib_library(drawing_utils)
+add_dlib_library(webcam_window)
 
 add_dlib_library(detector_utils)
 add_dlib_library(metrics PRIVATE detector_utils)
@@ -90,7 +91,7 @@ add_dlib_executable(test)
 target_link_libraries(test PRIVATE metrics detector_utils)
 
 add_dlib_executable(detect)
-target_link_libraries(detect PRIVATE detector_utils drawing_utils ${OpenCV_LIBS})
+target_link_libraries(detect PRIVATE detector_utils drawing_utils webcam_window ${OpenCV_LIBS})
 target_include_directories(detect PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 add_dlib_executable(kfashion)
