@@ -398,10 +398,10 @@ namespace dlib
                             g[o_idx] = options.lambda_obj * (out_data[o_idx] - 1);
 
                             // Compute the classification error
-                            for (long k = 0; k < num_classes; ++k)
+                            for (long i = 0; i < num_classes; ++i)
                             {
-                                const auto c_idx = tensor_index(output_tensor, n, k + 5 + k, r, c);
-                                if (truth_box.label == options.labels[k])
+                                const auto c_idx = tensor_index(output_tensor, n, k + 5 + i, r, c);
+                                if (truth_box.label == options.labels[i])
                                     g[c_idx] = options.lambda_cls * (out_data[c_idx] - 1);
                                 else
                                     g[c_idx] = options.lambda_cls * out_data[c_idx];
