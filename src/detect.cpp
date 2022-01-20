@@ -308,7 +308,8 @@ try
 
     if (parser.option("images"))
     {
-        create_directory(output_path);
+        if (not output_path.empty())
+            create_directory(output_path);
         rgb_image image, letterbox;
         const auto path = parser.option("images").argument();
         const auto files = get_files_in_directory_tree(path, image_types);
