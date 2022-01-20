@@ -308,12 +308,15 @@ try
 
     if (parser.option("images"))
     {
+        create_directory(output_path);
         rgb_image image, letterbox;
         const auto path = parser.option("images").argument();
         const auto files = get_files_in_directory_tree(path, image_types);
         std::cout << "# images: " << files.size() << std::endl;
-        for (const auto& file : files)
+        console_progress_indicator progress(files.size());
+        for (size_t i = 0; i < files.size(); ++i)
         {
+            const auto& file = files[i];
             load_image(image, file.full_name());
             const auto tform = preprocess_image(image, letterbox, image_size);
             const auto t0 = std::chrono::steady_clock::now();
@@ -321,20 +324,27 @@ try
             const auto t1 = std::chrono::steady_clock::now();
             postprocess_detections(tform, detections);
             const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
-            std::cout << file.full_name() << ": " << t << " ms" << std::endl;
-            for (const auto& d : detections)
-            {
-                std::cout << d.label << " " << d.detection_confidence << ": ";
-                std::cout << center(d.rect) << " " << d.rect.width() << "x" << d.rect.height();
-                std::cout << "\n";
-            }
-            std::cout << "Total number of detections: " << detections.size() << std::endl;
             draw_bounding_boxes(image, detections, options);
-            if (not output_path.empty())
-                save_png(image, output_path);
-            win.set_title(file.name());
-            win.set_image(image);
-            std::cin.get();
+            if (output_path.empty())
+            {
+                std::cout << file.full_name() << ": " << t << " ms" << std::endl;
+                for (const auto& d : detections)
+                {
+                    std::cout << d.label << " " << d.detection_confidence << ": ";
+                    std::cout << center(d.rect) << " " << d.rect.width() << "x" << d.rect.height();
+                    std::cout << "\n";
+                }
+                std::cout << "Total number of detections: " << detections.size() << std::endl;
+                win.set_title(file.name());
+                win.set_image(image);
+                std::cin.get();
+            }
+            else
+            {
+                const auto filename = file.name().substr(0, file.name().rfind(".")) + ".png";
+                save_png(image, output_path + "/" + filename);
+                progress.print_status(i + 1, false, std::cerr);
+            }
         }
         return EXIT_SUCCESS;
     }
