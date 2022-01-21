@@ -1,7 +1,7 @@
 #include "detector_utils.h"
+#include "loss_yolo.h"
 #include "metrics.h"
 #include "model.h"
-#include "loss_yolo.h"
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/data_io.h>
@@ -57,7 +57,7 @@ try
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
     parser.add_option("shift", "crop shift relative to box size (default: 0.2)", 1);
-    parser.add_option("solarize", "probability of solarize (default: 0.1)", 1);
+    parser.add_option("solarize", "probability of solarize (default: 0.0)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
     parser.add_option("help", "display this message and exit");
@@ -106,7 +106,7 @@ try
     const double angle = get_option(parser, "angle", 5);
     const double shift = get_option(parser, "shift", 0.2);
     const double min_coverage = get_option(parser, "min-coverage", 0.75);
-    const double solarize_prob = get_option(parser, "solarize", 0.1);
+    const double solarize_prob = get_option(parser, "solarize", 0.0);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
     const double iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
     const float momentum = get_option(parser, "momentum", 0.9);
@@ -363,7 +363,27 @@ try
             }
 
             if (rnd.get_random_double() < color_jitter_prob)
-                disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
+            {
+                if (rnd.get_random_double() < 0.5)
+                {
+                    disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
+                }
+                else
+                {
+                    matrix<hsi_pixel> hsi;
+                    assign_image(hsi, result.first);
+                    const auto dhue = rnd.get_double_in_range(1 / 1.5, 1.5);
+                    const auto dsat = rnd.get_double_in_range(1 / 1.5, 1.5);
+                    const auto dexp = rnd.get_double_in_range(1 / 1.5, 1.5);
+                    for (auto& p : hsi)
+                    {
+                        p.h = put_in_range(0, 255, p.h * dhue);
+                        p.s = put_in_range(0, 255, p.s * dsat);
+                        p.i = put_in_range(0, 255, p.i * dexp);
+                    }
+                    assign_image(result.first, hsi);
+                }
+            }
 
             if (rnd.get_random_double() < solarize_prob)
             {
