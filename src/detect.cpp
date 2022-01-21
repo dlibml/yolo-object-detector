@@ -253,6 +253,8 @@ try
                 continue;
             }
             load_image(image, image_info.filename);
+            image_info.width = image.nc();
+            image_info.height = image.nr();
             const auto tform = preprocess_image(image, letterbox, image_size);
             auto detections = net.process(letterbox, conf_thresh);
             postprocess_detections(tform, detections);
