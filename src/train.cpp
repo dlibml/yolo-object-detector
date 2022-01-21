@@ -162,10 +162,10 @@ try
     // options.add_anchors<ytag8>({{31, 31}, {47, 51}});
     // options.add_anchors<ytag16>({{59, 80}, {100, 90}});
     // options.add_anchors<ytag32>({{163, 171}, {209, 316}, {422, 293}, {263, 494}, {469, 534}});
-    options.add_anchors<ytag8>({{28, 27}, {35, 51}, {53, 47}});
-    options.add_anchors<ytag16>({{50, 84}, {83, 59}, {99, 103}});
-    options.add_anchors<ytag32>({{107, 186}, {167, 123}, {195, 211}});
-    options.add_anchors<ytag64>({{179, 334}, {342, 235}, {322, 423}});
+    options.add_anchors<ytag3>({{30, 29}, {38, 52}, {54, 47}});
+    options.add_anchors<ytag4>({{53, 88}, {85, 59}, {99, 103}});
+    options.add_anchors<ytag5>({{105, 181}, {170, 121}, {197, 211}});
+    options.add_anchors<ytag6>({{193, 329}, {365, 258}, {268, 493}, {469, 483}});
 
     net_train_type net(options);
     setup_detector(net, options);

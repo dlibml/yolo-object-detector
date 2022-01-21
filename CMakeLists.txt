@@ -76,6 +76,8 @@ endmacro()
 fetch_content(dlib master https://github.com/davisking/dlib.git)
 fetch_content(json v3.10.5 https://github.com/nlohmann/json.git)
 
+add_compile_options(-ftemplate-depth=2000)
+
 add_dlib_executable(compute_anchors)
 
 add_dlib_library(drawing_utils)
