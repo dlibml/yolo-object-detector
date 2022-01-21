@@ -65,7 +65,7 @@ namespace yolor
                     ACT<BN<concat2<tag5, tag6,
                tag6<con<num_filters, 1, 1, 1, 1, skip1<
                tag5<conv<num_filters, 3, 1, conv<num_filters, 1, 1,
-                    concat4<tag4, tag3, tag2, tag1,
+                    concat4<tag1, tag2, tag3, tag4,
                tag4<max_pool<13, 13, 1, 1,
                     skip1<
                tag3<max_pool<9, 9, 1, 1,
@@ -99,6 +99,7 @@ namespace yolor
                  yolo<ytag3,
             tag1<conv<256, 3, 1,
                  bottleneck_cspf<128, 3, bottleneck_128,
+                 concat2<tag1, tag2,
             tag2<conv<128, 1, 1, add_skip_layer<ptag3,
             tag1<upsample<2,
                  conv<128, 1, 1,
@@ -113,7 +114,7 @@ namespace yolor
             tag1<upsample<2,
                  conv<256, 1, 1,
             tag6<spp_csp<320, SUBNET>>
-                >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
+                >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
 
         using net_type = head<backbone>;
 
