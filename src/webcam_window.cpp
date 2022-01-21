@@ -6,12 +6,14 @@
 
 webcam_window::webcam_window()
 {
+    set_background_color(0, 0, 0);
     update_title();
     set_logo();
 }
 
 webcam_window::webcam_window(const double conf_thresh) : conf_thresh(conf_thresh)
 {
+    set_background_color(0, 0, 0);
     update_title();
     set_logo();
     create_recording_icon();
