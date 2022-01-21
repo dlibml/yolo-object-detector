@@ -48,10 +48,10 @@ try
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max random rotation in degrees (default: 5)", 1);
     parser.add_option("blur", "probability of blurring the image (default: 0.2)", 1);
-    parser.add_option("color", "color magnitude (default: 0.2)", 1);
-    parser.add_option("color-offset", "random color offset probability (default: 0.5)", 1);
+    parser.add_option("color", "color magnitude (default: 0.5)", 1);
+    parser.add_option("color-jitter", "random color jitter probability (default: 0.5)", 1);
     parser.add_option("crop", "random crop probability (default: 0.5)", 1);
-    parser.add_option("gamma", "gamma magnitude (default: 0.5)", 1);
+    parser.add_option("gamma", "gamma magnitude (default: 1.5)", 1);
     parser.add_option("min-coverage", "ignore objects partially covered (default: 0.75)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
@@ -76,7 +76,7 @@ try
     parser.check_option_arg_range<double>("crop", 0, 1);
     parser.check_option_arg_range<double>("perspective", 0, 1);
     parser.check_option_arg_range<double>("min-coverage", 0, 1);
-    parser.check_option_arg_range<double>("color-offset", 0, 1);
+    parser.check_option_arg_range<double>("color-jitter", 0, 1);
     parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
     parser.check_option_arg_range<double>("color", 0, 1);
     parser.check_option_arg_range<double>("blur", 0, 1);
@@ -100,9 +100,9 @@ try
     const double crop_prob = get_option(parser, "crop", 0.5);
     const double blur_prob = get_option(parser, "blur", 0.2);
     const double perspective_prob = get_option(parser, "perspective", 0.2);
-    const double color_offset_prob = get_option(parser, "color-offset", 0.5);
-    const double gamma_magnitude = get_option(parser, "gamma", 0.5);
-    const double color_magnitude = get_option(parser, "color", 0.2);
+    const double color_jitter_prob = get_option(parser, "color-jitter", 0.5);
+    const double gamma_magnitude = get_option(parser, "gamma", 1.5);
+    const double color_magnitude = get_option(parser, "color", 0.5);
     const double angle = get_option(parser, "angle", 5);
     const double shift = get_option(parser, "shift", 0.2);
     const double min_coverage = get_option(parser, "min-coverage", 0.75);
@@ -362,9 +362,7 @@ try
                 }
             }
 
-            if (rnd.get_random_double() < color_offset_prob)
-                apply_random_color_offset(result.first, rnd);
-            else
+            if (rnd.get_random_double() < color_jitter_prob)
                 disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
 
             if (rnd.get_random_double() < solarize_prob)
@@ -562,8 +560,9 @@ try
         deserialize(best_metrics_path) >> best_map >> best_wf1;
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
     {
+        train();
         const auto num_steps = trainer.get_train_one_step_calls();
-        if (num_steps > 0 and num_steps % num_steps_per_epoch == 0)
+        if (num_steps % num_steps_per_epoch == 0)
         {
             net_infer_type inet(trainer.get_net());
             const auto epoch = num_steps / num_steps_per_epoch;
@@ -601,7 +600,6 @@ try
             test_loaders.join();
             inet.clean();
         }
-        train();
     }
 
     trainer.get_net();
