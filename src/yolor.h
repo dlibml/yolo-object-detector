@@ -7,8 +7,6 @@
 
 namespace yolor
 {
-    // using reorg = dlib::extract<0, 3 * 4, image_size / 2, image_size / 2,
-    // dlib::input_rgb_image>;
     using namespace dlib;
     template <typename SUBNET> using ytag3 = add_tag_layer<4003, SUBNET>;
     template <typename SUBNET> using ytag4 = add_tag_layer<4004, SUBNET>;
@@ -39,10 +37,10 @@ namespace yolor
 
         template <long num_filters, size_t N, template <typename> class BLOCK, typename SUBNET>
         using bottleneck_cspf = conv<num_filters, 1, 1,
-                                ACT<BN<concat2<tag2, tag3,
-                           tag3<con<num_filters/2, 1, 1, 1, 1, skip1<
-                           tag2<repeat<N, BLOCK, conv<num_filters/2, 1, 1,
-                           tag1<SUBNET>>>>>>>>>>>;
+                                ACT<BN<concat2<tag8, tag9,
+                           tag9<con<num_filters/2, 1, 1, 1, 1, skip7<
+                           tag8<repeat<N, BLOCK, conv<num_filters/2, 1, 1,
+                           tag7<SUBNET>>>>>>>>>>>;
 
         using backbone =
         ptag6<bottleneck_cspf<640, 3, bottleneck_320,
@@ -114,7 +112,7 @@ namespace yolor
             tag1<upsample<2,
                  conv<256, 1, 1,
             tag6<spp_csp<320, SUBNET>>
-                >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
+        >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
 
         using net_type = head<backbone>;
 
