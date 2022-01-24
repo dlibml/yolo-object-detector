@@ -43,13 +43,14 @@ find_package(OpenCV REQUIRED)
 
 # Dependency management
 include(FetchContent)
+set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
+set(FETCHCONTENT_QUIET FALSE)
 macro(fetch_content name tag repository)
     FetchContent_Declare(
         ${name}
         GIT_REPOSITORY ${repository}
         GIT_TAG        ${tag}
         GIT_PROGRESS   TRUE
-        USES_TERMINAL_DOWNLOAD TRUE
         SOURCE_DIR     ${PROJECT_SOURCE_DIR}/external/${name}
     )
     message("-- Fetching ${name} ${tag}")
@@ -75,9 +76,12 @@ endmacro()
 fetch_content(dlib master https://github.com/davisking/dlib.git)
 fetch_content(json v3.10.5 https://github.com/nlohmann/json.git)
 
+add_compile_options(-ftemplate-depth=2000)
+
 add_dlib_executable(compute_anchors)
 
 add_dlib_library(drawing_utils)
+add_dlib_library(webcam_window)
 
 add_dlib_library(detector_utils)
 add_dlib_library(metrics PRIVATE detector_utils)
@@ -89,7 +93,7 @@ add_dlib_executable(test)
 target_link_libraries(test PRIVATE metrics detector_utils)
 
 add_dlib_executable(detect)
-target_link_libraries(detect PRIVATE detector_utils drawing_utils ${OpenCV_LIBS})
+target_link_libraries(detect PRIVATE detector_utils drawing_utils webcam_window ${OpenCV_LIBS})
 target_include_directories(detect PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 add_dlib_executable(kfashion)

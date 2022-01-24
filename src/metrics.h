@@ -40,7 +40,7 @@ class test_data_loader
         dlib::pipe<image_info>& data,
         size_t num_workers = std::thread::hardware_concurrency());
 
-    dlib::image_dataset_metadata::dataset get_dataset() const;
+    const dlib::image_dataset_metadata::dataset& get_dataset() const;
     void run();
 
     private:

@@ -47,16 +47,16 @@ try
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max random rotation in degrees (default: 5)", 1);
     parser.add_option("blur", "probability of blurring the image (default: 0.2)", 1);
-    parser.add_option("color", "color magnitude (default: 0.2)", 1);
-    parser.add_option("color-offset", "random color offset probability (default: 0.5)", 1);
+    parser.add_option("color", "color magnitude (default: 0.5)", 1);
+    parser.add_option("color-jitter", "random color jitter probability (default: 0.5)", 1);
     parser.add_option("crop", "random crop probability (default: 0.5)", 1);
-    parser.add_option("gamma", "gamma magnitude (default: 0.5)", 1);
-    parser.add_option("coverage", "ignore objects not fully covered (default: 0.75)", 1);
+    parser.add_option("gamma", "gamma magnitude (default: 1.5)", 1);
+    parser.add_option("min-coverage", "ignore objects partially covered (default: 0.75)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
     parser.add_option("shift", "crop shift relative to box size (default: 0.2)", 1);
-    parser.add_option("solarize", "probability of solarize (default: 0.1)", 1);
+    parser.add_option("solarize", "probability of solarize (default: 0.0)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
     parser.add_option("help", "display this message and exit");
@@ -74,8 +74,8 @@ try
     parser.check_option_arg_range<double>("mosaic", 0, 1);
     parser.check_option_arg_range<double>("crop", 0, 1);
     parser.check_option_arg_range<double>("perspective", 0, 1);
-    parser.check_option_arg_range<double>("coverage", 0, 1);
-    parser.check_option_arg_range<double>("color-offset", 0, 1);
+    parser.check_option_arg_range<double>("min-coverage", 0, 1);
+    parser.check_option_arg_range<double>("color-jitter", 0, 1);
     parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
     parser.check_option_arg_range<double>("color", 0, 1);
     parser.check_option_arg_range<double>("blur", 0, 1);
@@ -99,13 +99,13 @@ try
     const double crop_prob = get_option(parser, "crop", 0.5);
     const double blur_prob = get_option(parser, "blur", 0.2);
     const double perspective_prob = get_option(parser, "perspective", 0.2);
-    const double color_offset_prob = get_option(parser, "color-offset", 0.5);
-    const double gamma_magnitude = get_option(parser, "gamma", 0.5);
-    const double color_magnitude = get_option(parser, "color", 0.2);
+    const double color_jitter_prob = get_option(parser, "color-jitter", 0.5);
+    const double gamma_magnitude = get_option(parser, "gamma", 1.5);
+    const double color_magnitude = get_option(parser, "color", 0.5);
     const double angle = get_option(parser, "angle", 5);
     const double shift = get_option(parser, "shift", 0.2);
     const double min_coverage = get_option(parser, "min-coverage", 0.75);
-    const double solarize_prob = get_option(parser, "solarize", 0.1);
+    const double solarize_prob = get_option(parser, "solarize", 0.0);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
     const double iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
     const float momentum = get_option(parser, "momentum", 0.9);
@@ -158,9 +158,13 @@ try
     // options.add_anchors<ytag8>({{31, 33}, {62, 42}, {41, 66}});
     // options.add_anchors<ytag16>({{76, 88}, {151, 113}, {97, 184}});
     // options.add_anchors<ytag32>({{205, 243}, {240, 444}, {437, 306}, {430, 549}});
-    options.add_anchors<ytag8>({{31, 31}, {47, 51}});
-    options.add_anchors<ytag16>({{59, 80}, {100, 90}});
-    options.add_anchors<ytag32>({{163, 171}, {209, 316}, {422, 293}, {263, 494}, {469, 534}});
+    // options.add_anchors<ytag8>({{31, 31}, {47, 51}});
+    // options.add_anchors<ytag16>({{59, 80}, {100, 90}});
+    // options.add_anchors<ytag32>({{163, 171}, {209, 316}, {422, 293}, {263, 494}, {469, 534}});
+    options.add_anchors<ytag3>({{30, 29}, {38, 52}, {54, 47}});
+    options.add_anchors<ytag4>({{53, 88}, {85, 59}, {99, 103}});
+    options.add_anchors<ytag5>({{105, 181}, {170, 121}, {197, 211}});
+    options.add_anchors<ytag6>({{193, 329}, {365, 258}, {268, 493}, {469, 483}});
 
     net_train_type net(options);
     setup_detector(net, options);
@@ -269,7 +273,7 @@ try
         cropper.set_seed(time(nullptr) + seed);
         cropper.set_chip_dims(image_size, image_size);
         cropper.set_max_object_size(0.9);
-        cropper.set_min_object_size(64, 32);
+        cropper.set_min_object_size(16, 8);
         cropper.set_min_object_coverage(min_coverage);
         cropper.set_max_rotation_degrees(angle);
         cropper.set_translate_amount(shift);
@@ -357,10 +361,28 @@ try
                 }
             }
 
-            if (rnd.get_random_double() < color_offset_prob)
-                apply_random_color_offset(result.first, rnd);
-            else
-                disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
+            if (rnd.get_random_double() < color_jitter_prob)
+            {
+                if (rnd.get_random_double() < 0.5)
+                {
+                    disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
+                }
+                else
+                {
+                    matrix<hsi_pixel> hsi;
+                    assign_image(hsi, result.first);
+                    const auto dhue = rnd.get_double_in_range(1 / 1.5, 1.5);
+                    const auto dsat = rnd.get_double_in_range(1 / 1.5, 1.5);
+                    const auto dexp = rnd.get_double_in_range(1 / 1.5, 1.5);
+                    for (auto& p : hsi)
+                    {
+                        p.h = put_in_range(0, 255, p.h * dhue);
+                        p.s = put_in_range(0, 255, p.s * dsat);
+                        p.i = put_in_range(0, 255, p.i * dexp);
+                    }
+                    assign_image(result.first, hsi);
+                }
+            }
 
             if (rnd.get_random_double() < solarize_prob)
             {
@@ -557,24 +579,25 @@ try
         deserialize(best_metrics_path) >> best_map >> best_wf1;
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
     {
+        train();
         const auto num_steps = trainer.get_train_one_step_calls();
-        if (num_steps > 0 and num_steps % num_steps_per_epoch == 0)
+        if (num_steps % num_steps_per_epoch == 0)
         {
             net_infer_type inet(trainer.get_net());
             const auto epoch = num_steps / num_steps_per_epoch;
             std::cerr << "computing mean average precison for epoch " << epoch << std::endl;
-            dlib::pipe<image_info> test_data(1000);
+            dlib::pipe<image_info> data(1000);
             test_data_loader test_loader(
                 parser[0] + "/testing.xml",
                 image_size,
-                test_data,
+                data,
                 num_workers);
             std::thread test_loaders([&test_loader]() { test_loader.run(); });
             const auto metrics = compute_metrics(
                 inet,
                 test_loader.get_dataset(),
                 2 * batch_size / num_gpus,
-                test_data,
+                data,
                 0.25,
                 std::cerr);
 
@@ -592,11 +615,10 @@ try
 
             serialize(best_metrics_path) << best_map << best_wf1;
 
-            test_data.disable();
+            data.disable();
             test_loaders.join();
             inet.clean();
         }
-        train();
     }
 
     trainer.get_net();

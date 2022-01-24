@@ -6,11 +6,7 @@ using json = nlohmann::json;
 
 struct category
 {
-    category(const std::string& name, const std::string& supercategory)
-        : name(name),
-          super(supercategory)
-    {
-    }
+    category(const std::string& name, const std::string& super) : name(name), super(super) {}
     const std::string name{};
     const std::string super{};
 };
@@ -54,18 +50,16 @@ try
 
     // Parse the COCO categories
     std::map<int, category> categories;
-    for (const auto& annot : annotations["categories"])
+    for (const auto& cat : annotations["categories"])
     {
-        const auto id = annot["id"].get<int>();
-        const auto name = annot["name"].get<std ::string>();
-        const auto supercategory = annot["supercategory"].get<std::string>();
+        const auto id = cat["id"].get<int>();
+        const auto name = cat["name"].get<std ::string>();
+        const auto supercategory = cat["supercategory"].get<std::string>();
         categories.emplace(id, category(name, supercategory));
     }
     std::cout << "Number of categories: " << categories.size() << '\n';
     for (const auto& [id, c] : categories)
-    {
         std::cout << "id: " << id << ", name: " << c.name << ", super: " << c.super << '\n';
-    }
 
     // Parse the image sizes
     std::map<int, image_details> image_sizes;
@@ -82,28 +76,28 @@ try
     for (const auto& annot : annotations["annotations"])
     {
         const auto bbox = annot["bbox"];
-        assert(bbox.size() == 4);
+        DLIB_CASSERT(bbox.size() == 4);
         image_dataset_metadata::box box;
-        box.rect.left() = bbox[0];
-        box.rect.top() = bbox[1];
-        box.rect.right() = box.rect.left() + bbox[2].get<double>();
-        box.rect.bottom() = box.rect.top() + bbox[3].get<double>();
-        const auto id = annot["category_id"].get<int>();
+        box.rect.left() = std::round(bbox[0].get<double>());
+        box.rect.top() = std::round(bbox[1].get<double>());
+        box.rect.right() = std::round(bbox[0].get<double>() + bbox[2].get<double>());
+        box.rect.bottom() = std::round(bbox[1].get<double>() + bbox[3].get<double>());
+        const auto category_id = annot["category_id"].get<int>();
         const auto image_id = annot["image_id"].get<int>();
-        box.label = categories.at(id).name;
+        box.label = categories.at(category_id).name;
         image_boxes[image_id].push_back(box);
     }
 
     // Convert the COCO dataset into XML
-    for (const auto& ib : image_boxes)
+    for (const auto& [image_id, boxes] : image_boxes)
     {
         image_dataset_metadata::image image;
         std::ostringstream sout;
-        sout << set << "2017/" << std::setw(12) << std::setfill('0') << ib.first << ".jpg";
+        sout << set << "2017/" << std::setw(12) << std::setfill('0') << image_id << ".jpg";
         image.filename = sout.str();
-        image.boxes = ib.second;
-        image.width = image_sizes.at(ib.first).width;
-        image.height = image_sizes.at(ib.first).height;
+        image.boxes = boxes;
+        image.width = image_sizes.at(image_id).width;
+        image.height = image_sizes.at(image_id).height;
         dataset.images.push_back(std::move(image));
     }
     image_dataset_metadata::save_image_dataset_metadata(dataset, "coco_" + set + "2017.xml");

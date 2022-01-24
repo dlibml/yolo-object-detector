@@ -41,6 +41,7 @@ try
     parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
     parser.add_option("load-options", "load drawing options file", 1);
     parser.add_option("save-options", "save drawing options file", 1);
+    parser.add_option("offset", "fix text position (default: 0 0)", 2);
     parser.add_option("weighted", "use confidence as thickness");
 
     parser.set_group_name("I/O Options");
@@ -91,6 +92,7 @@ try
     parser.check_incompatible_options("dnn", "sync");
     parser.check_incompatible_options("no-labels", "multilabel");
     parser.check_incompatible_options("no-labels", "font");
+    parser.check_incompatible_options("no-labels", "offset");
     parser.check_incompatible_options("no-labels", "mapping");
     parser.check_option_arg_range<size_t>("size", 224, 2048);
     parser.check_option_arg_range<size_t>("fill", 0, 255);
@@ -121,6 +123,12 @@ try
     {
         nms_iou_threshold = std::stod(parser.option("nms").argument(0));
         nms_ratio_covered = std::stod(parser.option("nms").argument(1));
+    }
+    point text_offset(0, 0);
+    if (parser.option("offset"))
+    {
+        text_offset.x() = std::stoi(parser.option("offset").argument(0));
+        text_offset.y() = std::stoi(parser.option("offset").argument(1));
     }
 
     // Try to load the network from either a weights file or a trainer state
@@ -155,6 +163,8 @@ try
     if (parser.option("load-options"))
     {
         deserialize(parser.option("load-options").argument()) >> options;
+        if (parser.option("font"))
+            options.set_font(font_path);
         if (parser.option("fill"))
             options.fill = get_option(parser, "fill", 0);
         if (parser.option("thickness"))
@@ -165,8 +175,10 @@ try
             options.draw_labels = not parser.option("no-labels");
         if (parser.option("no-conf"))
             options.draw_confidence = not parser.option("no-conf") and options.draw_labels;
-        if (parser.option("font"))
-            options.set_font(font_path);
+        if (parser.option("weighted"))
+            options.weighted = parser.option("weighted");
+        if (parser.option("offset"))
+            options.text_offset = text_offset;
     }
     else
     {
@@ -176,6 +188,7 @@ try
         options.draw_labels = not parser.option("no-labels");
         options.draw_confidence = not parser.option("no-conf") and options.draw_labels;
         options.weighted = parser.option("weighted");
+        options.text_offset = text_offset;
     }
     if (not mapping_path.empty())
     {
@@ -240,6 +253,8 @@ try
                 continue;
             }
             load_image(image, image_info.filename);
+            image_info.width = image.nc();
+            image_info.height = image.nr();
             const auto tform = preprocess_image(image, letterbox, image_size);
             auto detections = net.process(letterbox, conf_thresh);
             postprocess_detections(tform, detections);
@@ -295,12 +310,16 @@ try
 
     if (parser.option("images"))
     {
+        if (not output_path.empty())
+            create_directory(output_path);
         rgb_image image, letterbox;
         const auto path = parser.option("images").argument();
         const auto files = get_files_in_directory_tree(path, image_types);
         std::cout << "# images: " << files.size() << std::endl;
-        for (const auto& file : files)
+        console_progress_indicator progress(files.size());
+        for (size_t i = 0; i < files.size(); ++i)
         {
+            const auto& file = files[i];
             load_image(image, file.full_name());
             const auto tform = preprocess_image(image, letterbox, image_size);
             const auto t0 = std::chrono::steady_clock::now();
@@ -308,20 +327,27 @@ try
             const auto t1 = std::chrono::steady_clock::now();
             postprocess_detections(tform, detections);
             const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
-            std::cout << file.full_name() << ": " << t << " ms" << std::endl;
-            for (const auto& d : detections)
-            {
-                std::cout << d.label << " " << d.detection_confidence << ": ";
-                std::cout << center(d.rect) << " " << d.rect.width() << "x" << d.rect.height();
-                std::cout << "\n";
-            }
-            std::cout << "Total number of detections: " << detections.size() << std::endl;
             draw_bounding_boxes(image, detections, options);
-            if (not output_path.empty())
-                save_png(image, output_path);
-            win.set_title(file.name());
-            win.set_image(image);
-            std::cin.get();
+            if (output_path.empty())
+            {
+                std::cout << file.full_name() << ": " << t << " ms" << std::endl;
+                for (const auto& d : detections)
+                {
+                    std::cout << d.label << " " << d.detection_confidence << ": ";
+                    std::cout << center(d.rect) << " " << d.rect.width() << "x" << d.rect.height();
+                    std::cout << "\n";
+                }
+                std::cout << "Total number of detections: " << detections.size() << std::endl;
+                win.set_title(file.name());
+                win.set_image(image);
+                std::cin.get();
+            }
+            else
+            {
+                const auto filename = file.name().substr(0, file.name().rfind(".")) + ".png";
+                save_png(image, output_path + "/" + filename);
+                progress.print_status(i + 1, false, std::cerr);
+            }
         }
         return EXIT_SUCCESS;
     }
