@@ -14,7 +14,7 @@ test_data_loader::test_data_loader(
     dlib::image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_file.full_name());
 }
 
-dlib::image_dataset_metadata::dataset test_data_loader::get_dataset() const
+const dlib::image_dataset_metadata::dataset& test_data_loader::get_dataset() const
 {
     return dataset;
 }

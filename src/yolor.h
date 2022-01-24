@@ -118,8 +118,8 @@ namespace yolor
 
     };
 
-    using train_type = def<dlib::leaky_relu, dlib::bn_con>::net_type;
-    using infer_type = def<dlib::leaky_relu, dlib::affine>::net_type;
+    using train_type = def<leaky_relu, bn_con>::net_type;
+    using infer_type = def<leaky_relu, affine>::net_type;
     // clang-format on
 }  // namespace yolor
 

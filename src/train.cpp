@@ -587,18 +587,18 @@ try
             net_infer_type inet(trainer.get_net());
             const auto epoch = num_steps / num_steps_per_epoch;
             std::cerr << "computing mean average precison for epoch " << epoch << std::endl;
-            dlib::pipe<image_info> test_data(1000);
+            dlib::pipe<image_info> data(1000);
             test_data_loader test_loader(
                 parser[0] + "/testing.xml",
                 image_size,
-                test_data,
+                data,
                 num_workers);
             std::thread test_loaders([&test_loader]() { test_loader.run(); });
             const auto metrics = compute_metrics(
                 inet,
                 test_loader.get_dataset(),
                 2 * batch_size / num_gpus,
-                test_data,
+                data,
                 0.25,
                 std::cerr);
 
@@ -616,7 +616,7 @@ try
 
             serialize(best_metrics_path) << best_map << best_wf1;
 
-            test_data.disable();
+            data.disable();
             test_loaders.join();
             inet.clean();
         }

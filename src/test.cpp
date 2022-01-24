@@ -41,9 +41,6 @@ try
     parser.check_option_arg_range<size_t>("size", 224, 2048);
     parser.check_option_arg_range<double>("nms", 0, 1);
 
-    dlib::file dataset_file(parser[0]);
-    const auto dataset_dir = dlib::get_parent_directory(dataset_file).full_name();
-
     const size_t batch_size = dlib::get_option(parser, "batch", 32);
     const size_t image_size = dlib::get_option(parser, "size", 512);
     const size_t num_workers = dlib::get_option(parser, "workers", num_threads);
@@ -90,8 +87,6 @@ try
 
     print_loss_details(net);
 
-    dlib::image_dataset_metadata::dataset dataset;
-    dlib::image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_file.full_name());
     dlib::pipe<image_info> data(1000);
     test_data_loader data_loader(parser[0], image_size, data, num_workers);
 
@@ -99,7 +94,8 @@ try
     std::thread data_loaders([&data_loader]() { data_loader.run(); });
 
     net_infer_type tnet(net);
-    const auto metrics = compute_metrics(tnet, dataset, batch_size, data, conf_thresh);
+    const auto metrics =
+        compute_metrics(tnet, data_loader.get_dataset(), batch_size, data, conf_thresh);
 
     data.disable();
     data_loaders.join();
