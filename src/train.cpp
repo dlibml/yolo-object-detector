@@ -136,7 +136,7 @@ try
     }
     std::cout << "# labels: " << labels.size() << std::endl;
 
-    yolo_options2 options;
+    yolo_options options;
     color_mapper string_to_color;
     for (const auto& label : labels)
     {

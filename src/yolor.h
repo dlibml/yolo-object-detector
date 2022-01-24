@@ -1,8 +1,6 @@
 #ifndef yolor_h_INCLUDED
 #define yolor_h_INCLUDED
 
-#include "loss_yolo.h"
-
 #include <dlib/dnn.h>
 
 namespace yolor
@@ -78,7 +76,7 @@ namespace yolor
         using yolo = YTAG<sig<con<1, 1, 1, 1, 1, SUBNET>>>;
 
         template <typename SUBNET>
-        using head = add_loss_layer<loss_yolo2_<ytag3, ytag4, ytag5, ytag6>,
+        using head = add_loss_layer<loss_yolo_<ytag3, ytag4, ytag5, ytag6>,
                  yolo<ytag6,
                  conv<640, 3, 1,
                  bottleneck_cspf<320, 3, bottleneck_320,
