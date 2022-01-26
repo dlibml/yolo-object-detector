@@ -278,7 +278,7 @@ try
         return EXIT_SUCCESS;
     }
 
-    webcam_window win(conf_thresh);
+    webcam_window win(options, conf_thresh);
     win.can_record = not output_path.empty();
 
     if (parser.option("image"))

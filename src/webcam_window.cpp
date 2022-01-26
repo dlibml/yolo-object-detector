@@ -4,14 +4,16 @@
 
 #include <dlib/image_io.h>
 
-webcam_window::webcam_window()
+webcam_window::webcam_window(drawing_options& opts) : opts(opts)
 {
     set_background_color(0, 0, 0);
     update_title();
     set_logo();
 }
 
-webcam_window::webcam_window(const double conf_thresh) : conf_thresh(conf_thresh)
+webcam_window::webcam_window(drawing_options& opts, const double conf_thresh)
+    : opts(opts),
+      conf_thresh(conf_thresh)
 {
     set_background_color(0, 0, 0);
     update_title();
@@ -27,12 +29,15 @@ void webcam_window::show_recording_icon()
 void webcam_window::print_keyboard_shortcuts()
 {
     std::cout << "Keyboard Shortcuts:" << std::endl;
+    std::cout << "  c                         toggle confidence display\n";
     std::cout << "  h                         display keyboard shortcuts\n";
+    std::cout << "  l                         toggle label display\n";
     std::cout << "  m                         toggle mirror mode\n";
     std::cout << "  +, k                      increase confidence threshold by 0.01\n";
     std::cout << "  -, j                      decrease confidence threshold by 0.01\n";
     std::cout << "  r                         toggle recording (needs --output option)\n";
     std::cout << "  q                         quit the application\n";
+    std::cout << "  w                         toggle weighted thickness\n";
     std::cout << std::endl;
 }
 
@@ -63,8 +68,14 @@ void webcam_window::on_keydown(unsigned long key, bool /*is_printable*/, unsigne
 {
     switch (key)
     {
+    case 'c':
+        opts.draw_confidence = !opts.draw_confidence;
+        break;
     case 'h':
         print_keyboard_shortcuts();
+        break;
+    case 'l':
+        opts.draw_labels = !opts.draw_labels;
         break;
     case 'm':
         mirror = !mirror;
@@ -90,6 +101,9 @@ void webcam_window::on_keydown(unsigned long key, bool /*is_printable*/, unsigne
         break;
     case 'q':
         close_window();
+        break;
+    case 'w':
+        opts.weighted = !opts.weighted;
         break;
     default:
         break;

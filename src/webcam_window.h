@@ -1,16 +1,19 @@
 #ifndef webcam_window_h_INCLUDED
 #define webcam_window_h_INCLUDED
 
+#include "drawing_utils.h"
+
 #include <dlib/gui_widgets.h>
 
 class webcam_window : public dlib::image_window
 {
     public:
-    webcam_window();
-    explicit webcam_window(const double conf_thresh);
+    webcam_window(drawing_options& opts);
+    webcam_window(drawing_options& opts, const double conf_thresh);
     static void print_keyboard_shortcuts();
     void show_recording_icon();
 
+    drawing_options& opts;
     bool mirror = true;
     float conf_thresh = 0.25;
     bool recording = false;
