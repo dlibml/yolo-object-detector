@@ -26,7 +26,7 @@ try
     parser.set_group_name("Training Options");
     parser.add_option("batch-gpu", "mini batch size per GPU (default: 8)", 1);
     parser.add_option("warmup", "learning rate warm-up epochs (default: 3)", 1);
-    parser.add_option("burnin", "use exponential burn-in instead of linear burnin");
+    parser.add_option("burnin", "use exponential burn-in instead of linear warm-up");
     parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
@@ -46,17 +46,17 @@ try
         "number data loaders (default: " + std::to_string(num_threads) + ")",
         1);
     parser.set_group_name("Data Augmentation Options");
-    parser.add_option("angle", "max random rotation in degrees (default: 5)", 1);
+    parser.add_option("angle", "max random rotation in degrees (default: 3)", 1);
     parser.add_option("blur", "probability of blurring the image (default: 0.2)", 1);
     parser.add_option("color", "color magnitude (default: 0.5)", 1);
     parser.add_option("color-jitter", "random color jitter probability (default: 0.5)", 1);
-    parser.add_option("crop", "random crop probability (default: 0.5)", 1);
     parser.add_option("gamma", "gamma magnitude (default: 1.5)", 1);
     parser.add_option("min-coverage", "ignore objects partially covered (default: 0.75)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
-    parser.add_option("shift", "crop shift relative to box size (default: 0.2)", 1);
+    parser.add_option("scale", "random scale gain (default: 0.5)", 1);
+    parser.add_option("shift", "random shift fraction (default: 0.2)", 1);
     parser.add_option("solarize", "probability of solarize (default: 0.0)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
@@ -73,7 +73,7 @@ try
     parser.check_option_arg_range<double>("iou-anchor", 0, 1);
     parser.check_option_arg_range<double>("mirror", 0, 1);
     parser.check_option_arg_range<double>("mosaic", 0, 1);
-    parser.check_option_arg_range<double>("crop", 0, 1);
+    parser.check_option_arg_range<double>("scale", 0, 1);
     parser.check_option_arg_range<double>("perspective", 0, 1);
     parser.check_option_arg_range<double>("min-coverage", 0, 1);
     parser.check_option_arg_range<double>("color-jitter", 0, 1);
@@ -81,7 +81,6 @@ try
     parser.check_option_arg_range<double>("color", 0, 1);
     parser.check_option_arg_range<double>("blur", 0, 1);
     parser.check_incompatible_options("patience", "cosine-epochs");
-    parser.check_sub_option("crop", "shift");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 3);
@@ -98,14 +97,14 @@ try
     const size_t num_workers = get_option(parser, "workers", num_threads);
     const double mirror_prob = get_option(parser, "mirror", 0.5);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
-    const double crop_prob = get_option(parser, "crop", 0.5);
     const double blur_prob = get_option(parser, "blur", 0.2);
     const double perspective_prob = get_option(parser, "perspective", 0.2);
     const double color_jitter_prob = get_option(parser, "color-jitter", 0.5);
     const double gamma_magnitude = get_option(parser, "gamma", 1.5);
     const double color_magnitude = get_option(parser, "color", 0.5);
-    const double angle = get_option(parser, "angle", 5);
-    const double shift = get_option(parser, "shift", 0.2);
+    const double angle = get_option(parser, "angle", 3);
+    const double scale_gain = get_option(parser, "scale", 0.5);
+    const double shift_frac = get_option(parser, "shift", 0.2);
     const double min_coverage = get_option(parser, "min-coverage", 0.75);
     const double solarize_prob = get_option(parser, "solarize", 0.0);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
@@ -271,22 +270,10 @@ try
     const auto train_loader = [&](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
-        random_cropper cropper;
-        cropper.set_seed(time(nullptr) + seed);
-        cropper.set_chip_dims(image_size, image_size);
-        cropper.set_max_object_size(0.9);
-        cropper.set_min_object_size(16, 8);
-        cropper.set_min_object_coverage(min_coverage);
-        cropper.set_max_rotation_degrees(angle);
-        cropper.set_translate_amount(shift);
-        if (mirror_prob == 0)
-            cropper.set_randomly_flip(false);
-        cropper.set_background_crops_fraction(0);
-
         const auto get_sample = [&]()
         {
             std::pair<rgb_image, std::vector<yolo_rect>> result;
-            rgb_image image, rotated, blurred, transformed(image_size, image_size);
+            rgb_image image, blurred, scaled, letterbox, transformed(image_size, image_size);
             const auto idx = rnd.get_random_64bit_number() % train_dataset.images.size();
             const auto& image_info = train_dataset.images.at(idx);
             try
@@ -304,62 +291,70 @@ try
             for (const auto& box : image_info.boxes)
                 result.second.emplace_back(box.rect, 1, box.label);
 
-            // We alternate between augmenting the full image and random cropping
-            if (rnd.get_random_double() < crop_prob)
+            // First, letterbox the image
+            rectangle_transform tform(letterbox_image(image, letterbox, image_size));
+            for (auto& box : result.second)
+                box.rect = tform(box.rect);
+
+            // scale, shift and rotate
+            const double scale = rnd.get_double_in_range(1 - scale_gain, 1 + scale_gain);
+            matrix<double, 2, 2> scales;
+            scales = scale, 0, 0, scale;
+            tform = rectangle_transform(point_transform_affine(scales, dpoint(0, 0)));
+            scaled = letterbox;
+            resize_image(scale, scaled);
+            for (auto& box : result.second)
+                box.rect = tform(box.rect);
+
+            const long shift_amount = image_size * shift_frac;
+            const point shift(
+                rnd.get_integer_in_range(-shift_amount, shift_amount),
+                rnd.get_integer_in_range(-shift_amount, shift_amount));
+            const chip_details cd(
+                translate_rect(get_rect(letterbox), shift),
+                {image_size, image_size},
+                rnd.get_double_in_range(-angle * pi / 180, angle * pi / 180));
+
+            extract_image_chip(scaled, cd, result.first);
+            tform = get_mapping_to_chip(cd);
+            for (auto& box : result.second)
+                box.rect = tform(box.rect);
+
+            if (rnd.get_random_double() < mirror_prob)
             {
-                std::vector<yolo_rect> boxes = result.second;
-                cropper(image, boxes, result.first, result.second);
+                tform = flip_image_left_right(result.first);
+                for (auto& box : result.second)
+                    box.rect = tform(box.rect);
             }
-            else
+            if (rnd.get_random_double() < blur_prob)
             {
-                rectangle_transform tform = rotate_image(
-                    image,
-                    rotated,
-                    rnd.get_double_in_range(-1, 1) * angle * pi / 180,
-                    interpolate_bilinear());
-                for (auto& box : result.second)
-                    box.rect = tform(box.rect);
-
-                tform = letterbox_image(rotated, result.first, image_size);
-                for (auto& box : result.second)
-                    box.rect = tform(box.rect);
-
-                if (rnd.get_random_double() < mirror_prob)
+                gaussian_blur(result.first, blurred);
+                result.first = blurred;
+            }
+            if (rnd.get_random_double() < perspective_prob)
+            {
+                const drectangle r(0, 0, image_size - 1, image_size - 1);
+                std::array ps{r.tl_corner(), r.tr_corner(), r.bl_corner(), r.br_corner()};
+                const double amount = 0.05;
+                for (auto& corner : ps)
                 {
-                    tform = flip_image_left_right(result.first);
-                    for (auto& box : result.second)
-                        box.rect = tform(box.rect);
+                    corner.x() += rnd.get_double_in_range(-1, 1) * amount * image_size;
+                    corner.y() += rnd.get_double_in_range(-1, 1) * amount * image_size;
                 }
-                if (rnd.get_random_double() < blur_prob)
+                const auto ptform = extract_image_4points(result.first, transformed, ps);
+                result.first = transformed;
+                for (auto& box : result.second)
                 {
-                    gaussian_blur(result.first, blurred);
-                    result.first = blurred;
-                }
-                if (rnd.get_random_double() < perspective_prob)
-                {
-                    const drectangle r(0, 0, image_size - 1, image_size - 1);
-                    std::array ps{r.tl_corner(), r.tr_corner(), r.bl_corner(), r.br_corner()};
-                    const double amount = 0.05;
-                    for (auto& corner : ps)
-                    {
-                        corner.x() += rnd.get_double_in_range(-1, 1) * amount * image_size;
-                        corner.y() += rnd.get_double_in_range(-1, 1) * amount * image_size;
-                    }
-                    const auto ptform = extract_image_4points(result.first, transformed, ps);
-                    result.first = transformed;
-                    for (auto& box : result.second)
-                    {
-                        ps[0] = ptform(box.rect.tl_corner());
-                        ps[1] = ptform(box.rect.tr_corner());
-                        ps[2] = ptform(box.rect.bl_corner());
-                        ps[3] = ptform(box.rect.br_corner());
-                        const auto lr = std::minmax({ps[0].x(), ps[1].x(), ps[2].x(), ps[3].x()});
-                        const auto tb = std::minmax({ps[0].y(), ps[1].y(), ps[2].y(), ps[3].y()});
-                        box.rect.left() = lr.first;
-                        box.rect.top() = tb.first;
-                        box.rect.right() = lr.second;
-                        box.rect.bottom() = tb.second;
-                    }
+                    ps[0] = ptform(box.rect.tl_corner());
+                    ps[1] = ptform(box.rect.tr_corner());
+                    ps[2] = ptform(box.rect.bl_corner());
+                    ps[3] = ptform(box.rect.br_corner());
+                    const auto lr = std::minmax({ps[0].x(), ps[1].x(), ps[2].x(), ps[3].x()});
+                    const auto tb = std::minmax({ps[0].y(), ps[1].y(), ps[2].y(), ps[3].y()});
+                    box.rect.left() = lr.first;
+                    box.rect.top() = tb.first;
+                    box.rect.right() = lr.second;
+                    box.rect.bottom() = tb.second;
                 }
             }
 
@@ -415,8 +410,7 @@ try
         {
             if (rnd.get_random_double() < mosaic_prob)
             {
-                const double scale = 0.5;
-                const long s = image_size * scale;
+                const long s = image_size * 0.5;
                 std::pair<rgb_image, std::vector<yolo_rect>> sample;
                 sample.first.set_size(image_size, image_size);
                 const std::vector<std::pair<long, long>> pos{{0, 0}, {0, s}, {s, 0}, {s, s}};
@@ -428,7 +422,7 @@ try
                     resize_image(tile.first, si);
                     for (auto& box : tile.second)
                     {
-                        box.rect = translate_rect(scale_rect(box.rect, scale), x, y);
+                        box.rect = translate_rect(scale_rect(box.rect, 0.5), x, y);
                         sample.second.push_back(std::move(box));
                     }
                 }
