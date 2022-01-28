@@ -26,6 +26,7 @@ try
     parser.set_group_name("Training Options");
     parser.add_option("batch-gpu", "mini batch size per GPU (default: 8)", 1);
     parser.add_option("warmup", "learning rate warm-up epochs (default: 3)", 1);
+    parser.add_option("burnin", "use exponential burn-in instead of linear burnin");
     parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
@@ -91,6 +92,7 @@ try
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const size_t batch_size = get_option(parser, "batch-gpu", 8) * num_gpus;
     const size_t warmup_epochs = get_option(parser, "warmup", 3);
+    const bool burnin = parser.option("burnin");
     const size_t test_period = get_option(parser, "test-period", 0);
     const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", num_threads);
@@ -519,11 +521,19 @@ try
     {
         if (trainer.get_train_one_step_calls() == 0)
         {
-            const matrix<double> learning_rate_schedule =
-                linspace(1e-99, learning_rate, warmup_steps);
+            matrix<double> learning_rate_schedule;
+            if (burnin)
+                learning_rate_schedule = learning_rate * pow(linspace(1e-24, 1, warmup_steps), 4);
+            else
+                learning_rate_schedule = linspace(1e-99, learning_rate, warmup_steps);
+
             trainer.set_learning_rate_schedule(learning_rate_schedule);
-            std::cout << "training started with " << warmup_epochs << " warm-up epochs ("
-                      << warmup_steps << " steps)" << std::endl;
+            std::cout << "training started with " << warmup_epochs;
+            if (burnin)
+                std::cout << " burn-in ";
+            else
+                std::cout << " linear ";
+            std::cout << "warm-up epochs (" << warmup_steps << " steps)" << std::endl;
             std::cout << trainer;
         }
         while (trainer.get_train_one_step_calls() < warmup_steps)
