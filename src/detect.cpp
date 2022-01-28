@@ -287,7 +287,7 @@ try
         load_image(image, parser.option("image").argument());
         const auto tform = preprocess_image(image, letterbox, image_size);
         const auto t0 = std::chrono::steady_clock::now();
-        auto detections = net.process(letterbox, conf_thresh);
+        auto detections = net.process(letterbox, win.conf_thresh);
         const auto t1 = std::chrono::steady_clock::now();
         const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
         std::cout << parser.option("image").argument() << ": " << t << " ms" << std::endl;
@@ -323,7 +323,7 @@ try
             load_image(image, file.full_name());
             const auto tform = preprocess_image(image, letterbox, image_size);
             const auto t0 = std::chrono::steady_clock::now();
-            auto detections = net.process(letterbox, conf_thresh);
+            auto detections = net.process(letterbox, win.conf_thresh);
             const auto t1 = std::chrono::steady_clock::now();
             postprocess_detections(tform, detections);
             const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
