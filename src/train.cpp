@@ -25,13 +25,13 @@ try
     parser.add_option("visualize", "visualize data augmentation instead of training");
     parser.set_group_name("Training Options");
     parser.add_option("batch-gpu", "mini batch size per GPU (default: 8)", 1);
-    parser.add_option("warmup", "learning rate warm-up epochs (default: 3)", 1);
+    parser.add_option("warmup", "linear warm-up epochs unless (default: 3)", 1);
     parser.add_option("burnin", "use exponential burn-in instead of linear warm-up");
     parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
     parser.add_option("iou-anchor", "extra anchors IoU treshold (default: 1)", 1);
-    parser.add_option("lambda-obj", "weight for the positive obj class (default: 1)", 1);
+    parser.add_option("lambda-obj", "weight for the objectness loss  (default: 1)", 1);
     parser.add_option("lambda-box", "weight for the box regression loss (default: 1)", 1);
     parser.add_option("lambda-cls", "weight for the classification loss (default: 1)", 1);
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
@@ -51,7 +51,8 @@ try
     parser.add_option("color", "color magnitude (default: 0.5)", 1);
     parser.add_option("color-jitter", "random color jitter probability (default: 0.5)", 1);
     parser.add_option("gamma", "gamma magnitude (default: 1.5)", 1);
-    parser.add_option("min-coverage", "ignore objects partially covered (default: 0.75)", 1);
+    parser.add_option("ignore-partial", "ignore intead of removing partial objects");
+    parser.add_option("min-coverage", "remove objects partially covered (default: 0.75)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
@@ -81,6 +82,7 @@ try
     parser.check_option_arg_range<double>("color", 0, 1);
     parser.check_option_arg_range<double>("blur", 0, 1);
     parser.check_incompatible_options("patience", "cosine-epochs");
+    parser.check_sub_option("warmup", "burnin");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 3);
@@ -106,6 +108,7 @@ try
     const double scale_gain = get_option(parser, "scale", 0.5);
     const double shift_frac = get_option(parser, "shift", 0.2);
     const double min_coverage = get_option(parser, "min-coverage", 0.75);
+    const bool ignore_partial_boxes = parser.option("ignore-partial");
     const double solarize_prob = get_option(parser, "solarize", 0.0);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
     const double iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
@@ -394,13 +397,27 @@ try
                 }
             }
 
-            // Finally, ignore boxes that are not well covered by the current image
+            // Finally, ignore or remove boxes that are not well covered by the current image
             const auto image_rect = get_rect(result.first);
-            for (auto& box : result.second)
+
+            if (ignore_partial_boxes)
             {
-                const auto coverage = box.rect.intersect(image_rect).area() / box.rect.area();
-                if (not box.ignore and coverage < min_coverage)
-                    box.ignore = true;
+                for (auto& box : result.second)
+                {
+                    const auto coverage = box.rect.intersect(image_rect).area() / box.rect.area();
+                    if (coverage < min_coverage)
+                        box.ignore = true;
+                }
+            }
+            else  // remove them
+            {
+                const auto p = std::partition(
+                    result.second.begin(),
+                    result.second.end(),
+                    [&image_rect, min_coverage](const yolo_rect& b) {
+                        return b.rect.intersect(image_rect).area() / b.rect.area() > min_coverage;
+                    });
+                result.second.erase(p, result.second.end());
             }
 
             return result;
