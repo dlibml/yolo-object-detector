@@ -560,9 +560,9 @@ try
     {
         if (cosine_epochs > 0)
         {
-            const size_t cosine_steps = cosine_epochs * num_steps_per_epoch - warmup_steps;
-            std::cout << "training with cosine scheduler for " << cosine_epochs - warmup_epochs
-                      << " epochs (" << cosine_steps << " steps)" << std::endl;
+            const size_t cosine_steps = cosine_epochs * num_steps_per_epoch;
+            std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
+                      << cosine_steps << " steps)" << std::endl;
             // clang-format off
             const matrix<double> learning_rate_schedule =
             min_learning_rate + 0.5 * (learning_rate - min_learning_rate) *
