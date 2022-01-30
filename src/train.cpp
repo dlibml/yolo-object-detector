@@ -17,15 +17,17 @@ int main(const int argc, const char** argv)
 try
 {
     const auto num_threads = std::thread::hardware_concurrency();
+    const auto num_threads_str = std::to_string(num_threads);
     command_line_parser parser;
     parser.add_option("architecture", "print the network architecture");
     parser.add_option("name", "name used for sync and net files (default: yolo)", 1);
     parser.add_option("size", "image size for internal usage (default: 512)", 1);
     parser.add_option("test", "visually test with a threshold (default: 0.01)", 1);
     parser.add_option("visualize", "visualize data augmentation instead of training");
+
     parser.set_group_name("Training Options");
     parser.add_option("batch-gpu", "mini batch size per GPU (default: 8)", 1);
-    parser.add_option("warmup", "linear warm-up epochs unless (default: 3)", 1);
+    parser.add_option("warmup", "linear warm-up epochs unless (default: 0)", 1);
     parser.add_option("burnin", "use exponential burn-in instead of linear warm-up");
     parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
@@ -41,10 +43,8 @@ try
     parser.add_option("test-period", "test a batch every <arg> steps (default: 0)", 1);
     parser.add_option("tune", "path to the network to fine-tune", 1);
     parser.add_option("weight-decay", "sgd weight decay (default: 0.0005)", 1);
-    parser.add_option(
-        "workers",
-        "number data loaders (default: " + std::to_string(num_threads) + ")",
-        1);
+    parser.add_option("workers", "number data loaders (default: " + num_threads_str + ")", 1);
+
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max random rotation in degrees (default: 3)", 1);
     parser.add_option("blur", "probability of blurring the image (default: 0.2)", 1);
@@ -59,9 +59,11 @@ try
     parser.add_option("scale", "random scale gain (default: 0.5)", 1);
     parser.add_option("shift", "random shift fraction (default: 0.2)", 1);
     parser.add_option("solarize", "probability of solarize (default: 0.0)", 1);
+
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
     parser.add_option("help", "display this message and exit");
+
     parser.parse(argc, argv);
     if (parser.number_of_arguments() == 0 || parser.option("h") || parser.option("help"))
     {
@@ -92,7 +94,7 @@ try
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const size_t batch_size = get_option(parser, "batch-gpu", 8) * num_gpus;
-    const size_t warmup_epochs = get_option(parser, "warmup", 3);
+    const size_t warmup_epochs = get_option(parser, "warmup", 0);
     const bool burnin = parser.option("burnin");
     const size_t test_period = get_option(parser, "test-period", 0);
     const size_t image_size = get_option(parser, "size", 512);
@@ -338,11 +340,11 @@ try
             {
                 const drectangle r(0, 0, image_size - 1, image_size - 1);
                 std::array ps{r.tl_corner(), r.tr_corner(), r.bl_corner(), r.br_corner()};
-                const double amount = 0.05;
+                const double amount = 0.05 * image_size;
                 for (auto& corner : ps)
                 {
-                    corner.x() += rnd.get_double_in_range(-1, 1) * amount * image_size;
-                    corner.y() += rnd.get_double_in_range(-1, 1) * amount * image_size;
+                    corner.x() += rnd.get_double_in_range(-amount, amount);
+                    corner.y() += rnd.get_double_in_range(-amount, amount);
                 }
                 const auto ptform = extract_image_4points(result.first, transformed, ps);
                 result.first = transformed;
