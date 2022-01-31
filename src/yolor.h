@@ -40,7 +40,7 @@ namespace yolor
                            tag8<repeat<N, BLOCK, conv<num_filters/2, 1, 1,
                            tag7<SUBNET>>>>>>>>>>>;
 
-        using backbone =
+        template <typename INPUT> using backbone =
         ptag6<bottleneck_cspf<640, 3, bottleneck_320,
               conv<640, 3, 2,
         ptag5<bottleneck_cspf<512, 3, bottleneck_256,
@@ -52,7 +52,7 @@ namespace yolor
               bottleneck_cspf<128, 3, bottleneck_64,
               conv<128, 3, 2,
               conv<64, 3, 1,
-              conv<32, 3, 2, input_rgb_image>
+              reorg<INPUT>
         >>>>>>>>>>>>>>>;
 
         template <long num_filters, typename SUBNET>
@@ -112,7 +112,7 @@ namespace yolor
             tag6<spp_csp<320, SUBNET>>
         >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
 
-        using net_type = head<backbone>;
+        using net_type = head<backbone<input_rgb_image>>;
 
     };
 
