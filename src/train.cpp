@@ -57,7 +57,7 @@ try
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
     parser.add_option("scale", "random scale gain (default: 0.5)", 1);
-    parser.add_option("shift", "random shift fraction (default: 0.2)", 1);
+    parser.add_option("shift", "random shift fraction (default: 0.1)", 1);
     parser.add_option("solarize", "probability of solarize (default: 0.0)", 1);
 
     parser.set_group_name("Help Options");
@@ -108,7 +108,7 @@ try
     const double color_magnitude = get_option(parser, "color", 0.5);
     const double angle = get_option(parser, "angle", 3);
     const double scale_gain = get_option(parser, "scale", 0.5);
-    const double shift_frac = get_option(parser, "shift", 0.2);
+    const double shift_frac = get_option(parser, "shift", 0.1);
     const double min_coverage = get_option(parser, "min-coverage", 0.75);
     const bool ignore_partial_boxes = parser.option("ignore-partial");
     const double solarize_prob = get_option(parser, "solarize", 0.0);
@@ -275,7 +275,7 @@ try
     const auto train_loader = [&](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
-        const auto get_sample = [&]()
+        const auto get_sample = [&](const bool for_mosaic = false)
         {
             std::pair<rgb_image, std::vector<yolo_rect>> result;
             rgb_image image, blurred, scaled, letterbox, transformed(image_size, image_size);
@@ -302,7 +302,10 @@ try
                 box.rect = tform(box.rect);
 
             // scale, shift and rotate
-            const double scale = rnd.get_double_in_range(1 - scale_gain, 1 + scale_gain);
+            double scale = rnd.get_double_in_range(1 - scale_gain, 1 + scale_gain);
+            // do not scale down samples when requested for mosaic
+            if (for_mosaic)
+                scale = std::max(1.0, scale);
             matrix<double, 2, 2> scales;
             scales = scale, 0, 0, scale;
             tform = rectangle_transform(point_transform_affine(scales, dpoint(0, 0)));
@@ -311,7 +314,7 @@ try
             for (auto& box : result.second)
                 box.rect = tform(box.rect);
 
-            const long shift_amount = image_size * shift_frac;
+            const long shift_amount = shift_frac * image_size;
             const point shift(
                 rnd.get_integer_in_range(-shift_amount, shift_amount),
                 rnd.get_integer_in_range(-shift_amount, shift_amount));
@@ -373,9 +376,10 @@ try
                 {
                     matrix<hsi_pixel> hsi;
                     assign_image(hsi, result.first);
-                    const auto dhue = rnd.get_double_in_range(1 / 1.5, 1.5);
-                    const auto dsat = rnd.get_double_in_range(1 / 1.5, 1.5);
-                    const auto dexp = rnd.get_double_in_range(1 / 1.5, 1.5);
+                    const auto color_gain = 1 + color_magnitude;
+                    const auto dhue = rnd.get_double_in_range(1 / color_gain, color_gain);
+                    const auto dsat = rnd.get_double_in_range(1 / color_gain, color_gain);
+                    const auto dexp = rnd.get_double_in_range(1 / color_gain, color_gain);
                     for (auto& p : hsi)
                     {
                         p.h = put_in_range(0, 255, p.h * dhue);
@@ -435,7 +439,7 @@ try
                 const std::vector<std::pair<long, long>> pos{{0, 0}, {0, s}, {s, 0}, {s, s}};
                 for (const auto& [x, y] : pos)
                 {
-                    auto tile = get_sample();
+                    auto tile = get_sample(true);
                     const rectangle r(x, y, x + s, y + s);
                     auto si = sub_image(sample.first, r);
                     resize_image(tile.first, si);
