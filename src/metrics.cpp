@@ -219,5 +219,5 @@ void save_model(
     filename << ".dnn";
     net.clean();
     dlib::serialize(filename.str()) << net;
-    std::cout << "model saved as: " << filename.str() << std::endl;
+    std::cout << "model saved as: " << filename.str() << '\n';
 }

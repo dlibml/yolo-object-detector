@@ -67,9 +67,9 @@ try
     parser.parse(argc, argv);
     if (parser.number_of_arguments() == 0 || parser.option("h") || parser.option("help"))
     {
-        std::cout << "Usage: " << argv[0] << " [OPTION]… PATH/TO/DATASET/DIRECTORY" << std::endl;
+        std::cout << "Usage: " << argv[0] << " [OPTION]… PATH/TO/DATASET/DIRECTORY\n";
         parser.print_options();
-        std::cout << "Give the path to a folder containing the training.xml file." << std::endl;
+        std::cout << "Give the path to a folder containing the training.xml file.\n";
         return 0;
     }
     parser.check_option_arg_range<double>("iou-ignore", 0, 1);
@@ -128,7 +128,7 @@ try
     image_dataset_metadata::load_image_dataset_metadata(
         train_dataset,
         data_path + "/training.xml");
-    std::cout << "# train images: " << train_dataset.images.size() << std::endl;
+    std::clog << "# train images: " << train_dataset.images.size() << '\n';
     std::map<std::string, size_t> labels;
     size_t num_objects = 0;
     for (const auto& im : train_dataset.images)
@@ -139,14 +139,14 @@ try
             ++num_objects;
         }
     }
-    std::cout << "# labels: " << labels.size() << std::endl;
+    std::clog << "# labels: " << labels.size() << '\n';
 
     yolo_options options;
     color_mapper string_to_color;
     for (const auto& label : labels)
     {
-        std::cout << " - " << label.first << ": " << label.second;
-        std::cout << " (" << (100.0 * label.second) / num_objects << "%)\n";
+        std::clog << " - " << label.first << ": " << label.second;
+        std::clog << " (" << (100.0 * label.second) / num_objects << "%)\n";
         options.labels.push_back(label.first);
         string_to_color(label.first);
     }
@@ -205,7 +205,7 @@ try
     {
         if (!file_exists(sync_file_name))
         {
-            std::cout << "Could not find file " << sync_file_name << std::endl;
+            std::cerr << "Could not find file " << sync_file_name << '\n';
             return EXIT_FAILURE;
         }
         const double threshold = get_option(parser, "test", 0.01);
@@ -220,12 +220,12 @@ try
             const auto tform = preprocess_image(image, resized, image_size);
             auto detections = net.process(resized, threshold);
             postprocess_detections(tform, detections);
-            std::cout << "# detections: " << detections.size() << std::endl;
+            std::clog << "# detections: " << detections.size() << '\n';
             for (const auto& det : detections)
             {
                 win.add_overlay(det.rect, string_to_color(det.label), det.label);
-                std::cout << det.label << ": " << det.rect << " " << det.detection_confidence
-                          << std::endl;
+                std::clog << det.label << ": " << det.rect << " " << det.detection_confidence
+                          << '\n';
             }
             std::cin.get();
         }
@@ -238,7 +238,7 @@ try
         image_dataset_metadata::load_image_dataset_metadata(
             test_dataset,
             data_path + "/testing.xml");
-        std::cout << "# test images: " << test_dataset.images.size() << std::endl;
+        std::clog << "# test images: " << test_dataset.images.size() << '\n';
     }
     dlib::pipe<std::pair<rgb_image, std::vector<yolo_rect>>> test_data(10 * batch_size / num_gpus);
     const auto test_loader = [&test_data, &test_dataset, &data_path, image_size](time_t seed)
@@ -492,7 +492,7 @@ try
                 }
                 win.add_overlay(r.rect, color, r.label);
             }
-            std::cout << "Press enter to visualize the next training sample.";
+            std::clog << "Press enter to visualize the next training sample.";
             std::cin.get();
         }
     }
@@ -550,13 +550,13 @@ try
                 std::cout << " burn-in ";
             else
                 std::cout << " linear ";
-            std::cout << "warm-up epochs (" << warmup_steps << " steps)" << std::endl;
+            std::cout << "warm-up epochs (" << warmup_steps << " steps)\n";
             std::cout << trainer;
         }
         while (trainer.get_train_one_step_calls() < warmup_steps)
             train();
         trainer.get_net(force_flush_to_disk::no);
-        std::cout << "warm-up finished" << std::endl;
+        std::cout << "warm-up finished\n";
     }
 
     // setup the trainer after the warm-up
@@ -566,7 +566,7 @@ try
         {
             const size_t cosine_steps = cosine_epochs * num_steps_per_epoch;
             std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
-                      << cosine_steps << " steps)" << std::endl;
+                      << cosine_steps << " steps)\n";
             // clang-format off
             const matrix<double> learning_rate_schedule =
             min_learning_rate + 0.5 * (learning_rate - min_learning_rate) *
@@ -592,12 +592,12 @@ try
                 trainer.set_test_iterations_without_progress_threshold(0);
             }
         }
-        std::cout << trainer << std::endl;
+        std::clog << trainer << '\n';
     }
     else
     {
-        // we print the trainer to std::cerr in case we resume the training.
-        std::cerr << trainer << std::endl;
+        // we print the trainer to stderr in case we resume the training.
+        std::clog << trainer << '\n';
     }
 
     double best_map = 0;
@@ -637,8 +637,7 @@ try
                       << "           mAP    mPr    mRc    mF1    µPr    µRc    µF1    wPr    wRc "
                          "   wF1\n";
             std::cout << "EPOCH " << epoch << ": " << std::fixed << std::setprecision(4) << metrics
-                      << "\n"
-                      << std::endl;
+                      << "\n\n";
 
             serialize(best_metrics_path) << best_map << best_wf1;
 
@@ -649,8 +648,8 @@ try
     }
 
     trainer.get_net();
-    std::cout << trainer << std::endl;
-    std::cout << "training done" << std::endl;
+    std::cout << trainer << '\n';
+    std::cout << "training done\n";
 
     train_data.disable();
     for (auto& worker : train_data_loaders)
@@ -668,6 +667,6 @@ try
 }
 catch (const std::exception& e)
 {
-    std::cout << e.what() << std::endl;
+    std::cerr<< e.what() << '\n';
     return EXIT_FAILURE;
 }

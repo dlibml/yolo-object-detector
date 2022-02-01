@@ -33,7 +33,7 @@ try
 
     if (parser.number_of_arguments() == 0 or parser.option("h") or parser.option("help"))
     {
-        std::cout << "Usage: " << argv[0] << " [OPTION]… PATH/TO/DATASET/FILE.xml" << std::endl;
+        std::cout << "Usage: " << argv[0] << " [OPTION]… PATH/TO/DATASET/FILE.xml\n";
         parser.print_options();
         return EXIT_SUCCESS;
     }
@@ -77,13 +77,13 @@ try
     }
     else
     {
-        std::cout << "ERROR: could not load the network." << std::endl;
+        std::cerr << "ERROR: could not load the network.\n";
         return EXIT_FAILURE;
     }
 
     net.loss_details().adjust_nms(iou_threshold, ratio_covered, classwise_nms);
     if (parser.option("architecture"))
-        std::cout << net << std::endl;
+        std::clog << net << '\n';
 
     print_loss_details(net);
 
@@ -107,6 +107,6 @@ try
 }
 catch (const std::exception& e)
 {
-    std::cout << e.what() << std::endl;
+    std::cerr << e.what() << '\n';
     return EXIT_FAILURE;
 }

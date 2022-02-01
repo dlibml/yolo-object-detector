@@ -28,17 +28,17 @@ void webcam_window::show_recording_icon()
 
 void webcam_window::print_keyboard_shortcuts()
 {
-    std::cout << "Keyboard Shortcuts:" << std::endl;
-    std::cout << "  c                         toggle confidence display\n";
-    std::cout << "  h                         display keyboard shortcuts\n";
-    std::cout << "  l                         toggle label display\n";
-    std::cout << "  m                         toggle mirror mode\n";
-    std::cout << "  +, k                      increase confidence threshold by 0.01\n";
-    std::cout << "  -, j                      decrease confidence threshold by 0.01\n";
-    std::cout << "  r                         toggle recording (needs --output option)\n";
-    std::cout << "  q                         quit the application\n";
-    std::cout << "  w                         toggle weighted thickness\n";
-    std::cout << std::endl;
+    std::clog << "Keyboard Shortcuts:" << std::endl;
+    std::clog << "  c                         toggle confidence display\n";
+    std::clog << "  h                         display keyboard shortcuts\n";
+    std::clog << "  l                         toggle label display\n";
+    std::clog << "  m                         toggle mirror mode\n";
+    std::clog << "  +, k                      increase confidence threshold by 0.01\n";
+    std::clog << "  -, j                      decrease confidence threshold by 0.01\n";
+    std::clog << "  r                         toggle recording (needs --output option)\n";
+    std::clog << "  q                         quit the application\n";
+    std::clog << "  w                         toggle weighted thickness\n";
+    std::clog << std::endl;
 }
 
 void webcam_window::set_logo()

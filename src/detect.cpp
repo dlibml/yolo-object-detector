@@ -75,7 +75,7 @@ try
 
     if (parser.option("architecture"))
     {
-        std::cout << net << std::endl;
+        std::clog << net << '\n';
         return EXIT_SUCCESS;
     }
 
@@ -147,7 +147,7 @@ try
     }
     else
     {
-        std::cout << "ERROR: could not load the network." << std::endl;
+        std::cerr << "ERROR: could not load the network.\n";
         return EXIT_FAILURE;
     }
 
@@ -249,7 +249,7 @@ try
             if (check_dataset)
             {
                 if (not file_exists(image_info.filename))
-                    std::cout << image_info.filename << '\n';
+                    std::clog << image_info.filename << '\n';
                 continue;
             }
             load_image(image, image_info.filename);
@@ -290,15 +290,15 @@ try
         auto detections = net.process(letterbox, win.conf_thresh);
         const auto t1 = std::chrono::steady_clock::now();
         const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
-        std::cout << parser.option("image").argument() << ": " << t << " ms" << std::endl;
+        std::clog << parser.option("image").argument() << ": " << t << " ms" << std::endl;
         postprocess_detections(tform, detections);
         for (const auto& d : detections)
         {
-            std::cout << d.label << " " << d.detection_confidence << ": ";
-            std::cout << center(d.rect) << " " << d.rect.width() << "x" << d.rect.height();
-            std::cout << "\n";
+            std::clog << d.label << " " << d.detection_confidence << ": ";
+            std::clog << center(d.rect) << " " << d.rect.width() << "x" << d.rect.height();
+            std::clog << "\n";
         }
-        std::cout << "Total number of detections: " << detections.size() << std::endl;
+        std::clog << "Total number of detections: " << detections.size() << std::endl;
         draw_bounding_boxes(image, detections, options);
         if (not output_path.empty())
             save_png(image, output_path);
@@ -315,7 +315,7 @@ try
         rgb_image image, letterbox;
         const auto path = parser.option("images").argument();
         const auto files = get_files_in_directory_tree(path, image_types);
-        std::cout << "# images: " << files.size() << std::endl;
+        std::clog << "# images: " << files.size() << '\n';
         console_progress_indicator progress(files.size());
         for (size_t i = 0; i < files.size(); ++i)
         {
@@ -330,14 +330,14 @@ try
             draw_bounding_boxes(image, detections, options);
             if (output_path.empty())
             {
-                std::cout << file.full_name() << ": " << t << " ms" << std::endl;
+                std::clog << file.full_name() << ": " << t << " ms\n";
                 for (const auto& d : detections)
                 {
-                    std::cout << d.label << " " << d.detection_confidence << ": ";
-                    std::cout << center(d.rect) << " " << d.rect.width() << "x" << d.rect.height();
-                    std::cout << "\n";
+                    std::clog << d.label << " " << d.detection_confidence << ": ";
+                    std::clog << center(d.rect) << " " << d.rect.width() << "x" << d.rect.height();
+                    std::clog << "\n";
                 }
-                std::cout << "Total number of detections: " << detections.size() << std::endl;
+                std::clog << "Total number of detections: " << detections.size() << '\n';
                 win.set_title(file.name());
                 win.set_image(image);
                 std::cin.get();
@@ -410,7 +410,7 @@ try
         draw_bounding_boxes(image, detections, options);
         win.set_image(image);
         det_fps.add(1.0f / std::chrono::duration_cast<fseconds>(t1 - t0).count());
-        std::cout << "FPS: " << det_fps.mean() << "              \r" << std::flush;
+        std::clog << "FPS: " << det_fps.mean() << "              \r" << std::flush;
         if (win.recording and not output_path.empty())
         {
             matrix<bgr_pixel> bgr_img(height, width);
@@ -423,6 +423,6 @@ try
 }
 catch (const std::exception& e)
 {
-    std::cout << e.what() << std::endl;
+    std::cerr << e.what() << '\n';
     return EXIT_FAILURE;
 }

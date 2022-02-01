@@ -59,5 +59,5 @@ void print_loss_details(const net_infer_type& net)
     std::cout << "  " << opts.labels.size() << " labels:\n";
     for (size_t i = 0; i < opts.labels.size(); ++i)
         std::cout << "    " << std::setw(2) << i << ". " << opts.labels[i] << '\n';
-    std::cout << std::endl;
+    std::cout << '\n';
 }

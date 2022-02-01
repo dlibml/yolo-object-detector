@@ -44,7 +44,7 @@ try
     const std::string output_root = get_option(parser, "output", "");
     if (output_root.empty())
     {
-        std::cout << "specify the output path with --output" << std::endl;
+        std::cerr << "specify the output path with --output\n";
         return EXIT_FAILURE;
     }
 
@@ -62,7 +62,7 @@ try
         dlib::image_dataset_metadata::dataset dataset;
         load_image_dataset_metadata(dataset, dataset_file.full_name());
 
-        std::cout << dataset_file.full_name() << std::endl;
+        std::cout << dataset_file.full_name() << '\n';
         if (not dataset.name.empty())
             std::cout << dataset.name;
         if (not dataset.comment.empty())
@@ -96,6 +96,6 @@ try
 }
 catch (const std::exception& e)
 {
-    std::cout << e.what() << std::endl;
+    std::cerr << e.what() << '\n';
     return EXIT_FAILURE;
 }

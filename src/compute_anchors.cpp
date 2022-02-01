@@ -27,17 +27,14 @@ try
         std::cout << "Notes:\n";
         std::cout << wrap_string(
                          "1: --clusters and --iou are incompatible, because --iou "
-                         "will find the number of clusters automatically.",
+                         "will find the number of clusters automatically.\n",
                          0,
-                         3)
-                  << std::endl;
-        ;
+                         3);
         std::cout << wrap_string(
                          "2: --sides and --clusters should be specified as many "
-                         "times as strides, and they must match.",
+                         "times as strides, and they must match.\n",
                          0,
-                         3)
-                  << std::endl;
+                         3);
         return EXIT_SUCCESS;
     }
 
@@ -49,21 +46,20 @@ try
     const std::string dataset_path = get_option(parser, "dataset", "");
     if (dataset_path.empty())
     {
-        std::cout << "specify the data path directory" << std::endl;
+        std::cerr << "specify the data path directory.\n";
         return EXIT_FAILURE;
     }
 
     if (not parser.option("sides"))
     {
-        std::cout << "specify the sides of an anchor box group." << std::endl;
+        std::cerr << "specify the sides of an anchor box group.\n";
         return EXIT_FAILURE;
     }
     const size_t num_groups = parser.option("sides").count();
 
     if (not parser.option("clusters") and not parser.option("iou"))
     {
-        std::cout << "specify the number of clusters for an anchor box group or the minimum IoU."
-                  << std::endl;
+        std::cerr << "specify the number of clusters for an anchor box group or the minimum IoU.\n";
         return EXIT_FAILURE;
     }
 
@@ -236,12 +232,12 @@ try
     }
     else
     {
-        std::cout << "Nothing happened." << std::endl;
+        std::cout << "Nothing happened.\n";
     }
     return EXIT_SUCCESS;
 }
 catch (const std::exception& e)
 {
-    std::cout << e.what() << std::endl;
+    std::cerr << e.what() << '\n';
     return EXIT_FAILURE;
 }
