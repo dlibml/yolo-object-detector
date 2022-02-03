@@ -159,6 +159,10 @@ try
     options.lambda_box = lambda_box;
     options.lambda_cls = lambda_cls;
 
+    image_dataset_metadata::dataset test_dataset;
+    image_dataset_metadata::load_image_dataset_metadata(test_dataset, data_path + "/testing.xml");
+    std::clog << "# test images: " << test_dataset.images.size() << '\n';
+
     // These are the anchors computed on the COCO dataset, presented in the YOLOv4 paper.
     // options.add_anchors<rgpnet::ytag8>({{12, 16}, {19, 36}, {40, 28}});
     // options.add_anchors<rgpnet::ytag16>({{36, 75}, {76, 55}, {72, 146}});
@@ -235,14 +239,6 @@ try
         return EXIT_SUCCESS;
     }
 
-    image_dataset_metadata::dataset test_dataset;
-    if (test_period > 0)
-    {
-        image_dataset_metadata::load_image_dataset_metadata(
-            test_dataset,
-            data_path + "/testing.xml");
-        std::clog << "# test images: " << test_dataset.images.size() << '\n';
-    }
     dlib::pipe<std::pair<rgb_image, std::vector<yolo_rect>>> test_data(10 * batch_size / num_gpus);
     const auto test_loader = [&test_data, &test_dataset, &data_path, image_size](time_t seed)
     {
@@ -659,15 +655,11 @@ try
             const auto epoch = num_steps / num_steps_per_epoch;
             std::cerr << "computing mean average precison for epoch " << epoch << std::endl;
             dlib::pipe<image_info> data(1000);
-            test_data_loader test_loader(
-                parser[0] + "/testing.xml",
-                image_size,
-                data,
-                num_workers);
+            test_data_loader test_loader(parser[0], test_dataset, data, image_size, num_workers);
             std::thread test_loaders([&test_loader]() { test_loader.run(); });
             const auto metrics = compute_metrics(
                 inet,
-                test_loader.get_dataset(),
+                test_dataset,
                 2 * batch_size / num_gpus,
                 data,
                 0.25,
@@ -682,7 +674,8 @@ try
                       << "           mAP    mPr    mRc    mF1    µPr    µRc    µF1    wPr    wRc "
                          "   wF1\n";
             std::cout << "EPOCH " << epoch << ": " << std::fixed << std::setprecision(4) << metrics
-                      << "\n\n" << std::flush;
+                      << "\n\n"
+                      << std::flush;
 
             serialize(best_metrics_path) << best_map << best_wf1;
 

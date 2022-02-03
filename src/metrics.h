@@ -35,19 +35,19 @@ class test_data_loader
     public:
     test_data_loader() = delete;
     test_data_loader(
-        const std::string& dataset_path,
-        long image_size,
+        const std::string& dataset_dir,
+        const dlib::image_dataset_metadata::dataset& dataset,
         dlib::pipe<image_info>& data,
+        long image_size = 512,
         size_t num_workers = std::thread::hardware_concurrency());
 
-    const dlib::image_dataset_metadata::dataset& get_dataset() const;
     void run();
 
     private:
-    dlib::image_dataset_metadata::dataset dataset;
-    std::string dataset_dir;
-    long image_size;
+    const std::string& dataset_dir;
+    const dlib::image_dataset_metadata::dataset& dataset;
     dlib::pipe<image_info>& data;
+    long image_size;
     size_t num_workers;
 };
 

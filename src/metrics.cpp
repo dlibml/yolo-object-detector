@@ -1,22 +1,17 @@
 #include "metrics.h"
 
 test_data_loader::test_data_loader(
-    const std::string& dataset_path,
-    long image_size,
+    const std::string& dataset_dir,
+    const dlib::image_dataset_metadata::dataset& dataset,
     dlib::pipe<image_info>& data,
+    long image_size,
     size_t num_workers)
-    : image_size(image_size),
+    : dataset_dir(dataset_dir),
+      dataset(dataset),
       data(data),
+      image_size(image_size),
       num_workers(num_workers)
 {
-    dlib::file dataset_file(dataset_path);
-    dataset_dir = dlib::get_parent_directory(dataset_file).full_name();
-    dlib::image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_file.full_name());
-}
-
-const dlib::image_dataset_metadata::dataset& test_data_loader::get_dataset() const
-{
-    return dataset;
 }
 
 void test_data_loader::run()
