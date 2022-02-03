@@ -516,6 +516,7 @@ try
     {
         image_window win;
         win.set_title("YOLO dataset visualization");
+        std::clog << "Press any key to visualize the next training sample or q to quit.\n";
         while (not win.is_closed())
         {
             std::pair<rgb_image, std::vector<yolo_rect>> sample;
@@ -534,7 +535,6 @@ try
                 }
                 win.add_overlay(r.rect, color, r.label);
             }
-            std::clog << "Press any key to visualize the next training sample or q to quit.\n";
             unsigned long key;
             bool is_printable;
             win.get_next_keypress(key, is_printable);
