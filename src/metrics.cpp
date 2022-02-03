@@ -128,7 +128,7 @@ metrics_details compute_metrics(
             }
         }
         num_processed += images.size();
-        progress.print_status(num_processed, false, std::cerr);
+        progress.print_status(num_processed, false, std::clog);
     }
     out << std::endl;
 

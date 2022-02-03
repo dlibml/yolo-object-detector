@@ -54,6 +54,7 @@ try
     parser.add_option("ignore-partial", "ignore intead of removing partial objects");
     parser.add_option("min-coverage", "remove objects partially covered (default: 0.75)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
+    parser.add_option("mixup", "mixup probability (default: 0)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
     parser.add_option("scale", "random scale gain (default: 0.5)", 1);
@@ -75,6 +76,7 @@ try
     parser.check_option_arg_range<double>("iou-ignore", 0, 1);
     parser.check_option_arg_range<double>("iou-anchor", 0, 1);
     parser.check_option_arg_range<double>("mirror", 0, 1);
+    parser.check_option_arg_range<double>("mixup", 0, 1);
     parser.check_option_arg_range<double>("mosaic", 0, 1);
     parser.check_option_arg_range<double>("scale", 0, 1);
     parser.check_option_arg_range<double>("perspective", 0, 1);
@@ -88,19 +90,20 @@ try
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 3);
-    const size_t cosine_epochs = get_option(parser, "cosine-epochs", 0);
+    const double cosine_epochs = get_option(parser, "cosine-epochs", 0.0);
     const double lambda_obj = get_option(parser, "lambda-obj", 1.0);
     const double lambda_box = get_option(parser, "lambda-box", 1.0);
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const size_t batch_size = get_option(parser, "batch-gpu", 8) * num_gpus;
-    const size_t warmup_epochs = get_option(parser, "warmup", 0);
+    const double warmup_epochs = get_option(parser, "warmup", 0.0);
     const bool burnin = parser.option("burnin");
     const size_t test_period = get_option(parser, "test-period", 0);
     const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", num_threads);
     const double mirror_prob = get_option(parser, "mirror", 0.5);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
+    const double mixup_prob = get_option(parser, "mixup", 0.0);
     const double blur_prob = get_option(parser, "blur", 0.2);
     const double perspective_prob = get_option(parser, "perspective", 0.2);
     const double color_jitter_prob = get_option(parser, "color-jitter", 0.5);
@@ -429,6 +432,41 @@ try
             return result;
         };
 
+        const auto mixup = [&rnd, get_sample](const bool for_mosaic = false)
+        {
+            const auto sample1 = get_sample(for_mosaic);
+            const auto sample2 = get_sample(for_mosaic);
+            std::pair<rgb_image, std::vector<yolo_rect>> sample;
+            DLIB_CASSERT(
+                sample1.first.nr() == sample2.first.nr() &&
+                sample1.first.nc() == sample2.first.nc());
+            sample.first.set_size(sample1.first.nr(), sample1.first.nc());
+            const auto alpha = rnd.get_random_beta(1.5, 1.5);
+            for (long r = 0; r < sample.first.nr(); ++r)
+            {
+                for (long c = 0; c < sample.first.nc(); ++c)
+                {
+                    sample.first(r, c).red =
+                        alpha * sample1.first(r, c).red + (1 - alpha) * sample2.first(r, c).red;
+                    sample.first(r, c).green = alpha * sample1.first(r, c).green +
+                                               (1 - alpha) * sample2.first(r, c).green;
+                    sample.first(r, c).blue =
+                        alpha * sample1.first(r, c).blue + (1 - alpha) * sample2.first(r, c).blue;
+                }
+            }
+            for (auto box : sample1.second)
+            {
+                box.detection_confidence = alpha;
+                sample.second.push_back(std::move(box));
+            }
+            for (auto box : sample2.second)
+            {
+                box.detection_confidence = 1 - alpha;
+                sample.second.push_back(std::move(box));
+            }
+            return sample;
+        };
+
         while (train_data.is_enabled())
         {
             if (rnd.get_random_double() < mosaic_prob)
@@ -439,7 +477,11 @@ try
                 const std::vector<std::pair<long, long>> pos{{0, 0}, {0, s}, {s, 0}, {s, s}};
                 for (const auto& [x, y] : pos)
                 {
-                    auto tile = get_sample(true);
+                    std::pair<rgb_image, std::vector<yolo_rect>> tile;
+                    if (rnd.get_random_double() < mixup_prob)
+                        tile = mixup(true);
+                    else
+                        tile = get_sample(true);
                     const rectangle r(x, y, x + s, y + s);
                     auto si = sub_image(sample.first, r);
                     resize_image(tile.first, si);
@@ -453,7 +495,10 @@ try
             }
             else
             {
-                train_data.enqueue(get_sample());
+                if (rnd.get_random_double() < mixup_prob)
+                    train_data.enqueue(mixup());
+                else
+                    train_data.enqueue(get_sample());
             }
         }
     };
@@ -637,7 +682,7 @@ try
                       << "           mAP    mPr    mRc    mF1    µPr    µRc    µF1    wPr    wRc "
                          "   wF1\n";
             std::cout << "EPOCH " << epoch << ": " << std::fixed << std::setprecision(4) << metrics
-                      << "\n\n";
+                      << "\n\n" << std::flush;
 
             serialize(best_metrics_path) << best_map << best_wf1;
 
@@ -667,6 +712,6 @@ try
 }
 catch (const std::exception& e)
 {
-    std::cerr<< e.what() << '\n';
+    std::cerr << e.what() << '\n';
     return EXIT_FAILURE;
 }
