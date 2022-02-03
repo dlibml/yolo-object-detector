@@ -515,7 +515,8 @@ try
     if (parser.option("visualize"))
     {
         image_window win;
-        while (true)
+        win.set_title("YOLO dataset visualization");
+        while (not win.is_closed())
         {
             std::pair<rgb_image, std::vector<yolo_rect>> sample;
             train_data.dequeue(sample);
@@ -524,7 +525,7 @@ try
             for (const auto& r : sample.second)
             {
                 auto color = string_to_color(r.label);
-                // make semi-transparent and cross-out the ignored boxes
+                // cross-out ignored boxes and make them semi-transparent
                 if (r.ignore)
                 {
                     color.alpha = 128;
@@ -533,8 +534,12 @@ try
                 }
                 win.add_overlay(r.rect, color, r.label);
             }
-            std::clog << "Press enter to visualize the next training sample.";
-            std::cin.get();
+            std::clog << "Press any key to visualize the next training sample or q to quit.\n";
+            unsigned long key;
+            bool is_printable;
+            win.get_next_keypress(key, is_printable);
+            if (key == 'q' or key == base_window::KEY_ESC)
+                win.close_window();
         }
     }
 
