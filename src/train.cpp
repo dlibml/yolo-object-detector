@@ -66,12 +66,12 @@ try
     parser.add_option("help", "display this message and exit");
 
     parser.parse(argc, argv);
-    if (parser.number_of_arguments() == 0 || parser.option("h") || parser.option("help"))
+    if (parser.number_of_arguments() == 0 or parser.option("h") or parser.option("help"))
     {
         std::cout << "Usage: " << argv[0] << " [OPTION]… PATH/TO/DATASET/DIRECTORY\n";
         parser.print_options();
-        std::cout << "Give the path to a folder containing the training.xml file.\n";
-        return 0;
+        std::cout << "Give the path to a folder containing the training.xml|testing.xml files.\n";
+        return EXIT_SUCCESS;
     }
     parser.check_option_arg_range<double>("iou-ignore", 0, 1);
     parser.check_option_arg_range<double>("iou-anchor", 0, 1);
