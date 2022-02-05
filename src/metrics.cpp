@@ -68,7 +68,7 @@ metrics_details compute_metrics(
             images.push_back(std::move(temp.image));
             details.push_back(std::move(temp));
         }
-        auto detections_batch = net.process_batch(images, batch_size, 0.005);
+        auto detections_batch = net.process_batch(images, batch_size, 0.001);
 
         for (size_t i = 0; i < images.size(); ++i)
         {
