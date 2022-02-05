@@ -20,7 +20,13 @@ void setup_detector(net_train_type& net, const dlib::yolo_options& options)
 {
     using namespace dlib;
     visit_computational_layers(net, [](leaky_relu_& l) { l = leaky_relu_(0.1); });
-    disable_duplicative_biases(net);
+    visit_computational_layers(net, [](auto& l) { disable_bias(l); });
+    // re-enable the biases in the convolutions for YOLO layers
+    layer<ytag3, 2>(net).layer_details().enable_bias();
+    layer<ytag4, 2>(net).layer_details().enable_bias();
+    layer<ytag5, 2>(net).layer_details().enable_bias();
+    layer<ytag6, 2>(net).layer_details().enable_bias();
+    // set the number of filters in the convolutions for YOLO layers
     const long num_classes = options.labels.size();
     const long num_anchors_p3 = options.anchors.at(tag_id<ytag3>::id).size();
     const long num_anchors_p4 = options.anchors.at(tag_id<ytag4>::id).size();
@@ -30,6 +36,7 @@ void setup_detector(net_train_type& net, const dlib::yolo_options& options)
     layer<ytag4, 2>(net).layer_details().set_num_filters(num_anchors_p4 * (num_classes + 5));
     layer<ytag5, 2>(net).layer_details().set_num_filters(num_anchors_p5 * (num_classes + 5));
     layer<ytag6, 2>(net).layer_details().set_num_filters(num_anchors_p6 * (num_classes + 5));
+    set_all_bn_running_stats_window_sizes(net, 1000);
 }
 
 void print_loss_details(const net_infer_type& net)

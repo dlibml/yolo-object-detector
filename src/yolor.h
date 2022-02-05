@@ -40,6 +40,13 @@ namespace yolor
                            tag8<repeat<N, BLOCK, conv<num_filters/2, 1, 1,
                            tag7<SUBNET>>>>>>>>>>>;
 
+        template <long num_filters, size_t N, template <typename> class BLOCK, typename SUBNET>
+        using bottleneck_csp2 = conv<num_filters, 1, 1,
+                                ACT<BN<concat2<tag8, tag9,
+                           tag9<con<num_filters, 1, 1, 1, 1, skip7<
+                           tag8<repeat<N, BLOCK,
+                           tag7<conv<num_filters, 1, 1, SUBNET>>>>>>>>>>>;
+
         template <typename INPUT> using backbone =
         ptag6<bottleneck_cspf<640, 3, bottleneck_320,
               conv<640, 3, 2,
@@ -79,32 +86,32 @@ namespace yolor
         using head = add_loss_layer<loss_yolo_<ytag3, ytag4, ytag5, ytag6>,
                  yolo<ytag6,
                  conv<640, 3, 1,
-                 bottleneck_cspf<320, 3, bottleneck_320,
+                 bottleneck_csp2<320, 3, bottleneck_320,
                  concat2<tag1, tag6,
             tag1<conv<320, 3, 2, skip1<
                  yolo<ytag5,
             tag1<conv<512, 3, 1,
-                 bottleneck_cspf<256, 3, bottleneck_256,
+                 bottleneck_csp2<256, 3, bottleneck_256,
                  concat2<tag1, tag5,
             tag1<conv<256, 3, 2, skip1<
                  yolo<ytag4,
             tag1<conv<384, 3, 1,
-                 bottleneck_cspf<192, 3, bottleneck_192,
+                 bottleneck_csp2<192, 3, bottleneck_192,
                  concat2<tag1, tag4,
             tag1<conv<192, 3, 2, skip1<
                  yolo<ytag3,
             tag1<conv<256, 3, 1,
-                 bottleneck_cspf<128, 3, bottleneck_128,
+                 bottleneck_csp2<128, 3, bottleneck_128,
                  concat2<tag1, tag2,
             tag2<conv<128, 1, 1, add_skip_layer<ptag3,
             tag1<upsample<2,
                  conv<128, 1, 1,
-            tag4<bottleneck_cspf<192, 3, bottleneck_192,
+            tag4<bottleneck_csp2<192, 3, bottleneck_192,
                  concat2<tag1, tag2,
             tag2<conv<192, 1, 1, add_skip_layer<ptag4,
             tag1<upsample<2,
                  conv<192, 1, 1,
-            tag5<bottleneck_cspf<256, 3, bottleneck_256,
+            tag5<bottleneck_csp2<256, 3, bottleneck_256,
                  concat2<tag1, tag2,
             tag2<conv<256, 1, 1, add_skip_layer<ptag5,
             tag1<upsample<2,
