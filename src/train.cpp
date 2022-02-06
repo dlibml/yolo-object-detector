@@ -47,7 +47,7 @@ try
 
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max random rotation in degrees (default: 3)", 1);
-    parser.add_option("blur", "probability of blurring the image (default: 0.2)", 1);
+    parser.add_option("blur", "probability of blurring the image (default: 0.0)", 1);
     parser.add_option("color", "color magnitude (default: 0.5)", 1);
     parser.add_option("color-jitter", "random color jitter probability (default: 0.5)", 1);
     parser.add_option("gamma", "gamma magnitude (default: 1.5)", 1);
@@ -58,7 +58,7 @@ try
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
     parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
     parser.add_option("scale", "random scale gain (default: 0.5)", 1);
-    parser.add_option("shift", "random shift fraction (default: 0.1)", 1);
+    parser.add_option("shift", "random shift fraction (default: 0.2)", 1);
     parser.add_option("solarize", "probability of solarize (default: 0.0)", 1);
 
     parser.set_group_name("Help Options");
@@ -104,14 +104,14 @@ try
     const double mirror_prob = get_option(parser, "mirror", 0.5);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
     const double mixup_prob = get_option(parser, "mixup", 0.0);
-    const double blur_prob = get_option(parser, "blur", 0.2);
+    const double blur_prob = get_option(parser, "blur", 0.0);
     const double perspective_prob = get_option(parser, "perspective", 0.2);
     const double color_jitter_prob = get_option(parser, "color-jitter", 0.5);
     const double gamma_magnitude = get_option(parser, "gamma", 1.5);
     const double color_magnitude = get_option(parser, "color", 0.5);
     const double angle = get_option(parser, "angle", 3);
     const double scale_gain = get_option(parser, "scale", 0.5);
-    const double shift_frac = get_option(parser, "shift", 0.1);
+    const double shift_frac = get_option(parser, "shift", 0.2);
     const double min_coverage = get_option(parser, "min-coverage", 0.75);
     const bool ignore_partial_boxes = parser.option("ignore-partial");
     const double solarize_prob = get_option(parser, "solarize", 0.0);
@@ -274,10 +274,10 @@ try
     const auto train_loader = [&](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
-        const auto get_sample = [&](const bool for_mosaic = false)
+        const auto get_sample = [&]()
         {
             std::pair<rgb_image, std::vector<yolo_rect>> result;
-            rgb_image image, blurred, scaled, letterbox, transformed(image_size, image_size);
+            rgb_image image, blurred, letterbox, transformed(image_size, image_size);
             const auto idx = rnd.get_random_64bit_number() % train_dataset.images.size();
             const auto& image_info = train_dataset.images.at(idx);
             try
@@ -301,28 +301,18 @@ try
                 box.rect = tform(box.rect);
 
             // scale, shift and rotate
-            double scale = rnd.get_double_in_range(1 - scale_gain, 1 + scale_gain);
-            // do not scale down samples when requested for mosaic
-            if (for_mosaic)
-                scale = std::max(1.0, scale);
-            matrix<double, 2, 2> scales;
-            scales = scale, 0, 0, scale;
-            tform = rectangle_transform(point_transform_affine(scales, dpoint(0, 0)));
-            scaled = letterbox;
-            resize_image(scale, scaled);
-            for (auto& box : result.second)
-                box.rect = tform(box.rect);
-
-            const long shift_amount = shift_frac * image_size;
-            const point shift(
-                rnd.get_integer_in_range(-shift_amount, shift_amount),
-                rnd.get_integer_in_range(-shift_amount, shift_amount));
+            const double scale = rnd.get_double_in_range(1 - scale_gain, 1 + scale_gain);
+            const auto shift_amount = shift_frac * image_size;
+            const dpoint center = dpoint(image_size / 2., image_size / 2.) +
+                                  dpoint(
+                                      rnd.get_double_in_range(-shift_amount, shift_amount),
+                                      rnd.get_double_in_range(-shift_amount, shift_amount));
             const chip_details cd(
-                translate_rect(get_rect(letterbox), shift),
+                centered_drect(center, image_size * scale, image_size * scale),
                 {image_size, image_size},
                 rnd.get_double_in_range(-angle * pi / 180, angle * pi / 180));
 
-            extract_image_chip(scaled, cd, result.first);
+            extract_image_chip(letterbox, cd, result.first);
             tform = get_mapping_to_chip(cd);
             for (auto& box : result.second)
                 box.rect = tform(box.rect);
@@ -402,7 +392,7 @@ try
                 }
             }
 
-            // Finally, ignore or remove boxes that are not well covered by the current image
+            // Ignore or remove boxes that are not well covered by the current image
             const auto image_rect = get_rect(result.first);
 
             if (ignore_partial_boxes)
@@ -425,19 +415,29 @@ try
                 result.second.erase(p, result.second.end());
             }
 
+            // Finally, for the remaining boxes, make them fit inside the image rectangle
+            for (auto& box : result.second)
+            {
+                if (not box.ignore)
+                {
+                    box.rect.left() = put_in_range(0, image_size, box.rect.left());
+                    box.rect.top() = put_in_range(0, image_size, box.rect.top());
+                    box.rect.right() = put_in_range(0, image_size, box.rect.right());
+                    box.rect.bottom() = put_in_range(0, image_size, box.rect.bottom());
+                }
+            }
+
             return result;
         };
 
-        const auto mixup = [&rnd, get_sample](const bool for_mosaic = false)
+        const auto mixup = [&rnd, get_sample]()
         {
-            const auto sample1 = get_sample(for_mosaic);
-            const auto sample2 = get_sample(for_mosaic);
+            const auto sample1 = get_sample();
+            const auto sample2 = get_sample();
             std::pair<rgb_image, std::vector<yolo_rect>> sample;
-            DLIB_CASSERT(
-                sample1.first.nr() == sample2.first.nr() &&
-                sample1.first.nc() == sample2.first.nc());
+            DLIB_CASSERT(have_same_dimensions(sample1.first, sample2.first));
             sample.first.set_size(sample1.first.nr(), sample1.first.nc());
-            const auto alpha = rnd.get_random_beta(1.5, 1.5);
+            const auto alpha = rnd.get_random_beta(8, 8);
             for (long r = 0; r < sample.first.nr(); ++r)
             {
                 for (long c = 0; c < sample.first.nc(); ++c)
@@ -475,9 +475,9 @@ try
                 {
                     std::pair<rgb_image, std::vector<yolo_rect>> tile;
                     if (rnd.get_random_double() < mixup_prob)
-                        tile = mixup(true);
+                        tile = mixup();
                     else
-                        tile = get_sample(true);
+                        tile = get_sample();
                     const rectangle r(x, y, x + s, y + s);
                     auto si = sub_image(sample.first, r);
                     resize_image(tile.first, si);
@@ -610,9 +610,9 @@ try
     {
         if (cosine_epochs > 0)
         {
-            const size_t cosine_steps = cosine_epochs * num_steps_per_epoch;
-            std::cout << "training with cosine scheduler for " << cosine_epochs << " epochs ("
-                      << cosine_steps << " steps)\n";
+            const size_t cosine_steps = (cosine_epochs - warmup_epochs) * num_steps_per_epoch;
+            std::cout << "training with cosine scheduler for " << cosine_epochs - warmup_epochs
+                      << " epochs (" << cosine_steps << " steps)\n";
             // clang-format off
             const matrix<double> learning_rate_schedule =
             min_learning_rate + 0.5 * (learning_rate - min_learning_rate) *
