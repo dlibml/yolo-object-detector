@@ -27,37 +27,37 @@ try
 
     parser.set_group_name("Training Options");
     parser.add_option("batch-gpu", "mini batch size per GPU (default: 8)", 1);
-    parser.add_option("warmup", "warm-up epochs (default: 0)", 1);
+    parser.add_option("warmup", "warm-up epochs (default: 0.0)", 1);
     parser.add_option("burnin", "use exponential burn-in (default: 1)");
-    parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0)", 1);
+    parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0.0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
-    parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
-    parser.add_option("iou-anchor", "extra anchors IoU treshold (default: 1)", 1);
-    parser.add_option("lambda-obj", "weight for the objectness loss  (default: 1)", 1);
+    parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.7)", 1);
+    parser.add_option("iou-anchor", "extra anchors IoU treshold (default: 0.2)", 1);
+    parser.add_option("lambda-obj", "weight for the objectness loss (default: 1)", 1);
     parser.add_option("lambda-box", "weight for the box regression loss (default: 1)", 1);
     parser.add_option("lambda-cls", "weight for the classification loss (default: 1)", 1);
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
     parser.add_option("momentum", "sgd momentum (default: 0.9)", 1);
-    parser.add_option("patience", "number of epochs without progress (default: 3)", 1);
+    parser.add_option("patience", "number of epochs without progress (default: 3.0)", 1);
     parser.add_option("test-period", "test a batch every <arg> steps (default: 0)", 1);
     parser.add_option("tune", "path to the network to fine-tune", 1);
     parser.add_option("weight-decay", "sgd weight decay (default: 0.0005)", 1);
     parser.add_option("workers", "number data loaders (default: " + num_threads_str + ")", 1);
 
     parser.set_group_name("Data Augmentation Options");
-    parser.add_option("angle", "max random rotation in degrees (default: 3)", 1);
-    parser.add_option("blur", "probability of blurring the image (default: 0.0)", 1);
+    parser.add_option("angle", "max rotation in degrees (default: 3.0)", 1);
     parser.add_option("color", "color magnitude (default: 0.2)", 1);
     parser.add_option("gamma", "gamma magnitude (default: 0.5)", 1);
+    parser.add_option("hsi", "HSI colorspace gains (default: 0.5 0.5 0.5)", 3);
     parser.add_option("ignore-partial", "ignore intead of removing partial objects");
     parser.add_option("min-coverage", "remove objects partially covered (default: 0.75)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
-    parser.add_option("mixup", "mixup probability (default: 0)", 1);
+    parser.add_option("mixup", "mixup probability (default: 0.0)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
-    parser.add_option("perspective", "perspective probability (default: 0.2)", 1);
-    parser.add_option("scale", "random scale gain (default: 0.5)", 1);
-    parser.add_option("shift", "random shift fraction (default: 0.2)", 1);
+    parser.add_option("perspective", "relative to image size (default: 0.01)", 1);
+    parser.add_option("scale", "scale gain (default: 0.5)", 1);
+    parser.add_option("shift", "shift relative to image size (default: 0.2)", 1);
     parser.add_option("solarize", "probability of solarize (default: 0.0)", 1);
 
     parser.set_group_name("Help Options");
@@ -69,7 +69,7 @@ try
     {
         std::cout << "Usage: " << argv[0] << " [OPTION]… PATH/TO/DATASET/DIRECTORY\n";
         parser.print_options();
-        std::cout << "Give the path to a folder containing the training.xml|testing.xml files.\n";
+        std::cout << "Give the path to a folder with the training.xml and testing.xml files.\n";
         return EXIT_SUCCESS;
     }
     parser.check_option_arg_range<double>("iou-ignore", 0, 1);
@@ -82,7 +82,7 @@ try
     parser.check_option_arg_range<double>("min-coverage", 0, 1);
     parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
     parser.check_option_arg_range<double>("color", 0, 1);
-    parser.check_option_arg_range<double>("blur", 0, 1);
+    parser.check_option_arg_range<double>("hsi", 0, 1);
     parser.check_incompatible_options("patience", "cosine-epochs");
     parser.check_sub_option("warmup", "burnin");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
@@ -92,6 +92,13 @@ try
     const double cosine_epochs = get_option(parser, "cosine-epochs", 0.0);
     if (parser.option("cosine-epochs"))
         DLIB_CASSERT(cosine_epochs > warmup_epochs);
+    double gain_h = 0.5, gain_s = 0.5, gain_i = 0.5;
+    if (parser.option("hsi"))
+    {
+        gain_h = std::stod(parser.option("hsi").argument(0));
+        gain_s = std::stod(parser.option("hsi").argument(1));
+        gain_i = std::stod(parser.option("hsi").argument(2));
+    }
     const double lambda_obj = get_option(parser, "lambda-obj", 1.0);
     const double lambda_box = get_option(parser, "lambda-box", 1.0);
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
@@ -104,8 +111,7 @@ try
     const double mirror_prob = get_option(parser, "mirror", 0.5);
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
     const double mixup_prob = get_option(parser, "mixup", 0.0);
-    const double blur_prob = get_option(parser, "blur", 0.0);
-    const double perspective_prob = get_option(parser, "perspective", 0.2);
+    const double perspective_frac = get_option(parser, "perspective", 0.01);
     const double gamma_magnitude = get_option(parser, "gamma", 0.5);
     const double color_magnitude = get_option(parser, "color", 0.2);
     const double angle = get_option(parser, "angle", 3);
@@ -114,8 +120,8 @@ try
     const double min_coverage = get_option(parser, "min-coverage", 0.75);
     const bool ignore_partial_boxes = parser.option("ignore-partial");
     const double solarize_prob = get_option(parser, "solarize", 0.0);
-    const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.5);
-    const double iou_anchor_threshold = get_option(parser, "iou-anchor", 1.0);
+    const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.7);
+    const double iou_anchor_threshold = get_option(parser, "iou-anchor", 0.2);
     const float momentum = get_option(parser, "momentum", 0.9);
     const float weight_decay = get_option(parser, "weight-decay", 0.0005);
     const std::string experiment_name = get_option(parser, "name", "yolo");
@@ -276,7 +282,7 @@ try
         const auto get_sample = [&]()
         {
             std::pair<rgb_image, std::vector<yolo_rect>> result;
-            rgb_image image, blurred, letterbox, transformed(image_size, image_size);
+            rgb_image image, letterbox, transformed(image_size, image_size);
             const auto idx = rnd.get_random_64bit_number() % train_dataset.images.size();
             const auto& image_info = train_dataset.images.at(idx);
             try
@@ -316,26 +322,15 @@ try
             for (auto& box : result.second)
                 box.rect = tform(box.rect);
 
-            if (rnd.get_random_double() < mirror_prob)
-            {
-                tform = flip_image_left_right(result.first);
-                for (auto& box : result.second)
-                    box.rect = tform(box.rect);
-            }
-            if (rnd.get_random_double() < blur_prob)
-            {
-                gaussian_blur(result.first, blurred);
-                result.first = blurred;
-            }
-            if (rnd.get_random_double() < perspective_prob)
+            if (perspective_frac > 0)
             {
                 const drectangle r(0, 0, image_size - 1, image_size - 1);
                 std::array ps{r.tl_corner(), r.tr_corner(), r.bl_corner(), r.br_corner()};
-                const double amount = 0.05 * image_size;
+                const double perspective_amount = perspective_frac * image_size;
                 for (auto& corner : ps)
                 {
-                    corner.x() += rnd.get_double_in_range(-amount, amount);
-                    corner.y() += rnd.get_double_in_range(-amount, amount);
+                    corner.x() += rnd.get_double_in_range(-perspective_amount, perspective_amount);
+                    corner.y() += rnd.get_double_in_range(-perspective_amount, perspective_amount);
                 }
                 const auto ptform = extract_image_4points(result.first, transformed, ps);
                 result.first = transformed;
@@ -354,18 +349,24 @@ try
                 }
             }
 
+            if (rnd.get_random_double() < mirror_prob)
+            {
+                tform = flip_image_left_right(result.first);
+                for (auto& box : result.second)
+                    box.rect = tform(box.rect);
+            }
+
             if (rnd.get_random_double() < 0.5)
             {
                 disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
             }
-            else
+            else if (gain_h > 0 or gain_s > 0 or gain_i > 0)
             {
                 matrix<hsi_pixel> hsi;
                 assign_image(hsi, result.first);
-                const auto color_gain = 1 + color_magnitude;
-                const auto dhue = rnd.get_double_in_range(1 / color_gain, color_gain);
-                const auto dsat = rnd.get_double_in_range(1 / color_gain, color_gain);
-                const auto dexp = rnd.get_double_in_range(1 / color_gain, color_gain);
+                const auto dhue = rnd.get_double_in_range(1 / (1 + gain_h), (1 + gain_h));
+                const auto dsat = rnd.get_double_in_range(1 / (1 + gain_s), (1 + gain_s));
+                const auto dexp = rnd.get_double_in_range(1 / (1 + gain_i), (1 + gain_i));
                 for (auto& p : hsi)
                 {
                     p.h = put_in_range(0, 255, p.h * dhue);
