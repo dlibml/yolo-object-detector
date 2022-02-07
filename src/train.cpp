@@ -47,11 +47,9 @@ try
 
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max rotation in degrees (default: 3.0)", 1);
-    parser.add_option("color", "color magnitude (default: 0.2)", 1);
-    parser.add_option("gamma", "gamma magnitude (default: 0.5)", 1);
     parser.add_option("hsi", "HSI colorspace gains (default: 0.5 0.5 0.5)", 3);
     parser.add_option("ignore-partial", "ignore intead of removing partial objects");
-    parser.add_option("min-coverage", "remove objects partially covered (default: 0.75)", 1);
+    parser.add_option("min-coverage", "remove objects partially covered (default: 0.5)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mixup", "mixup probability (default: 0.0)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
@@ -80,8 +78,6 @@ try
     parser.check_option_arg_range<double>("scale", 0, 1);
     parser.check_option_arg_range<double>("perspective", 0, 1);
     parser.check_option_arg_range<double>("min-coverage", 0, 1);
-    parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
-    parser.check_option_arg_range<double>("color", 0, 1);
     parser.check_option_arg_range<double>("hsi", 0, 1);
     parser.check_incompatible_options("patience", "cosine-epochs");
     parser.check_sub_option("warmup", "burnin");
@@ -112,12 +108,10 @@ try
     const double mosaic_prob = get_option(parser, "mosaic", 0.5);
     const double mixup_prob = get_option(parser, "mixup", 0.0);
     const double perspective_frac = get_option(parser, "perspective", 0.01);
-    const double gamma_magnitude = get_option(parser, "gamma", 0.5);
-    const double color_magnitude = get_option(parser, "color", 0.2);
     const double angle = get_option(parser, "angle", 3);
     const double scale_gain = get_option(parser, "scale", 0.5);
     const double shift_frac = get_option(parser, "shift", 0.2);
-    const double min_coverage = get_option(parser, "min-coverage", 0.75);
+    const double min_coverage = get_option(parser, "min-coverage", 0.5);
     const bool ignore_partial_boxes = parser.option("ignore-partial");
     const double solarize_prob = get_option(parser, "solarize", 0.0);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.7);
@@ -356,11 +350,7 @@ try
                     box.rect = tform(box.rect);
             }
 
-            if (rnd.get_random_double() < 0.5)
-            {
-                disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
-            }
-            else if (gain_h > 0 or gain_s > 0 or gain_i > 0)
+            if (gain_h > 0 or gain_s > 0 or gain_i > 0)
             {
                 matrix<hsi_pixel> hsi;
                 assign_image(hsi, result.first);
