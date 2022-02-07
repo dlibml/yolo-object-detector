@@ -27,8 +27,8 @@ try
 
     parser.set_group_name("Training Options");
     parser.add_option("batch-gpu", "mini batch size per GPU (default: 8)", 1);
-    parser.add_option("warmup", "linear warm-up epochs unless (default: 0)", 1);
-    parser.add_option("burnin", "use exponential burn-in instead of linear warm-up");
+    parser.add_option("warmup", "warm-up epochs (default: 0)", 1);
+    parser.add_option("burnin", "use exponential burn-in (default: 1)");
     parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.5)", 1);
@@ -48,9 +48,8 @@ try
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max random rotation in degrees (default: 3)", 1);
     parser.add_option("blur", "probability of blurring the image (default: 0.0)", 1);
-    parser.add_option("color", "color magnitude (default: 0.5)", 1);
-    parser.add_option("color-jitter", "random color jitter probability (default: 0.5)", 1);
-    parser.add_option("gamma", "gamma magnitude (default: 1.5)", 1);
+    parser.add_option("color", "color magnitude (default: 0.2)", 1);
+    parser.add_option("gamma", "gamma magnitude (default: 0.5)", 1);
     parser.add_option("ignore-partial", "ignore intead of removing partial objects");
     parser.add_option("min-coverage", "remove objects partially covered (default: 0.75)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
@@ -81,7 +80,6 @@ try
     parser.check_option_arg_range<double>("scale", 0, 1);
     parser.check_option_arg_range<double>("perspective", 0, 1);
     parser.check_option_arg_range<double>("min-coverage", 0, 1);
-    parser.check_option_arg_range<double>("color-jitter", 0, 1);
     parser.check_option_arg_range<double>("gamma", 0, std::numeric_limits<double>::max());
     parser.check_option_arg_range<double>("color", 0, 1);
     parser.check_option_arg_range<double>("blur", 0, 1);
@@ -90,14 +88,15 @@ try
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 3);
+    const double warmup_epochs = get_option(parser, "warmup", 0.0);
     const double cosine_epochs = get_option(parser, "cosine-epochs", 0.0);
+    DLIB_CASSERT(cosine_epochs > warmup_epochs);
     const double lambda_obj = get_option(parser, "lambda-obj", 1.0);
     const double lambda_box = get_option(parser, "lambda-box", 1.0);
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const size_t batch_size = get_option(parser, "batch-gpu", 8) * num_gpus;
-    const double warmup_epochs = get_option(parser, "warmup", 0.0);
-    const bool burnin = parser.option("burnin");
+    const double burnin = get_option(parser, "burnin", 1.0);
     const size_t test_period = get_option(parser, "test-period", 0);
     const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", num_threads);
@@ -106,9 +105,8 @@ try
     const double mixup_prob = get_option(parser, "mixup", 0.0);
     const double blur_prob = get_option(parser, "blur", 0.0);
     const double perspective_prob = get_option(parser, "perspective", 0.2);
-    const double color_jitter_prob = get_option(parser, "color-jitter", 0.5);
-    const double gamma_magnitude = get_option(parser, "gamma", 1.5);
-    const double color_magnitude = get_option(parser, "color", 0.5);
+    const double gamma_magnitude = get_option(parser, "gamma", 0.5);
+    const double color_magnitude = get_option(parser, "color", 0.2);
     const double angle = get_option(parser, "angle", 3);
     const double scale_gain = get_option(parser, "scale", 0.5);
     const double shift_frac = get_option(parser, "shift", 0.2);
@@ -355,28 +353,25 @@ try
                 }
             }
 
-            if (rnd.get_random_double() < color_jitter_prob)
+            if (rnd.get_random_double() < 0.5)
             {
-                if (rnd.get_random_double() < 0.5)
+                disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
+            }
+            else
+            {
+                matrix<hsi_pixel> hsi;
+                assign_image(hsi, result.first);
+                const auto color_gain = 1 + color_magnitude;
+                const auto dhue = rnd.get_double_in_range(1 / color_gain, color_gain);
+                const auto dsat = rnd.get_double_in_range(1 / color_gain, color_gain);
+                const auto dexp = rnd.get_double_in_range(1 / color_gain, color_gain);
+                for (auto& p : hsi)
                 {
-                    disturb_colors(result.first, rnd, gamma_magnitude, color_magnitude);
+                    p.h = put_in_range(0, 255, p.h * dhue);
+                    p.s = put_in_range(0, 255, p.s * dsat);
+                    p.i = put_in_range(0, 255, p.i * dexp);
                 }
-                else
-                {
-                    matrix<hsi_pixel> hsi;
-                    assign_image(hsi, result.first);
-                    const auto color_gain = 1 + color_magnitude;
-                    const auto dhue = rnd.get_double_in_range(1 / color_gain, color_gain);
-                    const auto dsat = rnd.get_double_in_range(1 / color_gain, color_gain);
-                    const auto dexp = rnd.get_double_in_range(1 / color_gain, color_gain);
-                    for (auto& p : hsi)
-                    {
-                        p.h = put_in_range(0, 255, p.h * dhue);
-                        p.s = put_in_range(0, 255, p.s * dsat);
-                        p.i = put_in_range(0, 255, p.i * dexp);
-                    }
-                    assign_image(result.first, hsi);
-                }
+                assign_image(result.first, hsi);
             }
 
             if (rnd.get_random_double() < solarize_prob)
@@ -579,20 +574,17 @@ try
     const auto warmup_steps = warmup_epochs * num_steps_per_epoch;
 
     // The training process can be unstable at the beginning.  For this reason, we
-    // exponentially increase the learning rate during the first warmup steps.
+    // gradually increase the learning rate during the first warmup steps.
     if (trainer.get_train_one_step_calls() < warmup_steps)
     {
         if (trainer.get_train_one_step_calls() == 0)
         {
-            matrix<double> learning_rate_schedule;
-            if (burnin)
-                learning_rate_schedule = learning_rate * pow(linspace(1e-24, 1, warmup_steps), 4);
-            else
-                learning_rate_schedule = linspace(1e-99, learning_rate, warmup_steps);
+            const matrix<double> learning_rate_schedule =
+                learning_rate * pow(linspace(1e-24, 1, warmup_steps), burnin);
 
             trainer.set_learning_rate_schedule(learning_rate_schedule);
             std::cout << "training started with " << warmup_epochs;
-            if (burnin)
+            if (burnin > 1.0)
                 std::cout << " burn-in ";
             else
                 std::cout << " linear ";
