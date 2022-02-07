@@ -202,15 +202,15 @@ metrics_details compute_metrics(
 
 void save_model(
     net_train_type& net,
-    const std::string& sync_path,
-    long num_steps,
+    const std::string& name,
+    size_t num_steps,
     double map,
     double wf1)
 {
     std::stringstream filename;
-    filename << sync_path << "_step:" << std::setw(6) << std::setfill('0') << num_steps;
-    filename << "_map:" << std::fixed << std::setprecision(4) << map;
-    filename << "_wf1:" << std::fixed << std::setprecision(4) << wf1;
+    filename << name << "-step_" << dlib::pad_int_with_zeros(num_steps);
+    filename << "-map_" << std::fixed << std::setprecision(4) << map;
+    filename << "-wf1_" << std::fixed << std::setprecision(4) << wf1;
     filename << ".dnn";
     net.clean();
     dlib::serialize(filename.str()) << net;

@@ -84,7 +84,7 @@ metrics_details compute_metrics(
 void save_model(
     net_train_type& net,
     const std::string& sync_path,
-    long num_steps,
+    size_t num_steps,
     double map,
     double wf1);
 
