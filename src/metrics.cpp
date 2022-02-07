@@ -208,9 +208,9 @@ void save_model(
     double wf1)
 {
     std::stringstream filename;
-    filename << name << "-step_" << dlib::pad_int_with_zeros(num_steps);
-    filename << "-map_" << std::fixed << std::setprecision(4) << map;
-    filename << "-wf1_" << std::fixed << std::setprecision(4) << wf1;
+    filename << name << "_step-" << dlib::pad_int_with_zeros(num_steps);
+    filename << "_map-" << std::fixed << std::setprecision(4) << map;
+    filename << "_wf1-" << std::fixed << std::setprecision(4) << wf1;
     filename << ".dnn";
     net.clean();
     dlib::serialize(filename.str()) << net;
