@@ -90,7 +90,8 @@ try
     const size_t patience = get_option(parser, "patience", 3);
     const double warmup_epochs = get_option(parser, "warmup", 0.0);
     const double cosine_epochs = get_option(parser, "cosine-epochs", 0.0);
-    DLIB_CASSERT(cosine_epochs > warmup_epochs);
+    if (parser.option("cosine-epochs"))
+        DLIB_CASSERT(cosine_epochs > warmup_epochs);
     const double lambda_obj = get_option(parser, "lambda-obj", 1.0);
     const double lambda_box = get_option(parser, "lambda-box", 1.0);
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
