@@ -306,13 +306,13 @@ try
                                   dpoint(
                                       rnd.get_double_in_range(-shift_amount, shift_amount),
                                       rnd.get_double_in_range(-shift_amount, shift_amount));
-            const chip_details cd(
+            const chip_details chip(
                 centered_drect(center, image_size * scale, image_size * scale),
                 {image_size, image_size},
                 rnd.get_double_in_range(-angle * pi / 180, angle * pi / 180));
 
-            extract_image_chip(letterbox, cd, result.first);
-            tform = get_mapping_to_chip(cd);
+            extract_image_chip(letterbox, chip, result.first);
+            tform = get_mapping_to_chip(chip);
             for (auto& box : result.second)
                 box.rect = tform(box.rect);
 
