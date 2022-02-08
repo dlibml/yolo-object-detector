@@ -161,7 +161,7 @@ try
             std::cout << "}\n";
             // And check the average IoU of the newly computed anchor boxes and the training
             // samples.
-            std::cout << "  Sample Fraction: " << sample_fraction << std::endl;
+            std::cout << "  Sample Fraction: " << sample_fraction << '\n';
             std::cout << "  Average IoU:     " << compute_average_iou(samples, anchors)
                       << std::endl;
             total_coverage += sample_fraction;
@@ -239,7 +239,7 @@ try
                 if (i < anchors.size() - 1)
                     std::cout << ", ";
             }
-            std::cout << "  Average IoU: " << compute_average_iou(samples, anchors) << std::endl;
+            std::cout << "  \nAverage IoU: " << compute_average_iou(samples, anchors) << '\n';
         }
     }
     else
