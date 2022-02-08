@@ -26,15 +26,15 @@ try
         parser.print_options();
         std::cout << "Notes:\n";
         std::cout << wrap_string(
-                         "1: --clusters and --iou are incompatible, because --iou "
-                         "will find the number of clusters automatically.\n",
-                         0,
-                         3);
+            "1: --clusters and --iou are incompatible, because --iou "
+            "will find the number of clusters automatically.\n",
+            0,
+            3);
         std::cout << wrap_string(
-                         "2: --sides and --clusters should be specified as many "
-                         "times as strides, and they must match.\n",
-                         0,
-                         3);
+            "2: --sides and --clusters should be specified as many "
+            "times as strides, and they must match.\n",
+            0,
+            3);
         return EXIT_SUCCESS;
     }
 
@@ -59,7 +59,8 @@ try
 
     if (not parser.option("clusters") and not parser.option("iou"))
     {
-        std::cerr << "specify the number of clusters for an anchor box group or the minimum IoU.\n";
+        std::cerr
+            << "specify the number of clusters for an anchor box group or the minimum IoU.\n";
         return EXIT_FAILURE;
     }
 
@@ -150,8 +151,14 @@ try
                 anchors.begin(),
                 anchors.end(),
                 [](const auto& a, const auto& b) { return prod(a) < prod(b); });
-            for (const auto& c : anchors)
-                std::cout << "    " << round(c(0)) << 'x' << round(c(1)) << std::endl;
+            std::cout << "  {";
+            for (size_t i = 0; i < anchors.size(); ++i)
+            {
+                std::cout << '{' << round(anchors[i](0)) << ", " << round(anchors[i](1)) << '}';
+                if (i < anchors.size() - 1)
+                    std::cout << ", ";
+            }
+            std::cout << "}\n";
             // And check the average IoU of the newly computed anchor boxes and the training
             // samples.
             std::cout << "  Sample Fraction: " << sample_fraction << std::endl;
@@ -225,8 +232,13 @@ try
             auto samples = box_groups[g];
             const auto anchors = find_samples_overlapping_all_others(samples, overlaps);
             std::cout << "# anchors: " << anchors.size() << std::endl;
-            for (const auto& c : anchors)
-                std::cout << "    " << round(c(0)) << 'x' << round(c(1)) << std::endl;
+            std::cout << "  {";
+            for (size_t i = 0; i < anchors.size(); ++i)
+            {
+                std::cout << '{' << round(anchors[i](0)) << ", " << round(anchors[i](1)) << '}';
+                if (i < anchors.size() - 1)
+                    std::cout << ", ";
+            }
             std::cout << "  Average IoU: " << compute_average_iou(samples, anchors) << std::endl;
         }
     }
