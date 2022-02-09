@@ -65,19 +65,19 @@ namespace yolor
         template <long num_filters, typename SUBNET>
         using spp_csp =
                     conv<num_filters, 1, 1,
-                    ACT<BN<concat2<tag5, tag6,
-               tag6<con<num_filters, 1, 1, 1, 1, skip1<
-               tag5<conv<num_filters, 3, 1, conv<num_filters, 1, 1,
-                    concat4<tag1, tag2, tag3, tag4,
-               tag4<max_pool<13, 13, 1, 1,
-                    skip1<
-               tag3<max_pool<9, 9, 1, 1,
-                    skip1<
-               tag2<max_pool<5, 5, 1, 1,
-               tag1<conv<num_filters, 1, 1,
+                    ACT<BN<concat2<tag2, tag1,
+               tag1<con<num_filters, 1, 1, 1, 1, skip5<
+               tag2<conv<num_filters, 3, 1, conv<num_filters, 1, 1,
+                    concat4<tag4, tag3, tag2, tag1,
+               tag1<max_pool<13, 13, 1, 1,
+                    skip4<
+               tag2<max_pool<9, 9, 1, 1,
+                    skip4<
+               tag3<max_pool<5, 5, 1, 1,
+               tag4<conv<num_filters, 1, 1,
                     conv<num_filters, 3, 1,
                     conv<num_filters, 1, 1,
-                    SUBNET>>>>>>>>>>>>>>>>>>>>>>>;
+               tag5<SUBNET>>>>>>>>>>>>>>>>>>>>>>>>;
 
         template <template <typename> class YTAG, typename SUBNET>
         using yolo = YTAG<sig<con<1, 1, 1, 1, 1, SUBNET>>>;
@@ -88,33 +88,33 @@ namespace yolor
                  conv<640, 3, 1,
                  bottleneck_csp2<320, 3, bottleneck_320,
                  concat2<tag1, tag6,
-            tag1<conv<320, 3, 2, skip1<
+            tag1<conv<320, 3, 2, skip2<
                  yolo<ytag5,
-            tag1<conv<512, 3, 1,
+            tag2<conv<512, 3, 1,
                  bottleneck_csp2<256, 3, bottleneck_256,
                  concat2<tag1, tag5,
-            tag1<conv<256, 3, 2, skip1<
+            tag1<conv<256, 3, 2, skip2<
                  yolo<ytag4,
-            tag1<conv<384, 3, 1,
+            tag2<conv<384, 3, 1,
                  bottleneck_csp2<192, 3, bottleneck_192,
                  concat2<tag1, tag4,
-            tag1<conv<192, 3, 2, skip1<
+            tag1<conv<192, 3, 2, skip2<
                  yolo<ytag3,
-            tag1<conv<256, 3, 1,
+            tag2<conv<256, 3, 1,
                  bottleneck_csp2<128, 3, bottleneck_128,
                  concat2<tag1, tag2,
-            tag2<conv<128, 1, 1, add_skip_layer<ptag3,
-            tag1<upsample<2,
+            tag1<conv<128, 1, 1, add_skip_layer<ptag3,
+            tag2<upsample<2,
                  conv<128, 1, 1,
             tag4<bottleneck_csp2<192, 3, bottleneck_192,
                  concat2<tag1, tag2,
-            tag2<conv<192, 1, 1, add_skip_layer<ptag4,
-            tag1<upsample<2,
+            tag1<conv<192, 1, 1, add_skip_layer<ptag4,
+            tag2<upsample<2,
                  conv<192, 1, 1,
             tag5<bottleneck_csp2<256, 3, bottleneck_256,
                  concat2<tag1, tag2,
-            tag2<conv<256, 1, 1, add_skip_layer<ptag5,
-            tag1<upsample<2,
+            tag1<conv<256, 1, 1, add_skip_layer<ptag5,
+            tag2<upsample<2,
                  conv<256, 1, 1,
             tag6<spp_csp<320, SUBNET>>
         >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
