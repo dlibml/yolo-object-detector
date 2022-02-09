@@ -674,7 +674,6 @@ try
 
             data.disable();
             test_loaders.join();
-            inet.clean();
         }
     }
 

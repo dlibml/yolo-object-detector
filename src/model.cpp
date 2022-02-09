@@ -5,7 +5,9 @@ model_train::model_train() = default;
 model_train::model_train(const dlib::yolo_options& options) : net_train_type(options)
 {
     using namespace dlib;
+    // setup the leaky relu activations
     visit_computational_layers(*this, [](leaky_relu_& l) { l = leaky_relu_(0.1); });
+    // disable bias in all convolutions
     visit_computational_layers(*this, [](auto& l) { disable_bias(l); });
     // re-enable the biases in the convolutions for YOLO layers
     layer<ytag3, 2>(*this).layer_details().enable_bias();
@@ -22,6 +24,7 @@ model_train::model_train(const dlib::yolo_options& options) : net_train_type(opt
     layer<ytag4, 2>(*this).layer_details().set_num_filters(num_anchors_p4 * (num_classes + 5));
     layer<ytag5, 2>(*this).layer_details().set_num_filters(num_anchors_p5 * (num_classes + 5));
     layer<ytag6, 2>(*this).layer_details().set_num_filters(num_anchors_p6 * (num_classes + 5));
+    // increase the batch normalization window size
     set_all_bn_running_stats_window_sizes(*this, 1000);
 }
 
