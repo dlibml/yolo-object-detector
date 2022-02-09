@@ -22,34 +22,41 @@ try
     parser.add_option("architecture", "print the network architecture");
     parser.add_option("name", "name used for sync and net files (default: yolo)", 1);
     parser.add_option("size", "image size for internal usage (default: 512)", 1);
-    parser.add_option("test", "visually test with a threshold (default: 0.01)", 1);
-    parser.add_option("visualize", "visualize data augmentation instead of training");
+    parser.add_option("test", "visually test the model instead of training");
+    parser.add_option("visualize", "visualize data augmentation before training");
+    parser.add_option("conf", "threshold used for testing (default 0.25)", 1);
 
     parser.set_group_name("Training Options");
     parser.add_option("batch-gpu", "mini batch size per GPU (default: 8)", 1);
-    parser.add_option("warmup", "warm-up epochs (default: 0.0)", 1);
-    parser.add_option("burnin", "use exponential burn-in (default: 1)");
-    parser.add_option("cosine-epochs", "epochs for the cosine scheduler (default: 0.0)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
+    parser.add_option("tune", "path to the network to fine-tune", 1);
+    parser.add_option("workers", "number data loaders (default: " + num_threads_str + ")", 1);
+
+    parser.set_group_name("Scheduler Options");
+    parser.add_option("burnin", "use exponential burn-in (default: 1)", 1);
+    parser.add_option("cosine", "epochs for the cosine scheduler (default: 0.0)", 1);
+    parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
+    parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
+    parser.add_option("patience", "number of epochs without progress (default: 3.0)", 1);
+    parser.add_option("test-period", "test a batch every <arg> steps (default: 0)", 1);
+    parser.add_option("warmup", "warm-up epochs (default: 0.0)", 1);
+
+    parser.set_group_name("Optimizer Options");
+    parser.add_option("momentum", "sgd momentum (default: 0.9)", 1);
+    parser.add_option("weight-decay", "sgd weight decay (default: 0.0005)", 1);
+
+    parser.set_group_name("YOLO Options");
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.7)", 1);
     parser.add_option("iou-anchor", "extra anchors IoU treshold (default: 0.2)", 1);
     parser.add_option("lambda-obj", "weight for the objectness loss (default: 1)", 1);
     parser.add_option("lambda-box", "weight for the box regression loss (default: 1)", 1);
     parser.add_option("lambda-cls", "weight for the classification loss (default: 1)", 1);
-    parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
-    parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
-    parser.add_option("momentum", "sgd momentum (default: 0.9)", 1);
-    parser.add_option("patience", "number of epochs without progress (default: 3.0)", 1);
-    parser.add_option("test-period", "test a batch every <arg> steps (default: 0)", 1);
-    parser.add_option("tune", "path to the network to fine-tune", 1);
-    parser.add_option("weight-decay", "sgd weight decay (default: 0.0005)", 1);
-    parser.add_option("workers", "number data loaders (default: " + num_threads_str + ")", 1);
 
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max rotation in degrees (default: 3.0)", 1);
     parser.add_option("hsi", "HSI colorspace gains (default: 0.5 0.5 0.5)", 3);
-    parser.add_option("ignore-partial", "ignore intead of removing partial objects");
-    parser.add_option("min-coverage", "remove objects partially covered (default: 0.5)", 1);
+    parser.add_option("ignore-partial", "ignore partially covered objects instead");
+    parser.add_option("min-coverage", "remove partially covered objects (default: 0.5)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
     parser.add_option("mixup", "mixup probability (default: 0.0)", 1);
     parser.add_option("mosaic", "mosaic probability (default: 0.5)", 1);
@@ -70,6 +77,7 @@ try
         std::cout << "Give the path to a folder with the training.xml and testing.xml files.\n";
         return EXIT_SUCCESS;
     }
+    parser.check_option_arg_range<double>("conf", 0, 1);
     parser.check_option_arg_range<double>("iou-ignore", 0, 1);
     parser.check_option_arg_range<double>("iou-anchor", 0, 1);
     parser.check_option_arg_range<double>("mirror", 0, 1);
@@ -79,14 +87,14 @@ try
     parser.check_option_arg_range<double>("perspective", 0, 1);
     parser.check_option_arg_range<double>("min-coverage", 0, 1);
     parser.check_option_arg_range<double>("hsi", 0, 1);
-    parser.check_incompatible_options("patience", "cosine-epochs");
+    parser.check_incompatible_options("patience", "cosine");
     parser.check_sub_option("warmup", "burnin");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 3);
     const double warmup_epochs = get_option(parser, "warmup", 0.0);
-    const double cosine_epochs = get_option(parser, "cosine-epochs", 0.0);
-    if (parser.option("cosine-epochs"))
+    const double cosine_epochs = get_option(parser, "cosine", 0.0);
+    if (parser.option("cosine"))
         DLIB_CASSERT(cosine_epochs > warmup_epochs);
     double gain_h = 0.5, gain_s = 0.5, gain_i = 0.5;
     if (parser.option("hsi"))
@@ -95,6 +103,7 @@ try
         gain_s = std::stod(parser.option("hsi").argument(1));
         gain_i = std::stod(parser.option("hsi").argument(2));
     }
+    const double test_conf = get_option(parser, "conf", 0.25);
     const double lambda_obj = get_option(parser, "lambda-obj", 1.0);
     const double lambda_box = get_option(parser, "lambda-box", 1.0);
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
@@ -162,21 +171,17 @@ try
     image_dataset_metadata::load_image_dataset_metadata(test_dataset, data_path + "/testing.xml");
     std::clog << "# test images: " << test_dataset.images.size() << '\n';
 
-    // These are the anchors computed on the COCO dataset, presented in the YOLOv4 paper.
-    // options.add_anchors<rgpnet::ytag8>({{12, 16}, {19, 36}, {40, 28}});
-    // options.add_anchors<rgpnet::ytag16>({{36, 75}, {76, 55}, {72, 146}});
-    // options.add_anchors<rgpnet::ytag32>({{142, 110}, {192, 243}, {459, 401}});
-    // These are the anchors computed on the OMNIOUS product_2021-02-25 dataset
-    // options.add_anchors<ytag8>({{31, 33}, {62, 42}, {41, 66}});
-    // options.add_anchors<ytag16>({{76, 88}, {151, 113}, {97, 184}});
-    // options.add_anchors<ytag32>({{205, 243}, {240, 444}, {437, 306}, {430, 549}});
-    // options.add_anchors<ytag8>({{31, 31}, {47, 51}});
-    // options.add_anchors<ytag16>({{59, 80}, {100, 90}});
-    // options.add_anchors<ytag32>({{163, 171}, {209, 316}, {422, 293}, {263, 494}, {469, 534}});
-    options.add_anchors<ytag3>({{30, 29}, {38, 52}, {54, 47}});
-    options.add_anchors<ytag4>({{53, 88}, {85, 59}, {99, 103}});
-    options.add_anchors<ytag5>({{105, 181}, {170, 121}, {197, 211}});
-    options.add_anchors<ytag6>({{193, 329}, {365, 258}, {268, 493}, {469, 483}});
+    // These are the anchors computed on the OMNIOUS product_2021-02-25 dataset for avg IOU > 0.7
+    // size: 640
+    // options.add_anchors<ytag3>({{30, 29}, {38, 52}, {54, 47}});
+    // options.add_anchors<ytag4>({{53, 88}, {85, 59}, {99, 103}});
+    // options.add_anchors<ytag5>({{105, 181}, {170, 121}, {197, 211}});
+    // options.add_anchors<ytag6>({{193, 329}, {365, 258}, {268, 493}, {469, 483}});
+    // size: 512
+    options.add_anchors<ytag3>({{28, 26}, {34, 51}, {53, 47}});
+    options.add_anchors<ytag4>({{49, 84}, {83, 58}, {99, 103}});
+    options.add_anchors<ytag5>({{107, 186}, {167, 123}, {195, 211}});
+    options.add_anchors<ytag6>({{179, 333}, {343, 236}, {321, 425}});
 
     net_train_type net(options);
     setup_detector(net, options);
@@ -214,7 +219,6 @@ try
             std::cerr << "Could not find file " << sync_file_name << '\n';
             return EXIT_FAILURE;
         }
-        const double threshold = get_option(parser, "test", 0.01);
         image_window win;
         rgb_image image, resized;
         for (const auto& im : train_dataset.images)
@@ -224,7 +228,7 @@ try
             win.set_title(im.filename);
             win.set_image(image);
             const auto tform = preprocess_image(image, resized, image_size);
-            auto detections = net.process(resized, threshold);
+            auto detections = net.process(resized, test_conf);
             postprocess_detections(tform, detections);
             std::clog << "# detections: " << detections.size() << '\n';
             for (const auto& det : detections)
@@ -651,8 +655,8 @@ try
                 test_dataset,
                 2 * batch_size / num_gpus,
                 data,
-                0.25,
-                std::cerr);
+                test_conf,
+                std::clog);
 
             if (metrics.map > best_map or metrics.weighted_f > best_wf1)
                 save_model(net, experiment_name, num_steps, metrics.map, metrics.weighted_f);
