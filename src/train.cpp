@@ -8,6 +8,7 @@
 #include <dlib/gui_widgets.h>
 #include <dlib/image_io.h>
 #include <tools/imglab/src/metadata_editor.h>
+#include "sgd_trainer.h"
 
 using namespace dlib;
 
@@ -183,8 +184,7 @@ try
     options.add_anchors<ytag5>({{107, 186}, {167, 123}, {195, 211}});
     options.add_anchors<ytag6>({{179, 333}, {343, 236}, {321, 425}});
 
-    net_train_type net(options);
-    setup_detector(net, options);
+    model_train net(options);
     if (parser.option("architecture"))
     {
         rgb_image dummy(image_size, image_size);
@@ -195,7 +195,7 @@ try
     if (not tune_net_path.empty())
     {
         // net_train_type pretrained_net;
-        deserialize(tune_net_path) >> net;
+        net.load(tune_net_path);
         // layer<57>(net).subnet() = layer<57>(pretrained_net).subnet();
     }
 
@@ -204,7 +204,7 @@ try
     std::iota(gpus.begin(), gpus.end(), 0);
     // We initialize the trainer here, as it will be used in several contexts, depending on the
     // arguments passed the the program.
-    auto trainer = dnn_trainer(net, sgd(weight_decay, momentum), gpus);
+    auto trainer = sgd_trainer(net, gpus, weight_decay, momentum);
     trainer.be_verbose();
     trainer.set_mini_batch_size(batch_size);
     trainer.set_synchronization_file(sync_file_name, std::chrono::minutes(30));
@@ -644,7 +644,7 @@ try
         const auto num_steps = trainer.get_train_one_step_calls();
         if (num_steps % num_steps_per_epoch == 0)
         {
-            net_infer_type inet(trainer.get_net());
+            model_infer inet(trainer.get_net());
             const auto epoch = num_steps / num_steps_per_epoch;
             std::cerr << "computing mean average precison for epoch " << epoch << std::endl;
             dlib::pipe<image_info> data(1000);
@@ -693,7 +693,7 @@ try
             worker.join();
     }
 
-    serialize(experiment_name + ".dnn") << net;
+    net.save(experiment_name + ".dnn");
     return EXIT_SUCCESS;
 }
 catch (const std::exception& e)

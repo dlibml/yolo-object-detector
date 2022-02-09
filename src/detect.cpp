@@ -1,6 +1,7 @@
 #include "detector_utils.h"
 #include "drawing_utils.h"
 #include "model.h"
+#include "sgd_trainer.h"
 #include "webcam_window.h"
 
 #include <dlib/cmd_line_parser.h>
@@ -51,7 +52,6 @@ try
     parser.add_option("images", "path to directory with images", 1);
     parser.add_option("output", "output file to write out the processed input", 1);
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
-    parser.add_option("xml", "export the network to xml and exit", 1);
 
     parser.set_group_name("Pseudo-labelling Options");
     parser.add_option("check", "check that all files in the dataset exist");
@@ -71,7 +71,7 @@ try
         return EXIT_SUCCESS;
     }
 
-    net_infer_type net;
+    model_infer net;
 
     if (parser.option("architecture"))
     {
@@ -114,7 +114,6 @@ try
     const std::string output_path = get_option(parser, "output", "");
     const std::string mapping_path = get_option(parser, "mapping", "");
     const std::string dataset_path = get_option(parser, "update", "");
-    const std::string xml_path = get_option(parser, "xml", "");
     const std::string fused_path = get_option(parser, "fuse", "");
     float fps = get_option(parser, "fps", 30);
     double nms_iou_threshold = 0.45;
@@ -134,11 +133,11 @@ try
     // Try to load the network from either a weights file or a trainer state
     if (not dnn_path.empty())
     {
-        deserialize(dnn_path) >> net;
+        net.load(dnn_path);
     }
     else if (not sync_path.empty() and file_exists(sync_path))
     {
-        auto trainer = dnn_trainer(net);
+        auto trainer = aux_trainer(net);
         trainer.set_synchronization_file(sync_path);
         trainer.get_net();
         std::cerr << "Lodaded network from " << sync_path << std::endl;
@@ -209,21 +208,14 @@ try
 
     // Setup the loss nms
     net.loss_details().adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
-    print_loss_details(net);
-
-    // Export to XML
-    if (not xml_path.empty())
-    {
-        std::clog << "exporting net to " << xml_path << std::endl;
-        net_to_xml(net, xml_path);
-        return EXIT_SUCCESS;
-    }
+    net.print_loss_details();
 
     // Fuse layers
     if (not fused_path.empty())
     {
-        fuse_layers(net);
-        serialize(fused_path) << net;
+        std::clog << "fusing layers and saving net to " << fused_path << '\n';
+        net.fuse();
+        net.save(fused_path);
     }
 
     // Process the dataset if for pseudo labeling

@@ -1,6 +1,6 @@
-#include "detector_utils.h"
 #include "metrics.h"
 #include "model.h"
+#include "sgd_trainer.h"
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/console_progress_indicator.h>
@@ -59,17 +59,18 @@ try
 
     bool export_model = false;
     size_t num_steps = 0;
-    net_train_type net;
 
+    model_infer net;
+    model_train net_train;
     if (not dnn_path.empty())
     {
-        deserialize(dnn_path) >> net;
+        net.load(dnn_path);
     }
     else if (not sync_path.empty() and file_exists(sync_path))
     {
-        auto trainer = dnn_trainer(net);
+        auto trainer = sgd_trainer(net_train);
         trainer.set_synchronization_file(sync_path);
-        trainer.get_net();
+        net = trainer.get_net();
         num_steps = trainer.get_train_one_step_calls();
         std::clog << "Lodaded network from " << sync_path << '\n';
         std::clog << "learning rate:  " << trainer.get_learning_rate() << '\n';
@@ -86,25 +87,24 @@ try
     if (parser.option("architecture"))
         std::clog << net << '\n';
 
-    print_loss_details(net);
+    net.print_loss_details();
 
     const auto dataset_dir = get_parent_directory(file(parser[0])).full_name();
     image_dataset_metadata::dataset dataset;
     image_dataset_metadata::load_image_dataset_metadata(dataset, parser[0]);
     dlib::pipe<image_info> data(1000);
-    test_data_loader data_loader(dataset_dir, dataset,data, image_size, num_workers);
+    test_data_loader data_loader(dataset_dir, dataset, data, image_size, num_workers);
 
     // start the data loaders
     std::thread data_loaders([&data_loader]() { data_loader.run(); });
 
-    net_infer_type tnet(net);
-    const auto metrics = compute_metrics(tnet, dataset, batch_size, data, conf_thresh);
+    const auto metrics = compute_metrics(net, dataset, batch_size, data, conf_thresh);
 
     data.disable();
     data_loaders.join();
 
     if (export_model)
-        save_model(net, sync_path, num_steps, metrics.map, metrics.weighted_f);
+        save_model(net_train, sync_path, num_steps, metrics.map, metrics.weighted_f);
 
     return EXIT_SUCCESS;
 }

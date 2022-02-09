@@ -1,7 +1,7 @@
 #ifndef metrics_h_INCLUDED
 #define metrics_h_INCLUDED
 
-#include "detector_utils.h"
+#include "model.h"
 
 #include <dlib/data_io.h>
 #include <dlib/pipe.h>
@@ -74,7 +74,7 @@ inline std::ostream& operator<<(std::ostream& out, const metrics_details& item)
 }
 
 metrics_details compute_metrics(
-    net_infer_type& net,
+    model_infer& net,
     const dlib::image_dataset_metadata::dataset& dataset,
     const size_t batch_size,
     dlib::pipe<image_info>& data,
@@ -82,7 +82,7 @@ metrics_details compute_metrics(
     std::ostream& out = std::cout);
 
 void save_model(
-    net_train_type& net,
+    model_train& net,
     const std::string& sync_path,
     size_t num_steps,
     double map,
