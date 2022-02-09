@@ -1,5 +1,7 @@
 #include "metrics.h"
 
+#include "detector_utils.h"
+
 test_data_loader::test_data_loader(
     const std::string& dataset_dir,
     const dlib::image_dataset_metadata::dataset& dataset,
@@ -32,7 +34,7 @@ void test_data_loader::run()
 }
 
 metrics_details compute_metrics(
-    net_infer_type& net,
+    model_infer& net,
     const dlib::image_dataset_metadata::dataset& dataset,
     const size_t batch_size,
     dlib::pipe<image_info>& data,
@@ -201,7 +203,7 @@ metrics_details compute_metrics(
 }
 
 void save_model(
-    net_train_type& net,
+    model_train& net,
     const std::string& name,
     size_t num_steps,
     double map,
@@ -212,7 +214,6 @@ void save_model(
     filename << "_map-" << std::fixed << std::setprecision(4) << map;
     filename << "_wf1-" << std::fixed << std::setprecision(4) << wf1;
     filename << ".dnn";
-    net.clean();
-    dlib::serialize(filename.str()) << net;
+    net.save(filename.str());
     std::cout << "model saved as: " << filename.str() << '\n';
 }
