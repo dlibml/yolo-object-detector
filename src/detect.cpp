@@ -71,13 +71,13 @@ try
         return EXIT_SUCCESS;
     }
 
-    model_infer net;
+    model net;
 
-    if (parser.option("architecture"))
-    {
-        std::clog << net << '\n';
-        return EXIT_SUCCESS;
-    }
+    // if (parser.option("architecture"))
+    // {
+    //     std::clog << net << '\n';
+    //     return EXIT_SUCCESS;
+    // }
 
     // check for incompatible input options
     const auto input_options = std::array{"image", "images", "input", "webcam"};
@@ -133,13 +133,12 @@ try
     // Try to load the network from either a weights file or a trainer state
     if (not dnn_path.empty())
     {
-        net.load(dnn_path);
+        net.load_infer(dnn_path);
     }
     else if (not sync_path.empty() and file_exists(sync_path))
     {
-        auto trainer = aux_trainer(net);
-        trainer.set_synchronization_file(sync_path);
-        trainer.get_net();
+        auto trainer = sgd_trainer(net);
+        trainer.load_from_synchronization_file(sync_path);
         std::cerr << "Lodaded network from " << sync_path << std::endl;
         std::cerr << "learning rate:  " << trainer.get_learning_rate() << std::endl;
         std::cerr << "training steps: " << trainer.get_train_one_step_calls() << std::endl;
@@ -153,7 +152,7 @@ try
     // General options for drawing bounding boxes on images
     drawing_options options;
     options.set_font(font_path);
-    for (const auto& label : net.loss_details().get_options().labels)
+    for (const auto& label : net.get_options().labels)
     {
         options.string_to_color(label);
         options.mapping[label] = label;
@@ -195,7 +194,7 @@ try
         if (not fin.good())
             throw std::runtime_error("Error reading " + mapping_path);
         std::string line;
-        for (const auto& label : net.loss_details().get_options().labels)
+        for (const auto& label : net.get_options().labels)
         {
             getline(fin, line);
             std::cerr << "mapping: " << label << " => " << line << std::endl;
@@ -207,7 +206,7 @@ try
         serialize(parser.option("save-options").argument()) << options;
 
     // Setup the loss nms
-    net.loss_details().adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
+    net.adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
     net.print_loss_details();
 
     // Fuse layers
@@ -215,7 +214,7 @@ try
     {
         std::clog << "fusing layers and saving net to " << fused_path << '\n';
         net.fuse();
-        net.save(fused_path);
+        net.save_infer(fused_path);
     }
 
     // Process the dataset if for pseudo labeling
@@ -248,7 +247,7 @@ try
             image_info.width = image.nc();
             image_info.height = image.nr();
             const auto tform = preprocess_image(image, letterbox, image_size);
-            auto detections = net.process(letterbox, conf_thresh);
+            auto detections = net(letterbox, conf_thresh);
             postprocess_detections(tform, detections);
             std::vector<image_dataset_metadata::box> boxes;
             for (const auto& pseudo : detections)
@@ -279,7 +278,7 @@ try
         load_image(image, parser.option("image").argument());
         const auto tform = preprocess_image(image, letterbox, image_size);
         const auto t0 = std::chrono::steady_clock::now();
-        auto detections = net.process(letterbox, win.conf_thresh);
+        auto detections = net(letterbox, win.conf_thresh);
         const auto t1 = std::chrono::steady_clock::now();
         const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
         std::clog << parser.option("image").argument() << ": " << t << " ms" << std::endl;
@@ -315,7 +314,7 @@ try
             load_image(image, file.full_name());
             const auto tform = preprocess_image(image, letterbox, image_size);
             const auto t0 = std::chrono::steady_clock::now();
-            auto detections = net.process(letterbox, win.conf_thresh);
+            auto detections = net(letterbox, win.conf_thresh);
             const auto t1 = std::chrono::steady_clock::now();
             postprocess_detections(tform, detections);
             const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
@@ -396,7 +395,7 @@ try
 
         const auto t0 = std::chrono::steady_clock::now();
         const auto tform = preprocess_image(image, letterbox, image_size);
-        auto detections = net.process(letterbox, win.conf_thresh);
+        auto detections = net(letterbox, win.conf_thresh);
         postprocess_detections(tform, detections);
         const auto t1 = std::chrono::steady_clock::now();
         draw_bounding_boxes(image, detections, options);
@@ -412,6 +411,7 @@ try
     }
     if (not output_path.empty())
         vid_snk.release();
+    return EXIT_SUCCESS;
 }
 catch (const std::exception& e)
 {

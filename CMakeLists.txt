@@ -106,4 +106,4 @@ target_link_libraries(coco2xml PRIVATE nlohmann_json::nlohmann_json)
 
 add_dlib_executable(convert_images)
 add_dlib_executable(evalcoco)
-target_link_libraries(evalcoco PRIVATE detector_utils nlohmann_json::nlohmann_json)
+target_link_libraries(evalcoco PRIVATE model detector_utils nlohmann_json::nlohmann_json)

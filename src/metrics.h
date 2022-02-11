@@ -74,7 +74,7 @@ inline std::ostream& operator<<(std::ostream& out, const metrics_details& item)
 }
 
 metrics_details compute_metrics(
-    model_infer& net,
+    model& net,
     const dlib::image_dataset_metadata::dataset& dataset,
     const size_t batch_size,
     dlib::pipe<image_info>& data,
@@ -82,7 +82,7 @@ metrics_details compute_metrics(
     std::ostream& out = std::cout);
 
 void save_model(
-    model_train& net,
+    model& net,
     const std::string& sync_path,
     size_t num_steps,
     double map,

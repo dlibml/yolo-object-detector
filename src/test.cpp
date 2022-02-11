@@ -60,17 +60,15 @@ try
     bool export_model = false;
     size_t num_steps = 0;
 
-    model_infer net;
-    model_train net_train;
+    model net;
     if (not dnn_path.empty())
     {
-        net.load(dnn_path);
+        net.load_infer(dnn_path);
     }
     else if (not sync_path.empty() and file_exists(sync_path))
     {
-        auto trainer = sgd_trainer(net_train);
+        auto trainer = sgd_trainer(net);
         trainer.set_synchronization_file(sync_path);
-        net = trainer.get_net();
         num_steps = trainer.get_train_one_step_calls();
         std::clog << "Lodaded network from " << sync_path << '\n';
         std::clog << "learning rate:  " << trainer.get_learning_rate() << '\n';
@@ -83,9 +81,9 @@ try
         return EXIT_FAILURE;
     }
 
-    net.loss_details().adjust_nms(iou_threshold, ratio_covered, classwise_nms);
+    net.adjust_nms(iou_threshold, ratio_covered, classwise_nms);
     if (parser.option("architecture"))
-        std::clog << net << '\n';
+        net.print(std::clog);
 
     net.print_loss_details();
 
@@ -104,7 +102,7 @@ try
     data_loaders.join();
 
     if (export_model)
-        save_model(net_train, sync_path, num_steps, metrics.map, metrics.weighted_f);
+        save_model(net, sync_path, num_steps, metrics.map, metrics.weighted_f);
 
     return EXIT_SUCCESS;
 }

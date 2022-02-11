@@ -34,7 +34,7 @@ void test_data_loader::run()
 }
 
 metrics_details compute_metrics(
-    model_infer& net,
+    model& net,
     const dlib::image_dataset_metadata::dataset& dataset,
     const size_t batch_size,
     dlib::pipe<image_info>& data,
@@ -45,7 +45,7 @@ metrics_details compute_metrics(
     std::map<std::string, std::vector<std::pair<double, bool>>> hits;
     std::map<std::string, unsigned long> missing;
     size_t padding = 0;
-    for (const auto& label : net.loss_details().get_options().labels)
+    for (const auto& label : net.get_options().labels)
     {
         hits[label] = std::vector<std::pair<double, bool>>();
         missing[label] = 0;
@@ -70,7 +70,7 @@ metrics_details compute_metrics(
             images.push_back(std::move(temp.image));
             details.push_back(std::move(temp));
         }
-        auto detections_batch = net.process_batch(images, batch_size, 0.001);
+        auto detections_batch = net(images, batch_size, 0.001);
 
         for (size_t i = 0; i < images.size(); ++i)
         {
@@ -203,7 +203,7 @@ metrics_details compute_metrics(
 }
 
 void save_model(
-    model_train& net,
+    model& net,
     const std::string& name,
     size_t num_steps,
     double map,
@@ -214,6 +214,6 @@ void save_model(
     filename << "_map-" << std::fixed << std::setprecision(4) << map;
     filename << "_wf1-" << std::fixed << std::setprecision(4) << wf1;
     filename << ".dnn";
-    net.save(filename.str());
+    net.save_train(filename.str());
     std::cout << "model saved as: " << filename.str() << '\n';
 }

@@ -1,5 +1,6 @@
 #include "detector_utils.h"
 #include "drawing_utils.h"
+#include "model.h"
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/console_progress_indicator.h>
@@ -67,8 +68,8 @@ try
         categories[entry["name"].get<std::string>()] = entry["id"].get<int>();
     }
 
-    net_infer_type net;
-    deserialize(dnn_path) >> net;
+    model net;
+    net.load_infer(dnn_path);
 
     image_window win;
     drawing_options options;
@@ -84,7 +85,7 @@ try
         const auto image_id = image_info["id"].get<int>();
         load_image(image, images_path + "/" + image_info["file_name"].get<std::string>());
         const auto tform = preprocess_image(image, letterbox, image_size);
-        auto dets = net.process(letterbox, conf_thresh);
+        auto dets = net(letterbox, conf_thresh);
         postprocess_detections(tform, dets);
         for (const auto& det : dets)
         {

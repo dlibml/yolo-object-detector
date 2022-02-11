@@ -184,18 +184,18 @@ try
     options.add_anchors<ytag5>({{107, 186}, {167, 123}, {195, 211}});
     options.add_anchors<ytag6>({{179, 333}, {343, 236}, {321, 425}});
 
-    model_train net(options);
+    model net(options);
     if (parser.option("architecture"))
     {
         rgb_image dummy(image_size, image_size);
         net(dummy);
-        std::cerr << net << std::endl;
+        net.print(std::clog);
     }
 
     if (not tune_net_path.empty())
     {
         // net_train_type pretrained_net;
-        net.load(tune_net_path);
+        net.load_train(tune_net_path);
         // layer<57>(net).subnet() = layer<57>(pretrained_net).subnet();
     }
 
@@ -204,10 +204,10 @@ try
     std::iota(gpus.begin(), gpus.end(), 0);
     // We initialize the trainer here, as it will be used in several contexts, depending on the
     // arguments passed the the program.
-    auto trainer = sgd_trainer(net, gpus, weight_decay, momentum);
+    auto trainer = sgd_trainer(net, weight_decay, momentum, gpus);
     trainer.be_verbose();
     trainer.set_mini_batch_size(batch_size);
-    trainer.set_synchronization_file(sync_file_name, std::chrono::minutes(30));
+    trainer.set_synchronization_file(sync_file_name);
 
     // If the training has started and a synchronization file has already been saved to disk,
     // we can re-run this program with the --test option and a confidence threshold to see
@@ -221,6 +221,7 @@ try
         }
         image_window win;
         rgb_image image, resized;
+        net.sync();
         for (const auto& im : train_dataset.images)
         {
             win.clear_overlay();
@@ -228,7 +229,7 @@ try
             win.set_title(im.filename);
             win.set_image(image);
             const auto tform = preprocess_image(image, resized, image_size);
-            auto detections = net.process(resized, test_conf);
+            auto detections = net(resized, test_conf);
             postprocess_detections(tform, detections);
             std::clog << "# detections: " << detections.size() << '\n';
             for (const auto& det : detections)
@@ -585,7 +586,7 @@ try
             else
                 std::cout << " linear ";
             std::cout << "warm-up epochs (" << warmup_steps << " steps)\n";
-            std::cout << trainer;
+            trainer.print(std::cout);
         }
         while (trainer.get_train_one_step_calls() < warmup_steps)
             train();
@@ -626,12 +627,12 @@ try
                 trainer.set_test_iterations_without_progress_threshold(0);
             }
         }
-        std::clog << trainer << '\n';
+        trainer.print(std::clog);
     }
     else
     {
         // we print the trainer to stderr in case we resume the training.
-        std::clog << trainer << '\n';
+        trainer.print(std::clog);
     }
 
     double best_map = 0;
@@ -644,14 +645,15 @@ try
         const auto num_steps = trainer.get_train_one_step_calls();
         if (num_steps % num_steps_per_epoch == 0)
         {
-            model_infer inet(trainer.get_net());
+            trainer.get_net();
+            net.sync();
             const auto epoch = num_steps / num_steps_per_epoch;
             std::cerr << "computing mean average precison for epoch " << epoch << std::endl;
             dlib::pipe<image_info> data(1000);
             test_data_loader test_loader(parser[0], test_dataset, data, image_size, num_workers);
             std::thread test_loaders([&test_loader]() { test_loader.run(); });
             const auto metrics = compute_metrics(
-                inet,
+                net,
                 test_dataset,
                 2 * batch_size / num_gpus,
                 data,
@@ -674,11 +676,12 @@ try
 
             data.disable();
             test_loaders.join();
+            net.clean();
         }
     }
 
     trainer.get_net();
-    std::cout << trainer << '\n';
+    trainer.print(std::cout);
     std::cout << "training done\n";
 
     train_data.disable();
@@ -692,7 +695,7 @@ try
             worker.join();
     }
 
-    net.save(experiment_name + ".dnn");
+    net.save_train(experiment_name + ".dnn");
     return EXIT_SUCCESS;
 }
 catch (const std::exception& e)

@@ -1,69 +1,112 @@
 #include "model.h"
 
-model_train::model_train() = default;
+#include "model_impl.h"
+#include "yolor.h"
 
-model_train::model_train(const dlib::yolo_options& options) : net_train_type(options)
+model::~model() = default;
+
+model::model() : pimpl(std::make_unique<model::impl>())
 {
+}
+
+model::model(const dlib::yolo_options& options) : pimpl(std::make_unique<model::impl>(options))
+{
+    auto& net = pimpl->train;
     using namespace dlib;
     // setup the leaky relu activations
-    visit_computational_layers(*this, [](leaky_relu_& l) { l = leaky_relu_(0.1); });
+    visit_computational_layers(net, [](leaky_relu_& l) { l = leaky_relu_(0.1); });
     // disable bias in all convolutions
-    visit_computational_layers(*this, [](auto& l) { disable_bias(l); });
+    visit_computational_layers(net, [](auto& l) { disable_bias(l); });
     // re-enable the biases in the convolutions for YOLO layers
-    layer<ytag3, 2>(*this).layer_details().enable_bias();
-    layer<ytag4, 2>(*this).layer_details().enable_bias();
-    layer<ytag5, 2>(*this).layer_details().enable_bias();
-    layer<ytag6, 2>(*this).layer_details().enable_bias();
+    layer<ytag3, 2>(net).layer_details().enable_bias();
+    layer<ytag4, 2>(net).layer_details().enable_bias();
+    layer<ytag5, 2>(net).layer_details().enable_bias();
+    layer<ytag6, 2>(net).layer_details().enable_bias();
     // set the number of filters in the convolutions for YOLO layers
     const long num_classes = options.labels.size();
     const long num_anchors_p3 = options.anchors.at(tag_id<ytag3>::id).size();
     const long num_anchors_p4 = options.anchors.at(tag_id<ytag4>::id).size();
     const long num_anchors_p5 = options.anchors.at(tag_id<ytag5>::id).size();
     const long num_anchors_p6 = options.anchors.at(tag_id<ytag6>::id).size();
-    layer<ytag3, 2>(*this).layer_details().set_num_filters(num_anchors_p3 * (num_classes + 5));
-    layer<ytag4, 2>(*this).layer_details().set_num_filters(num_anchors_p4 * (num_classes + 5));
-    layer<ytag5, 2>(*this).layer_details().set_num_filters(num_anchors_p5 * (num_classes + 5));
-    layer<ytag6, 2>(*this).layer_details().set_num_filters(num_anchors_p6 * (num_classes + 5));
+    layer<ytag3, 2>(net).layer_details().set_num_filters(num_anchors_p3 * (num_classes + 5));
+    layer<ytag4, 2>(net).layer_details().set_num_filters(num_anchors_p4 * (num_classes + 5));
+    layer<ytag5, 2>(net).layer_details().set_num_filters(num_anchors_p5 * (num_classes + 5));
+    layer<ytag6, 2>(net).layer_details().set_num_filters(num_anchors_p6 * (num_classes + 5));
     // increase the batch normalization window size
-    set_all_bn_running_stats_window_sizes(*this, 1000);
+    set_all_bn_running_stats_window_sizes(net, 1000);
 }
 
-void model_train::save(const std::string& path)
+void model::sync()
 {
-    clean();
-    dlib::serialize(path) << *this;
+    pimpl->infer = pimpl->train;
 }
 
-void model_train::load(const std::string& path)
+void model::clean()
 {
-    dlib::deserialize(path) >> *this;
+    pimpl->train.clean();
+    pimpl->infer.clean();
 }
 
-model_infer::model_infer() = default;
-
-model_infer::model_infer(const net_train_type& net) : net_infer_type(net)
+void model::save_train(const std::string& path)
 {
+    pimpl->train.clean();
+    dlib::serialize(path) << pimpl->train;
 }
 
-void model_infer::save(const std::string& path)
+void model::load_train(const std::string& path)
 {
-    clean();
-    dlib::serialize(path) << *this;
+    dlib::deserialize(path) >> pimpl->train;
 }
 
-void model_infer::load(const std::string& path)
+void model::save_infer(const std::string& path)
 {
-    dlib::deserialize(path) >> *this;
+    pimpl->infer.clean();
+    dlib::serialize(path) << pimpl->infer;
 }
 
-void model_infer::fuse()
+void model::load_infer(const std::string& path)
 {
-    fuse_layers(*this);
+    dlib::deserialize(path) >> pimpl->infer;
 }
 
-void model_infer::print_loss_details() const
+auto model::operator()(const dlib::matrix<dlib::rgb_pixel>& image, const float conf)
+    -> std::vector<dlib::yolo_rect>
 {
-    const auto& opts = loss_details().get_options();
+    return pimpl->infer.process(image, conf);
+}
+
+auto model::operator()(
+    const std::vector<dlib::matrix<dlib::rgb_pixel>>& images,
+    const size_t batch_size,
+    const float conf) -> std::vector<std::vector<dlib::yolo_rect>>
+{
+    return pimpl->infer.process_batch(images, batch_size, conf);
+}
+
+void model::adjust_nms(const float iou_threshold, const float ratio_covered, const bool classwise)
+{
+    pimpl->train.loss_details().adjust_nms(iou_threshold, ratio_covered, classwise);
+    pimpl->infer.loss_details().adjust_nms(iou_threshold, ratio_covered, classwise);
+}
+
+void model::fuse()
+{
+    fuse_layers(pimpl->infer);
+}
+
+const dlib::yolo_options& model::get_options() const
+{
+    return pimpl->infer.loss_details().get_options();
+}
+
+void model::print(std::ostream& out) const
+{
+    out << pimpl->train << '\n';
+}
+
+void model::print_loss_details() const
+{
+    const auto& opts = pimpl->infer.loss_details().get_options();
     std::cout << "YOLO loss details (" << opts.anchors.size() << " outputs)" << '\n';
     std::cout << "  anchors:\n";
     for (const auto& [tag_id, anchors] : opts.anchors)
