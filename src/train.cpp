@@ -28,6 +28,7 @@ try
     parser.add_option("conf", "threshold used for testing (default 0.25)", 1);
 
     parser.set_group_name("Training Options");
+    parser.add_option("backbone", "use this pre-trained backbone", 1);
     parser.add_option("batch-gpu", "mini batch size per GPU (default: 8)", 1);
     parser.add_option("gpus", "number of GPUs for the training (default: 1)", 1);
     parser.add_option("tune", "path to the network to fine-tune", 1);
@@ -89,6 +90,7 @@ try
     parser.check_option_arg_range<double>("min-coverage", 0, 1);
     parser.check_option_arg_range<double>("hsi", 0, 1);
     parser.check_incompatible_options("patience", "cosine");
+    parser.check_incompatible_options("backbone", "tune");
     parser.check_sub_option("warmup", "burnin");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
@@ -132,6 +134,7 @@ try
     const std::string sync_file_name = experiment_name + "_sync";
     const std::string net_file_name = experiment_name + ".dnn";
     const std::string best_metrics_path = experiment_name + "_best_metrics.dat";
+    const std::string backbone_path = get_option(parser, "backbone", "");
     const std::string tune_net_path = get_option(parser, "tune", "");
 
     const std::string data_path = parser[0];
@@ -192,11 +195,13 @@ try
         net.print(std::clog);
     }
 
+    if (not backbone_path.empty())
+    {
+        net.load_backbone(backbone_path);
+    }
     if (not tune_net_path.empty())
     {
-        // net_train_type pretrained_net;
         net.load_train(tune_net_path);
-        // layer<57>(net).subnet() = layer<57>(pretrained_net).subnet();
     }
 
     // In case we have several GPUs, we can tell the dnn_trainer to make use of them.

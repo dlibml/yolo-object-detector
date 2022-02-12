@@ -3,13 +3,15 @@
 #include "model_impl.h"
 #include "yolor.h"
 
+using namespace dlib;
+
 model::~model() = default;
 
 model::model() : pimpl(std::make_unique<model::impl>())
 {
 }
 
-model::model(const dlib::yolo_options& options) : pimpl(std::make_unique<model::impl>(options))
+model::model(const yolo_options& options) : pimpl(std::make_unique<model::impl>(options))
 {
     auto& net = pimpl->train;
     using namespace dlib;
@@ -50,35 +52,42 @@ void model::clean()
 void model::save_train(const std::string& path)
 {
     pimpl->train.clean();
-    dlib::serialize(path) << pimpl->train;
+    serialize(path) << pimpl->train;
 }
 
 void model::load_train(const std::string& path)
 {
-    dlib::deserialize(path) >> pimpl->train;
+    deserialize(path) >> pimpl->train;
 }
 
 void model::save_infer(const std::string& path)
 {
     pimpl->infer.clean();
-    dlib::serialize(path) << pimpl->infer;
+    serialize(path) << pimpl->infer;
 }
 
 void model::load_infer(const std::string& path)
 {
-    dlib::deserialize(path) >> pimpl->infer;
+    deserialize(path) >> pimpl->infer;
 }
 
-auto model::operator()(const dlib::matrix<dlib::rgb_pixel>& image, const float conf)
-    -> std::vector<dlib::yolo_rect>
+void model::load_backbone(const std::string& path)
+{
+    net_train_type temp;
+    deserialize(path) >> temp;
+    layer<ytag3, 3>(pimpl->train) = layer<ytag3, 3>(temp);
+    sync();
+}
+
+auto model::operator()(const matrix<rgb_pixel>& image, const float conf) -> std::vector<yolo_rect>
 {
     return pimpl->infer.process(image, conf);
 }
 
 auto model::operator()(
-    const std::vector<dlib::matrix<dlib::rgb_pixel>>& images,
+    const std::vector<matrix<rgb_pixel>>& images,
     const size_t batch_size,
-    const float conf) -> std::vector<std::vector<dlib::yolo_rect>>
+    const float conf) -> std::vector<std::vector<yolo_rect>>
 {
     return pimpl->infer.process_batch(images, batch_size, conf);
 }
@@ -94,7 +103,7 @@ void model::fuse()
     fuse_layers(pimpl->infer);
 }
 
-const dlib::yolo_options& model::get_options() const
+const yolo_options& model::get_options() const
 {
     return pimpl->infer.loss_details().get_options();
 }

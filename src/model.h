@@ -28,6 +28,7 @@ class model
     void load_train(const std::string& path);
     void save_infer(const std::string& path);
     void load_infer(const std::string& path);
+    void load_backbone(const std::string& path);
     const dlib::yolo_options& get_options() const;
     void adjust_nms(
         const float iou_threshold,
@@ -40,8 +41,6 @@ class model
     private:
     struct impl;
     std::unique_ptr<impl> pimpl;
-    auto& get_train_net();
-    auto& get_infer_net();
     friend class sgd_trainer;
 };
 
