@@ -73,7 +73,7 @@ macro(add_dlib_library name)
     install(TARGETS ${name} DESTINATION lib)
 endmacro()
 
-fetch_content(dlib add-get-random-beta https://github.com/arrufat/dlib.git)
+fetch_content(dlib master https://github.com/davisking/dlib.git)
 fetch_content(json v3.10.5 https://github.com/nlohmann/json.git)
 
 add_compile_options(-ftemplate-depth=2000)
