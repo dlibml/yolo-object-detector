@@ -73,11 +73,11 @@ try
 
     model net;
 
-    // if (parser.option("architecture"))
-    // {
-    //     std::clog << net << '\n';
-    //     return EXIT_SUCCESS;
-    // }
+    if (parser.option("architecture"))
+    {
+        net.print(std::clog);
+        return EXIT_SUCCESS;
+    }
 
     // check for incompatible input options
     const auto input_options = std::array{"image", "images", "input", "webcam"};
