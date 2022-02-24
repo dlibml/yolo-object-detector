@@ -591,6 +591,7 @@ try
             else
                 std::cout << " linear ";
             std::cout << "warm-up epochs (" << warmup_steps << " steps)\n";
+            std::cout << "image size: " << image_size << '\n';
             trainer.print(std::cout);
         }
         while (trainer.get_train_one_step_calls() < warmup_steps)
