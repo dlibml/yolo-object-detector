@@ -39,6 +39,7 @@ try
     parser.add_option("cosine", "epochs for the cosine scheduler (default: 0.0)", 1);
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
+    parser.add_option("shrink-factor", "learning rate shrink factor (default: 0.1)", 1);
     parser.add_option("patience", "number of epochs without progress (default: 3.0)", 1);
     parser.add_option("test-period", "test a batch every <arg> steps (default: 0)", 1);
     parser.add_option("warmup", "warm-up epochs (default: 0.0)", 1);
@@ -89,12 +90,15 @@ try
     parser.check_option_arg_range<double>("perspective", 0, 1);
     parser.check_option_arg_range<double>("min-coverage", 0, 1);
     parser.check_option_arg_range<double>("hsi", 0, 1);
-    parser.check_incompatible_options("patience", "cosine");
+    parser.check_option_arg_range<double>("shrink-factor", 1e-99, 1);
+    parser.check_incompatible_options("cosine", "patience");
+    parser.check_incompatible_options("cosine", "shrink-factor");
     parser.check_incompatible_options("backbone", "tune");
     parser.check_sub_option("warmup", "burnin");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 3);
+    const double shrink_factor = get_option(parser, "shrink-factor", 0.1);
     const double warmup_epochs = get_option(parser, "warmup", 0.0);
     const double cosine_epochs = get_option(parser, "cosine", 0.0);
     if (parser.option("cosine"))
@@ -619,7 +623,7 @@ try
         {
             trainer.set_learning_rate(learning_rate);
             trainer.set_min_learning_rate(min_learning_rate);
-            trainer.set_learning_rate_shrink_factor(0.1);
+            trainer.set_learning_rate_shrink_factor(shrink_factor);
             if (test_period > 0)
             {
                 trainer.set_iterations_without_progress_threshold(
