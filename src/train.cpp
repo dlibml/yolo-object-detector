@@ -633,7 +633,7 @@ try
                 trainer.set_test_iterations_without_progress_threshold(0);
             }
         }
-        trainer.print(std::clog);
+        trainer.print(std::cout);
     }
     else
     {
