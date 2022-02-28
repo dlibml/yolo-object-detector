@@ -22,16 +22,23 @@ namespace yolor
         using conv = ACT<BN<add_layer<con_<nf, ks, ks, s, s, ks/2, ks/2>, SUBNET>>>;
 
         template <long num_filters, typename SUBNET>
-        using bottleneck = add_prev10<conv<num_filters, 3, 1, conv<num_filters, 1, 1, tag10<SUBNET>>>>;
+        using bottleneck = conv<num_filters, 3, 1, conv<num_filters, 1, 1, SUBNET>>;
 
-        template <typename SUBNET> using bottleneck_64 = bottleneck<64, SUBNET>;
+        template <long num_filters, typename SUBNET>
+        using resbottleneck = add_prev10<bottleneck<num_filters, tag10<SUBNET>>>;
+
+        template <typename SUBNET> using resbottleneck_64 = resbottleneck<64, SUBNET>;
+        template <typename SUBNET> using resbottleneck_128 = resbottleneck<128, SUBNET>;
+        template <typename SUBNET> using resbottleneck_192 = resbottleneck<192, SUBNET>;
+        template <typename SUBNET> using resbottleneck_256 = resbottleneck<256, SUBNET>;
+        template <typename SUBNET> using resbottleneck_320 = resbottleneck<320, SUBNET>;
+        template <typename SUBNET> using resbottleneck_384 = resbottleneck<384, SUBNET>;
+        template <typename SUBNET> using resbottleneck_512 = resbottleneck<512, SUBNET>;
+        template <typename SUBNET> using resbottleneck_640 = resbottleneck<640, SUBNET>;
         template <typename SUBNET> using bottleneck_128 = bottleneck<128, SUBNET>;
         template <typename SUBNET> using bottleneck_192 = bottleneck<192, SUBNET>;
         template <typename SUBNET> using bottleneck_256 = bottleneck<256, SUBNET>;
         template <typename SUBNET> using bottleneck_320 = bottleneck<320, SUBNET>;
-        template <typename SUBNET> using bottleneck_384 = bottleneck<384, SUBNET>;
-        template <typename SUBNET> using bottleneck_512 = bottleneck<512, SUBNET>;
-        template <typename SUBNET> using bottleneck_640 = bottleneck<640, SUBNET>;
 
         template <long num_filters, size_t N, template <typename> class BLOCK, typename SUBNET>
         using bottleneck_cspf = conv<num_filters, 1, 1,
@@ -48,15 +55,15 @@ namespace yolor
                            tag7<conv<num_filters, 1, 1, SUBNET>>>>>>>>>>>;
 
         template <typename INPUT> using backbone =
-        ptag6<bottleneck_cspf<640, 3, bottleneck_320,
+        ptag6<bottleneck_cspf<640, 3, resbottleneck_320,
               conv<640, 3, 2,
-        ptag5<bottleneck_cspf<512, 3, bottleneck_256,
+        ptag5<bottleneck_cspf<512, 3, resbottleneck_256,
               conv<512, 3, 2,
-        ptag4<bottleneck_cspf<384, 7, bottleneck_192,
+        ptag4<bottleneck_cspf<384, 7, resbottleneck_192,
               conv<384, 3, 2,
-        ptag3<bottleneck_cspf<256, 7, bottleneck_128,
+        ptag3<bottleneck_cspf<256, 7, resbottleneck_128,
               conv<256, 3, 2,
-              bottleneck_cspf<128, 3, bottleneck_64,
+              bottleneck_cspf<128, 3, resbottleneck_64,
               conv<128, 3, 2,
               conv<64, 3, 1,
               reorg<INPUT>
@@ -90,18 +97,18 @@ namespace yolor
                  concat2<tag1, tag6,
             tag1<conv<320, 3, 2, skip2<
                  yolo<ytag5,
-            tag2<conv<512, 3, 1,
-                 bottleneck_csp2<256, 3, bottleneck_256,
+                 conv<512, 3, 1,
+            tag2<bottleneck_csp2<256, 3, bottleneck_256,
                  concat2<tag1, tag5,
             tag1<conv<256, 3, 2, skip2<
                  yolo<ytag4,
-            tag2<conv<384, 3, 1,
-                 bottleneck_csp2<192, 3, bottleneck_192,
+                 conv<384, 3, 1,
+            tag2<bottleneck_csp2<192, 3, bottleneck_192,
                  concat2<tag1, tag4,
             tag1<conv<192, 3, 2, skip2<
                  yolo<ytag3,
-            tag2<conv<256, 3, 1,
-                 bottleneck_csp2<128, 3, bottleneck_128,
+                 conv<256, 3, 1,
+            tag2<bottleneck_csp2<128, 3, bottleneck_128,
                  concat2<tag1, tag2,
             tag1<conv<128, 1, 1, add_skip_layer<ptag3,
             tag2<upsample<2,
