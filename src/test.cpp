@@ -68,11 +68,8 @@ try
     else if (not sync_path.empty() and file_exists(sync_path))
     {
         auto trainer = sgd_trainer(net);
-        trainer.set_synchronization_file(sync_path);
-        num_steps = trainer.get_train_one_step_calls();
+        trainer.load_from_synchronization_file(sync_path);
         std::clog << "Lodaded network from " << sync_path << '\n';
-        std::clog << "learning rate:  " << trainer.get_learning_rate() << '\n';
-        std::clog << "training steps: " << num_steps << '\n';
         export_model = true;
     }
     else
