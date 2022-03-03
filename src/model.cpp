@@ -22,7 +22,6 @@ model::model(const yolo_options& options) : pimpl(std::make_unique<model::impl>(
     const long num_anchors_p3 = options.anchors.at(tag_id<ytag3>::id).size();
     const long num_anchors_p4 = options.anchors.at(tag_id<ytag4>::id).size();
     const long num_anchors_p5 = options.anchors.at(tag_id<ytag5>::id).size();
-    // const long num_anchors_p6 = options.anchors.at(tag_id<ytag6>::id).size();
     layer<ytag3, 2>(net).layer_details().set_num_filters(num_anchors_p3 * (num_classes + 5));
     layer<ytag4, 2>(net).layer_details().set_num_filters(num_anchors_p4 * (num_classes + 5));
     layer<ytag5, 2>(net).layer_details().set_num_filters(num_anchors_p5 * (num_classes + 5));
