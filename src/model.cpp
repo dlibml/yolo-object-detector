@@ -1,7 +1,6 @@
 #include "model.h"
 
 #include "model_impl.h"
-#include "yolor.h"
 
 using namespace dlib;
 
@@ -17,23 +16,16 @@ model::model(const yolo_options& options) : pimpl(std::make_unique<model::impl>(
     using namespace dlib;
     // setup the leaky relu activations
     visit_computational_layers(net, [](leaky_relu_& l) { l = leaky_relu_(0.1); });
-    // disable bias in all convolutions
-    visit_computational_layers(net, [](auto& l) { disable_bias(l); });
-    // re-enable the biases in the convolutions for YOLO layers
-    layer<ytag3, 2>(net).layer_details().enable_bias();
-    layer<ytag4, 2>(net).layer_details().enable_bias();
-    layer<ytag5, 2>(net).layer_details().enable_bias();
-    layer<ytag6, 2>(net).layer_details().enable_bias();
+    disable_duplicative_biases(net);
     // set the number of filters in the convolutions for YOLO layers
     const long num_classes = options.labels.size();
     const long num_anchors_p3 = options.anchors.at(tag_id<ytag3>::id).size();
     const long num_anchors_p4 = options.anchors.at(tag_id<ytag4>::id).size();
     const long num_anchors_p5 = options.anchors.at(tag_id<ytag5>::id).size();
-    const long num_anchors_p6 = options.anchors.at(tag_id<ytag6>::id).size();
+    // const long num_anchors_p6 = options.anchors.at(tag_id<ytag6>::id).size();
     layer<ytag3, 2>(net).layer_details().set_num_filters(num_anchors_p3 * (num_classes + 5));
     layer<ytag4, 2>(net).layer_details().set_num_filters(num_anchors_p4 * (num_classes + 5));
     layer<ytag5, 2>(net).layer_details().set_num_filters(num_anchors_p5 * (num_classes + 5));
-    layer<ytag6, 2>(net).layer_details().set_num_filters(num_anchors_p6 * (num_classes + 5));
     // increase the batch normalization window size
     set_all_bn_running_stats_window_sizes(net, 1000);
 }

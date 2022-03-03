@@ -179,17 +179,10 @@ try
     image_dataset_metadata::load_image_dataset_metadata(test_dataset, data_path + "/testing.xml");
     std::clog << "# test images: " << test_dataset.images.size() << '\n';
 
-    // These are the anchors computed on the OMNIOUS product_2021-02-25 dataset for avg IOU > 0.7
-    // size: 640
-    // options.add_anchors<ytag3>({{30, 29}, {38, 52}, {54, 47}});
-    // options.add_anchors<ytag4>({{53, 88}, {85, 59}, {99, 103}});
-    // options.add_anchors<ytag5>({{105, 181}, {170, 121}, {197, 211}});
-    // options.add_anchors<ytag6>({{193, 329}, {365, 258}, {268, 493}, {469, 483}});
-    // size: 512
-    options.add_anchors<ytag3>({{28, 26}, {34, 51}, {53, 47}});
-    options.add_anchors<ytag4>({{49, 84}, {83, 58}, {99, 103}});
-    options.add_anchors<ytag5>({{107, 186}, {167, 123}, {195, 211}});
-    options.add_anchors<ytag6>({{179, 333}, {343, 236}, {321, 425}});
+    // Default YOLO anchors
+    options.add_anchors<ytag3>({{10, 13}, {16, 30}, {33, 23}});
+    options.add_anchors<ytag4>({{30, 61}, {62, 45}, {59, 119}});
+    options.add_anchors<ytag5>({{116, 90}, {156, 198}, {373, 326}});
 
     model net(options);
     if (parser.option("architecture"))
