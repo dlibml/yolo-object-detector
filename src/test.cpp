@@ -14,6 +14,7 @@ auto main(const int argc, const char** argv) -> int
 try
 {
     const auto num_threads = std::thread::hardware_concurrency();
+    const auto num_threads_str = std::to_string(num_threads);
     command_line_parser parser;
     parser.add_option("batch", "batch size for inference (default: 32)", 1);
     parser.add_option("conf", "detection confidence threshold (default: 0.25)", 1);
@@ -22,10 +23,7 @@ try
     parser.add_option("nms-agnostic", "class-agnositc NMS");
     parser.add_option("size", "image size for inference (default: 512)", 1);
     parser.add_option("sync", "load this sync file", 1);
-    parser.add_option(
-        "workers",
-        "number of data loaders (default: " + std::to_string(num_threads) + ")",
-        1);
+    parser.add_option("workers", "number data loaders (default: " + num_threads_str + ")", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("architecture", "print the network architecture");
