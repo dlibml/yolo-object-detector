@@ -1,6 +1,7 @@
 #include "detector_utils.h"
 #include "metrics.h"
 #include "model.h"
+#include "sgd_trainer.h"
 
 #include <dlib/cmd_line_parser.h>
 #include <dlib/data_io.h>
@@ -8,7 +9,6 @@
 #include <dlib/gui_widgets.h>
 #include <dlib/image_io.h>
 #include <tools/imglab/src/metadata_editor.h>
-#include "sgd_trainer.h"
 
 using namespace dlib;
 
@@ -35,8 +35,9 @@ try
     parser.add_option("workers", "number data loaders (default: " + num_threads_str + ")", 1);
 
     parser.set_group_name("Scheduler Options");
-    parser.add_option("burnin", "use exponential burn-in (default: 1)", 1);
-    parser.add_option("cosine", "epochs for the cosine scheduler (default: 0.0)", 1);
+    parser.add_option("burnin", "use exponential burn-in (default: 1.0)", 1);
+    parser.add_option("epochs", "total epochs for the linear scheduler (default: 0.0)", 1);
+    parser.add_option("cosine", "use cosine scheduler instead of linear");
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
     parser.add_option("shrink-factor", "learning rate shrink factor (default: 0.1)", 1);
@@ -91,18 +92,19 @@ try
     parser.check_option_arg_range<double>("min-coverage", 0, 1);
     parser.check_option_arg_range<double>("hsi", 0, 1);
     parser.check_option_arg_range<double>("shrink-factor", 1e-99, 1);
-    parser.check_incompatible_options("cosine", "patience");
-    parser.check_incompatible_options("cosine", "shrink-factor");
+    parser.check_incompatible_options("epochs", "patience");
+    parser.check_incompatible_options("epochs", "shrink-factor");
     parser.check_incompatible_options("backbone", "tune");
+    parser.check_sub_option("epochs", "cosine");
     parser.check_sub_option("warmup", "burnin");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
     const size_t patience = get_option(parser, "patience", 3);
     const double shrink_factor = get_option(parser, "shrink-factor", 0.1);
     const double warmup_epochs = get_option(parser, "warmup", 0.0);
-    const double cosine_epochs = get_option(parser, "cosine", 0.0);
-    if (parser.option("cosine"))
-        DLIB_CASSERT(cosine_epochs > warmup_epochs);
+    const double num_epochs = get_option(parser, "epochs", 0.0);
+    if (parser.option("epochs"))
+        DLIB_CASSERT(num_epochs > warmup_epochs);
     double gain_h = 0.5, gain_s = 0.5, gain_i = 0.5;
     if (parser.option("hsi"))
     {
@@ -600,16 +602,27 @@ try
     // setup the trainer after the warm-up
     if (trainer.get_train_one_step_calls() == warmup_steps)
     {
-        if (cosine_epochs > 0)
+        if (num_epochs > 0)
         {
-            const size_t cosine_steps = (cosine_epochs - warmup_epochs) * num_steps_per_epoch;
-            std::cout << "training with cosine scheduler for " << cosine_epochs - warmup_epochs
-                      << " epochs (" << cosine_steps << " steps)\n";
-            // clang-format off
-            const matrix<double> learning_rate_schedule =
-            min_learning_rate + 0.5 * (learning_rate - min_learning_rate) *
-            (1 + cos(linspace(0, cosine_steps, cosine_steps) * pi / cosine_steps));
-            // clang-format on
+            const size_t num_training_steps = (num_epochs - warmup_epochs) * num_steps_per_epoch;
+            matrix<double> learning_rate_schedule;
+            if (parser.option("cosine"))
+            {
+                std::cout << "training with cosine scheduler for " << num_epochs - warmup_epochs
+                          << " epochs (" << num_training_steps << " steps)\n";
+                learning_rate_schedule =
+                    min_learning_rate +
+                    0.5 * (learning_rate - min_learning_rate) *
+                        (1 + cos(linspace(0, num_training_steps, num_training_steps) * pi /
+                                 num_training_steps));
+            }
+            else
+            {
+                std::cout << "training with linear scheduler for " << num_epochs - warmup_epochs
+                          << " epochs (" << num_training_steps << " steps)\n";
+                learning_rate_schedule =
+                    linspace(learning_rate, min_learning_rate, num_training_steps);
+            }
             trainer.set_learning_rate_schedule(learning_rate_schedule);
         }
         else
