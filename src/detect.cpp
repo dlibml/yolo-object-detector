@@ -365,23 +365,12 @@ try
 
     rgb_image resized;
     int width, height;
-    rectangle_transform tform;
     {
         cv::Mat cv_tmp;
         vid_src.read(cv_tmp);
         width = cv_tmp.cols;
         height = cv_tmp.rows;
         std::clog << "original image size: " << width << 'x' << height << '\n';
-        const auto scale = image_size / std::max<double>(height, width);
-        resized.set_size(
-            (static_cast<long>(height * scale + 0.5) / 32) * 32,
-            (static_cast<long>(width * scale + 0.5) / 32) * 32);
-        tform = point_transform_affine(
-            {static_cast<double>(width) / resized.nc(),
-             0,
-             0,
-             static_cast<double>(height) / resized.nr()},
-            {0, 0});
     }
 
     if (not output_path.empty())
@@ -407,7 +396,7 @@ try
             assign_image(image, tmp);
 
         const auto t0 = std::chrono::steady_clock::now();
-        resize_image(image, resized);
+        const auto tform = preprocess_image(image, resized, image_size, false);
         auto detections = net(resized, win.conf_thresh);
         postprocess_detections(tform, detections);
         const auto t1 = std::chrono::steady_clock::now();

@@ -32,7 +32,10 @@ template <typename T, typename U> bool overlaps_any_box(
 dlib::rectangle_transform preprocess_image(
     const dlib::matrix<dlib::rgb_pixel>& image,
     dlib::matrix<dlib::rgb_pixel>& output,
-    const long image_size);
+    const long image_size,
+    const bool use_letterbox = true,
+    const long downscale_factor = 32
+);
 
 void postprocess_detections(
     const dlib::rectangle_transform& tform,
