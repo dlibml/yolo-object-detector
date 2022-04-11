@@ -55,7 +55,7 @@ try
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
 
     parser.set_group_name("Pseudo-labelling Options");
-    parser.add_option("check", "check that all files in the dataset exist");
+    parser.add_option("dry-run", "check that all files in the dataset exist");
     parser.add_option("update", "update this dataset with pseudo-labels", 1);
     parser.add_option("overlap", "overlap between truth and pseudo-labels", 2);
 
@@ -102,7 +102,7 @@ try
     parser.check_option_arg_range<double>("nms", 0, 1);
     parser.check_option_arg_range<double>("overlap", 0, 1);
     parser.check_sub_option("update", "overlap");
-    parser.check_sub_option("update", "check");
+    parser.check_sub_option("update", "dry-run");
 
     const size_t image_size = get_option(parser, "size", 512);
     const double conf_thresh = get_option(parser, "conf", 0.25);
@@ -222,7 +222,7 @@ try
     // Process the dataset if for pseudo labeling
     if (not dataset_path.empty())
     {
-        const bool check_dataset = parser.option("check");
+        const bool check_dataset = parser.option("dry-run");
         image_dataset_metadata::dataset dataset;
         image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_path);
         locally_change_current_dir chdir(get_parent_directory(file(dataset_path)));
@@ -365,7 +365,6 @@ try
         win.mirror = true;
     }
 
-    rgb_image resized;
     int width, height;
     {
         cv::Mat cv_tmp;
@@ -384,7 +383,7 @@ try
             cv::Size(width, height));
     }
 
-    rgb_image image;
+    rgb_image image, resized;
     running_stats_decayed<float> det_fps(100);
     while (not win.is_closed())
     {
