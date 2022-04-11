@@ -29,13 +29,18 @@ void webcam_window::show_recording_icon()
 void webcam_window::print_keyboard_shortcuts()
 {
     std::clog << "Keyboard Shortcuts:" << std::endl;
+    std::clog << "  +                         increase confidence threshold by 0.01\n";
+    std::clog << "  -                         decrease confidence threshold by 0.01\n";
     std::clog << "  c                         toggle confidence display\n";
+    std::clog << "  f                         decrease fill transparency\n";
+    std::clog << "  g                         increase fill transparency\n";
+    std::clog << "  j                         decrease thickness by 1 pixel\n";
+    std::clog << "  k                         increase thickness by 1 pixel\n";
     std::clog << "  h                         display keyboard shortcuts\n";
     std::clog << "  l                         toggle label display\n";
     std::clog << "  m                         toggle mirror mode\n";
-    std::clog << "  +, k                      increase confidence threshold by 0.01\n";
-    std::clog << "  -, j                      decrease confidence threshold by 0.01\n";
     std::clog << "  r                         toggle recording (needs --output option)\n";
+    std::clog << "  t                         set thickness to 10\n";
     std::clog << "  q                         quit the application\n";
     std::clog << "  w                         toggle weighted thickness\n";
     std::clog << std::endl;
@@ -68,27 +73,37 @@ void webcam_window::on_keydown(unsigned long key, bool /*is_printable*/, unsigne
 {
     switch (key)
     {
+    case '+':
+        conf_thresh = std::min(conf_thresh + 0.01f, 1.0f);
+        update_title();
+        break;
+    case '-':
+        conf_thresh = std::max(conf_thresh - 0.01f, 0.01f);
+        update_title();
+        break;
     case 'c':
         opts.draw_confidence = !opts.draw_confidence;
         break;
+    case 'f':
+        opts.fill = opts.fill > 0 ? opts.fill - 1 : 0;
+        break;
+    case 'g':
+        opts.fill = opts.fill < 255 ? opts.fill + 1 : 255;
+        break;
     case 'h':
         print_keyboard_shortcuts();
+        break;
+    case 'k':
+        opts.thickness += 1;
+        break;
+    case 'j':
+        opts.thickness = opts.thickness > 0 ? opts.thickness - 1 : 0;
         break;
     case 'l':
         opts.draw_labels = !opts.draw_labels;
         break;
     case 'm':
         mirror = !mirror;
-        break;
-    case '+':
-    case 'k':
-        conf_thresh = std::min(conf_thresh + 0.01f, 1.0f);
-        update_title();
-        break;
-    case '-':
-    case 'j':
-        conf_thresh = std::max(conf_thresh - 0.01f, 0.01f);
-        update_title();
         break;
     case 'r':
         if (not can_record)
@@ -98,6 +113,9 @@ void webcam_window::on_keydown(unsigned long key, bool /*is_printable*/, unsigne
             show_recording_icon();
         else
             clear_overlay();
+        break;
+    case 't':
+        opts.thickness = 10;
         break;
     case 'q':
         close_window();
