@@ -29,7 +29,7 @@ try
     parser.add_option("fuse", "fuse network layers and save the net", 1);
     parser.add_option("nms", "IoU and area covered thresholds (default: 0.45 1)", 2);
     parser.add_option("no-classwise", "disable classwise NMS");
-    parser.add_option("size", "image size for inference (default: 512)", 1);
+    parser.add_option("size", "image long side for inference (default: 512)", 1);
     parser.add_option("sync", "load this sync file", 1);
 
     parser.set_group_name("Display Options");
@@ -50,6 +50,7 @@ try
     parser.add_option("input", "input file to process instead of the camera", 1);
     parser.add_option("image", "path to image file", 1);
     parser.add_option("images", "path to directory with images", 1);
+    parser.add_option("letterbox", "force letter box on single inference");
     parser.add_option("output", "output file to write out the processed input", 1);
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
 
@@ -115,6 +116,7 @@ try
     const std::string mapping_path = get_option(parser, "mapping", "");
     const std::string dataset_path = get_option(parser, "update", "");
     const std::string fused_path = get_option(parser, "fuse", "");
+    const bool use_letterbox = parser.option("letterbox");
     float fps = get_option(parser, "fps", 30);
     double nms_iou_threshold = 0.45;
     double nms_ratio_covered = 1.0;
@@ -246,7 +248,7 @@ try
             load_image(image, image_info.filename);
             image_info.width = image.nc();
             image_info.height = image.nr();
-            const auto tform = preprocess_image(image, letterbox, image_size);
+            const auto tform = preprocess_image(image, letterbox, image_size, use_letterbox);
             auto detections = net(letterbox, conf_thresh);
             postprocess_detections(tform, detections);
             std::vector<image_dataset_metadata::box> boxes;
@@ -276,7 +278,7 @@ try
     {
         rgb_image image, letterbox;
         load_image(image, parser.option("image").argument());
-        const auto tform = preprocess_image(image, letterbox, image_size);
+        const auto tform = preprocess_image(image, letterbox, image_size, use_letterbox);
         const auto t0 = std::chrono::steady_clock::now();
         auto detections = net(letterbox, win.conf_thresh);
         const auto t1 = std::chrono::steady_clock::now();
@@ -312,7 +314,7 @@ try
         {
             const auto& file = files[i];
             load_image(image, file.full_name());
-            const auto tform = preprocess_image(image, letterbox, image_size);
+            const auto tform = preprocess_image(image, letterbox, image_size, use_letterbox);
             const auto t0 = std::chrono::steady_clock::now();
             auto detections = net(letterbox, win.conf_thresh);
             const auto t1 = std::chrono::steady_clock::now();
@@ -396,7 +398,7 @@ try
             assign_image(image, tmp);
 
         const auto t0 = std::chrono::steady_clock::now();
-        const auto tform = preprocess_image(image, resized, image_size, false);
+        const auto tform = preprocess_image(image, resized, image_size, use_letterbox);
         auto detections = net(resized, win.conf_thresh);
         postprocess_detections(tform, detections);
         const auto t1 = std::chrono::steady_clock::now();

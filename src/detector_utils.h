@@ -34,7 +34,7 @@ dlib::rectangle_transform preprocess_image(
     dlib::matrix<dlib::rgb_pixel>& output,
     const long image_size,
     const bool use_letterbox = true,
-    const long downscale_factor = 32
+    const long stride = 32
 );
 
 void postprocess_detections(
