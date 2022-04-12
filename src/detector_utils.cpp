@@ -14,8 +14,8 @@ dlib::rectangle_transform preprocess_image(
     const double height = image.nr();
     const auto scale = image_size / std::max<double>(height, width);
     output.set_size(
-        (static_cast<long>(height * scale + 0.5) / stride) * stride,
-        (static_cast<long>(width * scale + 0.5) / stride) * stride);
+        (lround(height * scale) / stride) * stride,
+        (lround(width * scale) / stride) * stride);
     resize_image(image, output);
     return dlib::point_transform_affine({width / output.nc(), 0, 0, height / output.nr()}, {0, 0});
 }
