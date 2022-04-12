@@ -643,6 +643,7 @@ try
                 trainer.set_test_iterations_without_progress_threshold(0);
             }
         }
+        trainer.get_net(force_flush_to_disk::yes);
         trainer.print(std::cout);
     }
     else
