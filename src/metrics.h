@@ -83,7 +83,7 @@ metrics_details compute_metrics(
 
 void save_model(
     model& net,
-    const std::string& sync_path,
+    const std::string& name,
     size_t num_steps,
     double map,
     double wf1);
