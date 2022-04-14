@@ -36,14 +36,14 @@ try
 
     parser.set_group_name("Scheduler Options");
     parser.add_option("burnin", "use exponential burn-in (default: 1.0)", 1);
-    parser.add_option("epochs", "total epochs for the linear scheduler (default: 0.0)", 1);
+    parser.add_option("epochs", "total epochs for linear scheduler (default: 0.0)", 1);
     parser.add_option("cosine", "use cosine scheduler instead of linear");
     parser.add_option("learning-rate", "initial learning rate (default: 0.001)", 1);
     parser.add_option("min-learning-rate", "minimum learning rate (default: 1e-6)", 1);
     parser.add_option("shrink-factor", "learning rate shrink factor (default: 0.1)", 1);
     parser.add_option("patience", "number of epochs without progress (default: 3.0)", 1);
     parser.add_option("test-period", "test a batch every <arg> steps (default: 0)", 1);
-    parser.add_option("warmup", "warm-up epochs (default: 0.0)", 1);
+    parser.add_option("warmup", "number warm-up epochs (default: 0.0)", 1);
 
     parser.set_group_name("Optimizer Options");
     parser.add_option("momentum", "sgd momentum (default: 0.9)", 1);
