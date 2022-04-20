@@ -15,7 +15,7 @@ try
     parser.add_option("threads", "number of workers (default: " + num_threads_str + ")", 1);
     parser.add_option("overwrite", "overwrite existing files");
     parser.add_option("quality", "image quality factor (default: 75.0)", 1);
-    parser.add_option("log", "error log file (default: error.log", 1);
+    parser.add_option("log", "error log file (default: error.log)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("help", "display this message and exit");
@@ -29,8 +29,12 @@ try
     }
 
     const fs::path out_root(get_option(parser, "output", "converted_images"));
-    if (not fs::create_directories(out_root))
-        throw std::runtime_error("error while creating output directory: " + out_root.string());
+    auto out_path(out_root);
+    out_path /= parser[0];
+    if (not fs::exists(out_root))
+        if (not fs::create_directories(out_root))
+            throw std::runtime_error(
+                "error while creating output directory: " + out_root.string());
 
     num_threads = get_option(parser, "threads", num_threads);
     const bool overwrite = parser.option("overwrite");
