@@ -17,7 +17,8 @@ using namespace dlib;
 using rgb_image = matrix<rgb_pixel>;
 using fseconds = std::chrono::duration<float>;
 using fms = std::chrono::duration<float, std::milli>;
-const auto image_types = match_endings(".jpg .jpeg .gif .png .bmp .JPG JPEG .GIF .PNG .BMP");
+const auto image_types =
+    match_endings(".jpg .jpeg .gif .png .bmp .webp .JPG JPEG .GIF .PNG .BMP .WEBP");
 
 auto main(const int argc, const char** argv) -> int
 try
