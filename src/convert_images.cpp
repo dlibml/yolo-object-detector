@@ -1,32 +1,22 @@
 #include <dlib/cmd_line_parser.h>
-#include <dlib/data_io.h>
 #include <dlib/image_io.h>
+#include <dlib/misc_api.h>
+#include <filesystem>
 
-using rgb_image = dlib::matrix<dlib::rgb_pixel>;
-
-auto create_directories(const std::string& path) -> void
-{
-    std::istringstream sin(path);
-    std::string part;
-    std::vector<std::string> parts = dlib::split(path, "/");
-    for (size_t k = 0; k < parts.size(); ++k)
-    {
-        part += parts[k] + '/';
-        dlib::create_directory(part);
-    }
-}
+namespace fs = std::filesystem;
+using namespace dlib;
 
 auto main(const int argc, const char** argv) -> int
 try
 {
-    const auto num_threads = std::thread::hardware_concurrency();
-    dlib::command_line_parser parser;
-    parser.add_option("output", "path to the output directory", 1);
-    parser.add_option("quality", "JPEG quality factor (default: 75)", 1);
-    parser.add_option(
-        "workers",
-        "number of threads (default: " + std::to_string(num_threads) + ")",
-        1);
+    command_line_parser parser;
+    auto num_threads = std::thread::hardware_concurrency();
+    const auto num_threads_str = std::to_string(num_threads);
+    parser.add_option("output", "output directory (default: converted_images)", 1);
+    parser.add_option("threads", "number of workers (default: " + num_threads_str + ")", 1);
+    parser.add_option("overwrite", "overwrite existing files");
+    parser.add_option("quality", "image quality factor (default: 75.0)", 1);
+    parser.add_option("log", "error log file (default: error.log", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("help", "display this message and exit");
@@ -34,68 +24,92 @@ try
 
     if (parser.number_of_arguments() == 0 or parser.option("h") or parser.option("help"))
     {
+        std::cout << "Usage: " << argv[0] << " [OPTIONS] DIR_1 [DIR_2...]\n";
         parser.print_options();
         return EXIT_SUCCESS;
     }
 
-    parser.check_option_arg_range<int>("quality", 0, 100);
-    const int quality = get_option(parser, "quality", 75);
-    const size_t num_workers = get_option(parser, "workers", num_threads);
-    const std::string output_root = get_option(parser, "output", "");
-    if (output_root.empty())
+    const fs::path out_root(get_option(parser, "output", "converted_images"));
+    if (not fs::create_directories(out_root))
+        throw std::runtime_error("error while creating output directory: " + out_root.string());
+
+    num_threads = get_option(parser, "threads", num_threads);
+    const bool overwrite = parser.option("overwrite");
+    const float quality = get_option(parser, "quality", 75.f);
+    const std::string error_log = get_option(parser, "log", "error.log");
+
+    std::vector<std::string> files;
+    if (fs::exists("files.dat"))
     {
-        std::cerr << "specify the output path with --output\n";
-        return EXIT_FAILURE;
+        std::cout << "found files.dat, deserializing\n";
+        deserialize("files.dat") >> files;
     }
-
-    create_directories(output_root);
-
-    std::vector<dlib::file> dataset_files;
-    for (size_t i = 0; i < parser.number_of_arguments(); ++i)
+    else
     {
-        dataset_files.emplace_back(parser[i]);
-    }
-
-    for (const auto& dataset_file : dataset_files)
-    {
-        const auto input_dir = dlib::get_parent_directory(dataset_file).full_name();
-        dlib::image_dataset_metadata::dataset dataset;
-        load_image_dataset_metadata(dataset, dataset_file.full_name());
-
-        std::cout << dataset_file.full_name() << '\n';
-        if (not dataset.name.empty())
-            std::cout << dataset.name;
-        if (not dataset.comment.empty())
-            std::cout << " (" << dataset.comment << ")";
-        std::cout << ": " << dataset.images.size() << " images\n";
-
-        dlib::parallel_for_verbose(
-            num_workers,
-            0,
-            dataset.images.size(),
-            [&](size_t i)
+        for (const auto& item : fs::recursive_directory_iterator(parser[0]))
+        {
+            if (item.is_directory())
             {
-                rgb_image image;
-                auto& info = dataset.images[i];
-                dlib::load_image(image, input_dir + "/" + info.filename);
-                DLIB_CASSERT(info.width == image.nc() and info.height == image.nr());
-                const auto image_path = info.filename.substr(0, info.filename.rfind('/'));
-                auto image_name = dlib::right_substr(info.filename, "/");
-                image_name = image_name.substr(0, image_name.rfind('.')) + ".jpg";
-                const auto output_path = output_root + "/" + image_path;
-                create_directories(output_root + "/" + image_path);
-                dlib::save_jpeg(image, output_path + "/" + image_name, quality);
-                info.filename = info.filename.substr(0, info.filename.rfind('.')) + ".jpg";
-            });
-        dlib::image_dataset_metadata::save_image_dataset_metadata(
-            dataset,
-            output_root + "/" + dataset_file.name());
+                std::cout << "\r" << item << "\t\t\t\t" << std::endl;
+                auto out_dir(out_root);
+                fs::create_directories(out_dir.append(item.path().relative_path().string()));
+            }
+            else if (item.is_regular_file())
+            {
+                files.push_back(item.path().native());
+            }
+            std::cout << "scanned files: " << files.size() << "\r" << std::flush;
+        }
+        serialize("files.dat") << files;
     }
 
-    return EXIT_SUCCESS;
+    std::cout << "converting " << files.size() << " images\n";
+    std::ofstream fout("error.log");
+    if (not fout.good())
+        throw std::runtime_error("error creating " + error_log + " file.");
+    std::mutex mutex;
+
+    parallel_for_verbose(
+        num_threads,
+        0,
+        files.size(),
+        [&](size_t i)
+        {
+            const fs::path file(files.at(i));
+            matrix<rgb_pixel> image;
+            bool error = false;
+            try
+            {
+                load_image(image, file);
+            }
+            catch (const image_load_error& e)
+            {
+                error = true;
+                const std::lock_guard<std::mutex> lock(mutex);
+                fout << file.native() << ": " << e.what() << '\n';
+            }
+            if (not error)
+            {
+                fs::path out_file(out_root);
+                out_file /= file;
+                out_file.replace_extension(".webp");
+                if (not fs::exists(out_file) or overwrite)
+                {
+                    try
+                    {
+                        save_webp(image, out_file, quality);
+                    }
+                    catch (const image_save_error& e)
+                    {
+                        const std::lock_guard<std::mutex> lock(mutex);
+                        fout << file.native() << ": " << e.what() << '\n';
+                    }
+                }
+            }
+        });
 }
+
 catch (const std::exception& e)
 {
-    std::cerr << e.what() << '\n';
-    return EXIT_FAILURE;
+    std::cout << e.what() << '\n';
 }

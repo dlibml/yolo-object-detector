@@ -38,7 +38,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     endif()
 endif()
 
-# find_package(TBB REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # Dependency management
@@ -51,6 +50,7 @@ macro(fetch_content name tag repository)
         GIT_REPOSITORY ${repository}
         GIT_TAG        ${tag}
         GIT_PROGRESS   TRUE
+        GIT_SHALLOW    TRUE
         SOURCE_DIR     ${PROJECT_SOURCE_DIR}/external/${name}
     )
     message("-- Fetching ${name} ${tag}")
