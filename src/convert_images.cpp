@@ -8,6 +8,7 @@ using namespace dlib;
 auto main(const int argc, const char** argv) -> int
 try
 {
+    const std::array<const char*, 5> supported{".jpg", ".jpeg", ".png", ".gif", ".webp"};
     command_line_parser parser;
     auto num_threads = std::thread::hardware_concurrency();
     const auto num_threads_str = std::to_string(num_threads);
@@ -59,7 +60,11 @@ try
             }
             else if (item.is_regular_file())
             {
-                files.push_back(item.path().native());
+                if (std::find(
+                        supported.begin(),
+                        supported.end(),
+                        dlib::tolower(item.path().extension().string())) != supported.end())
+                    files.push_back(item.path().native());
             }
             std::cout << "scanned files: " << files.size() << "\r" << std::flush;
         }
@@ -95,17 +100,28 @@ try
             {
                 fs::path out_file(out_root);
                 out_file /= file;
-                out_file.replace_extension(".webp");
-                if (not fs::exists(out_file) or overwrite)
+                if (out_file.extension() == ".webp")
                 {
-                    try
-                    {
-                        save_webp(image, out_file, quality);
-                    }
-                    catch (const image_save_error& e)
+                    if (not fs::copy_file(file, out_file))
                     {
                         const std::lock_guard<std::mutex> lock(mutex);
-                        fout << file.native() << ": " << e.what() << '\n';
+                        fout << file.native() << ": error copying file\n";
+                    }
+                }
+                else
+                {
+                    out_file.replace_extension(".webp");
+                    if (not fs::exists(out_file) or overwrite)
+                    {
+                        try
+                        {
+                            save_webp(image, out_file, quality);
+                        }
+                        catch (const image_save_error& e)
+                        {
+                            const std::lock_guard<std::mutex> lock(mutex);
+                            fout << file.native() << ": " << e.what() << '\n';
+                        }
                     }
                 }
             }
