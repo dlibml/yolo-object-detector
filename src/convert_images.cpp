@@ -64,9 +64,11 @@ try
                         supported.begin(),
                         supported.end(),
                         dlib::tolower(item.path().extension().string())) != supported.end())
+                {
                     files.push_back(item.path().native());
+                    std::cout << "scanned files: " << files.size() << "\r" << std::flush;
+                }
             }
-            std::cout << "scanned files: " << files.size() << "\r" << std::flush;
         }
         serialize("files.dat") << files;
     }
