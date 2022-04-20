@@ -1,6 +1,5 @@
 #include <dlib/cmd_line_parser.h>
 #include <dlib/image_io.h>
-#include <dlib/misc_api.h>
 #include <filesystem>
 
 namespace fs = std::filesystem;
