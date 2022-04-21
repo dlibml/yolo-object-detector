@@ -31,7 +31,7 @@ auto get_files(const std::string& path, const std::string& out_root) -> std::vec
                 if (std::find(
                         supported.begin(),
                         supported.end(),
-                        dlib::tolower(item.path().extension().string())) != supported.end())
+                        tolower(item.path().extension().string())) != supported.end())
                 {
                     files.push_back(item.path().native());
                     std::cout << "scanned files: " << files.size() << "\r" << std::flush;
