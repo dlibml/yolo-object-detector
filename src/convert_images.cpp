@@ -8,7 +8,7 @@ using namespace dlib;
 
 const std::array<const char*, 5> supported{".jpg", ".jpeg", ".png", ".gif", ".webp"};
 
-auto get_files(const std::string& path, const std::string& out_root) -> std::vector<std::string>
+auto get_files(const fs::path& path, const fs::path& out_root) -> std::vector<std::string>
 {
     std::vector<std::string> files;
     if (fs::exists("files.dat"))
