@@ -59,7 +59,7 @@ try
 
     parser.set_group_name("Pseudo-labelling Options");
     parser.add_option("dry-run", "check that all files in the dataset exist");
-    parser.add_option("update", "update this dataset with pseudo-labels", 1);
+    parser.add_option("pseudo", "update this dataset with pseudo-labels", 1);
     parser.add_option("overlap", "overlap between truth and pseudo-labels", 2);
 
     parser.set_group_name("Help Options");
@@ -104,8 +104,8 @@ try
     parser.check_option_arg_range<double>("conf", 0, 1);
     parser.check_option_arg_range<double>("nms", 0, 1);
     parser.check_option_arg_range<double>("overlap", 0, 1);
-    parser.check_sub_option("update", "overlap");
-    parser.check_sub_option("update", "dry-run");
+    parser.check_sub_option("pseudo", "overlap");
+    parser.check_sub_option("pseudo", "dry-run");
 
     const size_t image_size = get_option(parser, "size", 512);
     const double conf_thresh = get_option(parser, "conf", 0.25);
@@ -117,7 +117,7 @@ try
     const std::string input_path = get_option(parser, "input", "");
     fs::path output_path = get_option(parser, "output", "");
     const std::string mapping_path = get_option(parser, "mapping", "");
-    const std::string dataset_path = get_option(parser, "update", "");
+    const std::string dataset_path = get_option(parser, "pseudo", "");
     const std::string fused_path = get_option(parser, "fuse", "");
     const bool use_letterbox = parser.option("letterbox");
     float fps = get_option(parser, "fps", 30);
@@ -254,7 +254,6 @@ try
             const auto tform = preprocess_image(image, resized, image_size, use_letterbox);
             auto detections = net(resized, conf_thresh);
             postprocess_detections(tform, detections);
-            std::vector<image_dataset_metadata::box> boxes;
             for (const auto& pseudo : detections)
             {
                 if (not overlaps_any_box(image_info.boxes, pseudo, overlaps, classwise_nms))
