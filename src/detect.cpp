@@ -394,7 +394,7 @@ try
     {
         vid_snk = cv::VideoWriter(
             output_path,
-            cv::VideoWriter::fourcc('V', 'P', '0', '8'),
+            cv::VideoWriter::fourcc('X', '2', '6', '4'),
             fps,
             cv::Size(width, height));
     }
