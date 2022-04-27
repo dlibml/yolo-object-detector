@@ -7,7 +7,6 @@
 #include <dlib/cmd_line_parser.h>
 #include <dlib/console_progress_indicator.h>
 #include <dlib/data_io.h>
-#include <dlib/dir_nav.h>
 #include <dlib/image_io.h>
 #include <dlib/opencv.h>
 #include <filesystem>
@@ -19,8 +18,14 @@ using namespace dlib;
 using rgb_image = matrix<rgb_pixel>;
 using fseconds = std::chrono::duration<float>;
 using fms = std::chrono::duration<float, std::milli>;
-const auto image_types =
-    match_endings(".jpg .jpeg .gif .png .bmp .webp .JPG JPEG .GIF .PNG .BMP .WEBP");
+const std::unordered_set<std::string> image_exts{
+    ".bmp",
+    ".gif",
+    ".jpeg",
+    ".jpg",
+    ".png",
+    ".webp",
+};
 
 auto main(const int argc, const char** argv) -> int
 try
@@ -319,17 +324,30 @@ try
 
     if (parser.option("images"))
     {
-        if (not fs::exists(output_path))
-            fs::create_directories(output_path);
         rgb_image image, letterbox;
-        const auto path = parser.option("images").argument();
-        const auto files = get_files_in_directory_tree(path, image_types);
+        std::vector<fs::path> files;
+        const fs::path path = parser.option("images").argument();
+        fs::create_directories(output_path / path.relative_path());
+        for (const auto& item : fs::recursive_directory_iterator(path))
+        {
+            if (item.is_directory())
+            {
+                std::cout << output_path / item.path() << std::endl;
+                fs::create_directories(output_path / item.path());
+            }
+            else if (
+                item.is_regular_file() and
+                image_exts.count(tolower(item.path().extension().string())))
+            {
+                files.push_back(item.path());
+            }
+        }
         std::clog << "# images: " << files.size() << '\n';
         console_progress_indicator progress(files.size());
         for (size_t i = 0; i < files.size(); ++i)
         {
-            const auto& file = files[i];
-            load_image(image, file.full_name());
+            auto& file = files[i];
+            load_image(image, file);
             const auto tform = preprocess_image(image, letterbox, image_size, use_letterbox);
             const auto t0 = std::chrono::steady_clock::now();
             auto detections = net(letterbox, win.conf_thresh);
@@ -339,7 +357,7 @@ try
             draw_bounding_boxes(image, detections, options);
             if (output_path.empty())
             {
-                std::clog << file.full_name() << ": " << t << " ms\n";
+                std::clog << file << ": " << t << " ms\n";
                 for (const auto& d : detections)
                 {
                     std::clog << d.label << " " << d.detection_confidence << ": ";
@@ -347,14 +365,13 @@ try
                     std::clog << "\n";
                 }
                 std::clog << "Total number of detections: " << detections.size() << '\n';
-                win.set_title(file.name());
+                win.set_title(file.filename());
                 win.set_image(image);
                 std::cin.get();
             }
             else
             {
-                const auto filename = file.name().substr(0, file.name().rfind(".")) + ".webp";
-                save_webp(image, output_path / filename);
+                save_webp(image, output_path / file.replace_extension(".webp"), 101);
                 progress.print_status(i + 1, false, std::cerr);
             }
         }
