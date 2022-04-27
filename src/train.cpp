@@ -58,7 +58,7 @@ try
 
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max rotation in degrees (default: 3.0)", 1);
-    parser.add_option("hsi", "HSI colorspace gains (default: 0.5 0.5 0.5)", 3);
+    parser.add_option("hsi", "HSI colorspace gains (default: 0.5 0.2 0.1)", 3);
     parser.add_option("ignore-partial", "ignore partially covered objects instead");
     parser.add_option("min-coverage", "remove partially covered objects (default: 0.5)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
@@ -105,7 +105,7 @@ try
     const double num_epochs = get_option(parser, "epochs", 0.0);
     if (parser.option("epochs"))
         DLIB_CASSERT(num_epochs > warmup_epochs);
-    double gain_h = 0.5, gain_s = 0.5, gain_i = 0.5;
+    double gain_h = 0.5, gain_s = 0.2, gain_i = 0.1;
     if (parser.option("hsi"))
     {
         gain_h = std::stod(parser.option("hsi").argument(0));
@@ -373,6 +373,8 @@ try
                     p.i = put_in_range(0, 255, p.i * dexp);
                 }
                 assign_image(result.first, hsi);
+                disturb_colors(result.first, rnd);
+                apply_random_color_offset(result.first, rnd);
             }
 
             if (rnd.get_random_double() < solarize_prob)
