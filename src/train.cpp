@@ -277,7 +277,7 @@ try
         }
     };
 
-    // Create some data loaders which will load the data, and perform som data augmentation.
+    // Create some data loaders which will load the data, and perform some data augmentation.
     dlib::pipe<std::pair<rgb_image, std::vector<yolo_rect>>> train_data(100 * batch_size);
     const auto train_loader = [&](time_t seed)
     {
@@ -327,7 +327,7 @@ try
 
             if (perspective_frac > 0)
             {
-                const drectangle r(0, 0, image_size - 1, image_size - 1);
+                const drectangle r = get_rect(result.first);
                 std::array ps{r.tl_corner(), r.tr_corner(), r.bl_corner(), r.br_corner()};
                 const double perspective_amount = perspective_frac * image_size;
                 for (auto& corner : ps)
