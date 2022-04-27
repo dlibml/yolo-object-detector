@@ -10,9 +10,11 @@
 #include <dlib/dir_nav.h>
 #include <dlib/image_io.h>
 #include <dlib/opencv.h>
+#include <filesystem>
 #include <opencv2/videoio.hpp>
 #include <tools/imglab/src/metadata_editor.h>
 
+namespace fs = std::filesystem;
 using namespace dlib;
 using rgb_image = matrix<rgb_pixel>;
 using fseconds = std::chrono::duration<float>;
@@ -96,7 +98,7 @@ try
     parser.check_incompatible_options("no-labels", "font");
     parser.check_incompatible_options("no-labels", "offset");
     parser.check_incompatible_options("no-labels", "mapping");
-    parser.check_option_arg_range<size_t>("size", 224, 2048);
+    parser.check_option_arg_range<size_t>("size", 224, 8192);
     parser.check_option_arg_range<size_t>("fill", 0, 255);
     parser.check_option_arg_range<size_t>("thickness", 0, 10);
     parser.check_option_arg_range<double>("conf", 0, 1);
@@ -113,7 +115,7 @@ try
     const bool classwise_nms = not parser.option("no-classwise");
     const size_t webcam_index = get_option(parser, "webcam", 0);
     const std::string input_path = get_option(parser, "input", "");
-    const std::string output_path = get_option(parser, "output", "");
+    fs::path output_path = get_option(parser, "output", "");
     const std::string mapping_path = get_option(parser, "mapping", "");
     const std::string dataset_path = get_option(parser, "update", "");
     const std::string fused_path = get_option(parser, "fuse", "");
@@ -227,7 +229,7 @@ try
         image_dataset_metadata::dataset dataset;
         image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_path);
         locally_change_current_dir chdir(get_parent_directory(file(dataset_path)));
-        rgb_image image, letterbox;
+        rgb_image image, resized;
         double overlap_iou_threshold = 0.45;
         double overlap_ratio_covered = 1;
         if (parser.option("overlap"))
@@ -249,8 +251,8 @@ try
             load_image(image, image_info.filename);
             image_info.width = image.nc();
             image_info.height = image.nr();
-            const auto tform = preprocess_image(image, letterbox, image_size, use_letterbox);
-            auto detections = net(letterbox, conf_thresh);
+            const auto tform = preprocess_image(image, resized, image_size, use_letterbox);
+            auto detections = net(resized, conf_thresh);
             postprocess_detections(tform, detections);
             std::vector<image_dataset_metadata::box> boxes;
             for (const auto& pseudo : detections)
@@ -295,7 +297,21 @@ try
         std::clog << "Total number of detections: " << detections.size() << std::endl;
         draw_bounding_boxes(image, detections, options);
         if (not output_path.empty())
-            save_png(image, output_path);
+        {
+            const auto ext = output_path.extension();
+            if (ext == ".jpg")
+                save_jpeg(image, output_path);
+            else if (ext == ".png")
+                save_png(image, output_path);
+            else if (ext == ".bmp")
+                save_bmp(image, output_path);
+            else if (ext == ".dng")
+                save_dng(image, output_path);
+            else if (ext == ".webp")
+                save_webp(image, output_path);
+            else  // save to lossless WebP otherwise (unknown or empty extension)
+                save_webp(image, output_path.replace_extension(".webp"), 101);
+        }
         win.set_title(parser.option("image").argument());
         win.set_image(image);
         win.wait_until_closed();
@@ -304,8 +320,8 @@ try
 
     if (parser.option("images"))
     {
-        if (not output_path.empty())
-            create_directory(output_path);
+        if (not fs::exists(output_path))
+            fs::create_directories(output_path);
         rgb_image image, letterbox;
         const auto path = parser.option("images").argument();
         const auto files = get_files_in_directory_tree(path, image_types);
@@ -338,8 +354,8 @@ try
             }
             else
             {
-                const auto filename = file.name().substr(0, file.name().rfind(".")) + ".png";
-                save_png(image, output_path + "/" + filename);
+                const auto filename = file.name().substr(0, file.name().rfind(".")) + ".webp";
+                save_webp(image, output_path / filename);
                 progress.print_status(i + 1, false, std::cerr);
             }
         }
