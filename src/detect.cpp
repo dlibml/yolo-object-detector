@@ -61,6 +61,7 @@ try
     parser.add_option("letterbox", "force letter box on single inference");
     parser.add_option("output", "output file to write out the processed input", 1);
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
+    parser.add_option("quality", "lossy image quality factor (0...100)", 1);
 
     parser.set_group_name("Pseudo-labelling Options");
     parser.add_option("dry-run", "check that all files in the dataset exist");
@@ -109,6 +110,8 @@ try
     parser.check_option_arg_range<double>("conf", 0, 1);
     parser.check_option_arg_range<double>("nms", 0, 1);
     parser.check_option_arg_range<double>("overlap", 0, 1);
+    parser.check_option_arg_range<float>("quality", 0, 100);
+    parser.check_sub_option("output", "quality");
     parser.check_sub_option("pseudo", "overlap");
     parser.check_sub_option("pseudo", "dry-run");
 
@@ -125,6 +128,7 @@ try
     const std::string dataset_path = get_option(parser, "pseudo", "");
     const std::string fused_path = get_option(parser, "fuse", "");
     const bool use_letterbox = parser.option("letterbox");
+    const float quality = get_option(parser, "quality", 101.f);
     float fps = get_option(parser, "fps", 30);
     double nms_iou_threshold = 0.45;
     double nms_ratio_covered = 1.0;
@@ -303,7 +307,7 @@ try
         {
             const auto ext = output_path.extension();
             if (ext == ".jpg")
-                save_jpeg(image, output_path);
+                save_jpeg(image, output_path, std::max(100.f, quality));
             else if (ext == ".png")
                 save_png(image, output_path);
             else if (ext == ".bmp")
@@ -311,9 +315,9 @@ try
             else if (ext == ".dng")
                 save_dng(image, output_path);
             else if (ext == ".webp")
-                save_webp(image, output_path);
-            else  // save to lossless WebP otherwise (unknown or empty extension)
-                save_webp(image, output_path.replace_extension(".webp"), 101);
+                save_webp(image, output_path, quality);
+            else  // save to WebP otherwise (unknown or empty extension)
+                save_webp(image, output_path.replace_extension(".webp"), quality);
         }
         win.set_title(parser.option("image").argument());
         win.set_image(image);
@@ -370,7 +374,7 @@ try
             }
             else
             {
-                save_webp(image, output_path / file.replace_extension(".webp"), 101);
+                save_webp(image, output_path / file.replace_extension(".webp"), quality);
                 progress.print_status(i + 1, false, std::cerr);
             }
         }
