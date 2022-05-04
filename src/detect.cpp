@@ -249,7 +249,7 @@ try
             auto& image_info = dataset.images[i];
             if (check_dataset)
             {
-                if (not file_exists(image_info.filename))
+                if (not fs::exists(image_info.filename))
                     std::clog << image_info.filename << '\n';
                 continue;
             }
@@ -263,8 +263,7 @@ try
             {
                 if (not overlaps_any_box(image_info.boxes, pseudo, overlaps, classwise_nms))
                 {
-                    image_dataset_metadata::box box;
-                    box.rect = pseudo.rect;
+                    image_dataset_metadata::box box(pseudo.rect);
                     box.label = pseudo.label;
                     image_info.boxes.push_back(std::move(box));
                 }
