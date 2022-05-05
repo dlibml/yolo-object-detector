@@ -51,7 +51,7 @@ try
 
     parser.set_group_name("YOLO Options");
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.7)", 1);
-    parser.add_option("iou-anchor", "extra anchors IoU treshold (default: 0.2)", 1);
+    parser.add_option("iou-anchor", "extra anchors IoU threshold (default: 0.2)", 1);
     parser.add_option("lambda-obj", "weight for the objectness loss (default: 1)", 1);
     parser.add_option("lambda-box", "weight for the box regression loss (default: 1)", 1);
     parser.add_option("lambda-cls", "weight for the classification loss (default: 1)", 1);
@@ -78,7 +78,7 @@ try
     {
         std::cout << "Usage: " << argv[0] << " [OPTION]… PATH/TO/DATASET/DIRECTORY\n";
         parser.print_options();
-        std::cout << "Give the path to a folder with the training.xml and testing.xml files.\n";
+        std::cout << "Give the path to a directory with the training.xml and testing.xml files.\n";
         return EXIT_SUCCESS;
     }
     parser.check_option_arg_range<double>("conf", 0, 1);
