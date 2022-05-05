@@ -50,6 +50,7 @@ try
     parser.add_option("weight-decay", "sgd weight decay (default: 0.0005)", 1);
 
     parser.set_group_name("YOLO Options");
+    parser.add_option("anchor", "anchor pyramid level, width and height", 3);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.7)", 1);
     parser.add_option("iou-anchor", "extra anchors IoU threshold (default: 0.2)", 1);
     parser.add_option("lambda-obj", "weight for the objectness loss (default: 1)", 1);
@@ -181,10 +182,39 @@ try
     image_dataset_metadata::load_image_dataset_metadata(test_dataset, data_path + "/testing.xml");
     std::clog << "# test images: " << test_dataset.images.size() << '\n';
 
-    // Default YOLO anchors
-    options.add_anchors<ytag3>({{10, 13}, {16, 30}, {33, 23}});
-    options.add_anchors<ytag4>({{30, 61}, {62, 45}, {59, 119}});
-    options.add_anchors<ytag5>({{116, 90}, {156, 198}, {373, 326}});
+    // Initialize the default YOLO anchors
+    std::map<unsigned long, std::vector<yolo_options::anchor_box_details>> anchors{
+        {3, {{10, 13}, {16, 30}, {33, 23}}},
+        {4, {{30, 61}, {62, 45}, {59, 119}}},
+        {5, {{116, 90}, {156, 198}, {373, 326}}}};
+    if (parser.option("anchor"))
+    {
+        anchors.clear();
+        const auto num_anchors = parser.option("anchor").count();
+        for (size_t i = 0; i < num_anchors; ++i)
+        {
+            const auto stride = std::stoul(parser.option("anchor").argument(0, i));
+            const auto width = std::stoul(parser.option("anchor").argument(1, i));
+            const auto height = std::stoul(parser.option("anchor").argument(2, i));
+            anchors[stride].emplace_back(width, height);
+        }
+        for (auto& [stride, anchor] : anchors)
+            std::sort(
+                anchor.begin(),
+                anchor.end(),
+                [](const auto& a, const auto& b)
+                { return a.width * a.height < b.width * b.height; });
+    }
+    try
+    {
+        options.add_anchors<ytag3>(anchors.at(3));
+        options.add_anchors<ytag4>(anchors.at(4));
+        options.add_anchors<ytag5>(anchors.at(5));
+    }
+    catch (const std::out_of_range&)
+    {
+        throw std::length_error("wrong pyramid level specified in anchor");
+    }
 
     model net(options);
     if (parser.option("architecture"))
