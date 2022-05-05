@@ -144,8 +144,8 @@ try
     const std::string backbone_path = get_option(parser, "backbone", "");
     const std::string tune_net_path = get_option(parser, "tune", "");
 
+    // Path to the data directory containing training.xml and testing.xml
     const std::string data_path = parser[0];
-
     image_dataset_metadata::dataset train_dataset;
     image_dataset_metadata::load_image_dataset_metadata(
         train_dataset,
@@ -162,7 +162,11 @@ try
         }
     }
     std::clog << "# labels: " << labels.size() << '\n';
+    image_dataset_metadata::dataset test_dataset;
+    image_dataset_metadata::load_image_dataset_metadata(test_dataset, data_path + "/testing.xml");
+    std::clog << "# test images: " << test_dataset.images.size() << '\n';
 
+    // YOLO options
     yolo_options options;
     color_mapper string_to_color;
     for (const auto& label : labels)
@@ -177,10 +181,6 @@ try
     options.lambda_obj = lambda_obj;
     options.lambda_box = lambda_box;
     options.lambda_cls = lambda_cls;
-
-    image_dataset_metadata::dataset test_dataset;
-    image_dataset_metadata::load_image_dataset_metadata(test_dataset, data_path + "/testing.xml");
-    std::clog << "# test images: " << test_dataset.images.size() << '\n';
 
     // Initialize the default YOLO anchors
     std::map<unsigned long, std::vector<yolo_options::anchor_box_details>> anchors{
@@ -205,6 +205,8 @@ try
                 [](const auto& a, const auto& b)
                 { return a.width * a.height < b.width * b.height; });
     }
+
+    // Add the anchors to the YOLO options
     try
     {
         options.add_anchors<ytag3>(anchors.at(3));
@@ -213,7 +215,7 @@ try
     }
     catch (const std::out_of_range&)
     {
-        throw std::length_error("wrong pyramid level specified in anchor");
+        throw std::length_error("ERROR: wrong or missing pyramid level specified in anchor.");
     }
 
     model net(options);
