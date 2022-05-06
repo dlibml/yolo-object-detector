@@ -25,6 +25,7 @@ try
     parser.add_option("size", "image size to process images (default: 640)", 1);
     parser.add_option("dnn", "path to the network to evaluate", 1);
     parser.add_option("conf", "detection confidence threshold (default: 0.001)", 1);
+    parser.add_option("letterbox", "force letter box on single inference");
 
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
@@ -41,6 +42,7 @@ try
 
     const long image_size = get_option(parser, "size", 640);
     const double conf_thresh = get_option(parser, "conf", 0.001);
+    const bool use_letterbox = parser.option("letterbox");
     const std::string json_path = get_option(parser, "json", "");
     if (json_path.empty())
     {
@@ -84,7 +86,7 @@ try
         // std::cout << image_info.dump(2) << '\n';
         const auto image_id = image_info["id"].get<int>();
         load_image(image, images_path + "/" + image_info["file_name"].get<std::string>());
-        const auto tform = preprocess_image(image, letterbox, image_size);
+        const auto tform = preprocess_image(image, letterbox, image_size, use_letterbox);
         auto dets = net(letterbox, conf_thresh);
         postprocess_detections(tform, dets);
         for (const auto& det : dets)
