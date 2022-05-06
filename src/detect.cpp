@@ -391,7 +391,10 @@ try
         vid_src = file;
         win.mirror = false;
         if (not output_path.empty())
+        {
             win.recording = true;
+            win.show_recording_icon();
+        }
     }
     else
     {
