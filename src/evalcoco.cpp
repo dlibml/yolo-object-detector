@@ -76,7 +76,7 @@ try
     image_window win;
     drawing_options options;
     options.draw_labels = true;
-    matrix<rgb_pixel> image, letterbox;
+    matrix<rgb_pixel> image, resized;
     const auto images_path = get_parent_directory(file(json_path)).full_name() + "/test2017";
     json results;
     console_progress_indicator progress(data["images"].size());
@@ -86,8 +86,8 @@ try
         // std::cout << image_info.dump(2) << '\n';
         const auto image_id = image_info["id"].get<int>();
         load_image(image, images_path + "/" + image_info["file_name"].get<std::string>());
-        const auto tform = preprocess_image(image, letterbox, image_size, use_letterbox);
-        auto dets = net(letterbox, conf_thresh);
+        const auto tform = preprocess_image(image, resized, image_size, use_letterbox);
+        auto dets = net(resized, conf_thresh);
         postprocess_detections(tform, dets);
         for (const auto& det : dets)
         {
