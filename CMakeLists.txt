@@ -98,6 +98,9 @@ add_dlib_executable(detect)
 target_link_libraries(detect PRIVATE model sgd_trainer detector_utils drawing_utils webcam_window ${OpenCV_LIBS})
 target_include_directories(detect PRIVATE ${OpenCV_INCLUDE_DIRS})
 
+add_dlib_executable(fuse)
+target_link_libraries(fuse PRIVATE model sgd_trainer)
+
 add_dlib_executable(kfashion)
 target_link_libraries(kfashion PRIVATE nlohmann_json::nlohmann_json)
 
@@ -107,3 +110,4 @@ target_link_libraries(coco2xml PRIVATE nlohmann_json::nlohmann_json)
 add_dlib_executable(convert_images)
 add_dlib_executable(evalcoco)
 target_link_libraries(evalcoco PRIVATE model detector_utils nlohmann_json::nlohmann_json)
+
