@@ -76,6 +76,8 @@ try
     image_window win;
     drawing_options options;
     options.draw_labels = true;
+    for (const auto& label : net.get_options().labels)
+        options.mapping[label] = label;
     matrix<rgb_pixel> image, resized;
     const auto images_path = get_parent_directory(file(json_path)).full_name() + "/test2017";
     json results;
@@ -83,7 +85,6 @@ try
     size_t cnt = 0;
     for (const auto& image_info : data["images"])
     {
-        // std::cout << image_info.dump(2) << '\n';
         const auto image_id = image_info["id"].get<int>();
         load_image(image, images_path + "/" + image_info["file_name"].get<std::string>());
         const auto tform = preprocess_image(image, resized, image_size, use_letterbox);
@@ -91,10 +92,10 @@ try
         postprocess_detections(tform, dets);
         for (const auto& det : dets)
         {
-            const double x = round_decimal_places(det.rect.left(), 2);
-            const double y = round_decimal_places(det.rect.top(), 2);
-            const double w = round_decimal_places(det.rect.width(), 2);
-            const double h = round_decimal_places(det.rect.height(), 2);
+            const double x = round_decimal_places(det.rect.left(), 1);
+            const double y = round_decimal_places(det.rect.top(), 1);
+            const double w = round_decimal_places(det.rect.width(), 1);
+            const double h = round_decimal_places(det.rect.height(), 1);
             const auto d = json{
                 {"image_id", image_id},
                 {"category_id", categories.at(det.label)},
@@ -106,10 +107,12 @@ try
 
         // draw_bounding_boxes(image, dets, options);
         // win.set_image(image);
+        // std::cout << results.back().dump(2) << '\n';
         // std::cin.get();
         // break;
 
     }
+    std::clog << "saving results\n";
     std::ofstream fout("detections_test-dev2017_yolo-dlib_results.json");
     fout << results << std::flush;
 }
