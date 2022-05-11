@@ -70,6 +70,17 @@ void model::load_backbone(const std::string& path)
     sync();
 }
 
+auto model::get_strides(const long image_size) -> std::vector<long>
+{
+    matrix<rgb_pixel> image(image_size, image_size);
+    auto& net = pimpl->infer;
+    net(image);
+    const auto& t3 = layer<ytag3>(net).get_output();
+    const auto& t4 = layer<ytag4>(net).get_output();
+    const auto& t5 = layer<ytag5>(net).get_output();
+    return {image_size / t3.nr(), image_size / t4.nc(), image_size / t5.nr()};
+}
+
 auto model::operator()(const matrix<rgb_pixel>& image, const float conf) -> std::vector<yolo_rect>
 {
     return pimpl->infer.process(image, conf);

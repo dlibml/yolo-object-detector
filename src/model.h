@@ -6,7 +6,6 @@
 template <typename SUBNET> using ytag3 = dlib::add_tag_layer<4003, SUBNET>;
 template <typename SUBNET> using ytag4 = dlib::add_tag_layer<4004, SUBNET>;
 template <typename SUBNET> using ytag5 = dlib::add_tag_layer<4005, SUBNET>;
-template <typename SUBNET> using ytag6 = dlib::add_tag_layer<4006, SUBNET>;
 
 class model
 {
@@ -29,6 +28,7 @@ class model
     void save_infer(const std::string& path);
     void load_infer(const std::string& path);
     void load_backbone(const std::string& path);
+    auto get_strides(const long image_size = 512) -> std::vector<long>;
     const dlib::yolo_options& get_options() const;
     void adjust_nms(
         const float iou_threshold,

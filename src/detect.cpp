@@ -104,9 +104,9 @@ try
     parser.check_incompatible_options("no-labels", "font");
     parser.check_incompatible_options("no-labels", "offset");
     parser.check_incompatible_options("no-labels", "mapping");
-    parser.check_option_arg_range<size_t>("size", 224, 8192);
-    parser.check_option_arg_range<size_t>("fill", 0, 255);
-    parser.check_option_arg_range<size_t>("thickness", 0, 10);
+    parser.check_option_arg_range<long>("size", 224, 8192);
+    parser.check_option_arg_range<int>("fill", 0, 255);
+    parser.check_option_arg_range<int>("thickness", 0, 10);
     parser.check_option_arg_range<double>("conf", 0, 1);
     parser.check_option_arg_range<double>("nms", 0, 1);
     parser.check_option_arg_range<double>("overlap", 0, 1);
@@ -115,7 +115,7 @@ try
     parser.check_sub_option("pseudo", "overlap");
     parser.check_sub_option("pseudo", "dry-run");
 
-    const size_t image_size = get_option(parser, "size", 512);
+    const long image_size = get_option(parser, "size", 512);
     const double conf_thresh = get_option(parser, "conf", 0.25);
     const std::string dnn_path = get_option(parser, "dnn", "");
     const std::string sync_path = get_option(parser, "sync", "");
@@ -221,6 +221,8 @@ try
 
     // Setup the loss nms
     net.adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
+    // Get the maximum network stride
+    const auto stride = net.get_strides(image_size).back();
     net.print_loss_details();
 
     // Fuse layers
@@ -260,7 +262,7 @@ try
             load_image(image, image_info.filename);
             image_info.width = image.nc();
             image_info.height = image.nr();
-            const auto tform = preprocess_image(image, resized, image_size, use_letterbox);
+            const auto tform = preprocess_image(image, resized, image_size, use_letterbox, stride);
             auto detections = net(resized, conf_thresh);
             postprocess_detections(tform, detections);
             for (const auto& pseudo : detections)
@@ -286,11 +288,11 @@ try
 
     if (parser.option("image"))
     {
-        rgb_image image, letterbox;
+        rgb_image image, resized;
         load_image(image, parser.option("image").argument());
-        const auto tform = preprocess_image(image, letterbox, image_size, use_letterbox);
+        const auto tform = preprocess_image(image, resized, image_size, use_letterbox, stride);
         const auto t0 = std::chrono::steady_clock::now();
-        auto detections = net(letterbox, win.conf_thresh);
+        auto detections = net(resized, win.conf_thresh);
         const auto t1 = std::chrono::steady_clock::now();
         const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
         std::clog << parser.option("image").argument() << ": " << t << " ms" << std::endl;
@@ -327,7 +329,7 @@ try
 
     if (parser.option("images"))
     {
-        rgb_image image, letterbox;
+        rgb_image image, resized;
         std::vector<fs::path> files;
         const fs::path path = parser.option("images").argument();
         fs::create_directories(output_path / path.relative_path());
@@ -351,9 +353,9 @@ try
         {
             auto& file = files[i];
             load_image(image, file);
-            const auto tform = preprocess_image(image, letterbox, image_size, use_letterbox);
+            const auto tform = preprocess_image(image, resized, image_size, use_letterbox, stride);
             const auto t0 = std::chrono::steady_clock::now();
-            auto detections = net(letterbox, win.conf_thresh);
+            auto detections = net(resized, win.conf_thresh);
             const auto t1 = std::chrono::steady_clock::now();
             postprocess_detections(tform, detections);
             const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
@@ -436,7 +438,7 @@ try
             assign_image(image, tmp);
 
         const auto t0 = std::chrono::steady_clock::now();
-        const auto tform = preprocess_image(image, resized, image_size, use_letterbox);
+        const auto tform = preprocess_image(image, resized, image_size, use_letterbox, stride);
         auto detections = net(resized, win.conf_thresh);
         postprocess_detections(tform, detections);
         const auto t1 = std::chrono::steady_clock::now();
