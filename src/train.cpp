@@ -340,7 +340,7 @@ try
             for (auto& box : result.second)
                 box.rect = tform(box.rect);
 
-            // scale, shift and rotate
+            // Scale, shift and rotate
             const double scale = rnd.get_double_in_range(1 - scale_gain, 1 + scale_gain);
             const auto shift_amount = shift_frac * image_size;
             const dpoint center = dpoint(image_size / 2., image_size / 2.) +
@@ -357,6 +357,15 @@ try
             for (auto& box : result.second)
                 box.rect = tform(box.rect);
 
+            // Mirroring
+            if (rnd.get_random_double() < mirror_prob)
+            {
+                tform = flip_image_left_right(result.first);
+                for (auto& box : result.second)
+                    box.rect = tform(box.rect);
+            }
+
+            // Perspective
             if (perspective_frac > 0)
             {
                 const drectangle r = get_rect(result.first);
@@ -382,13 +391,6 @@ try
                     box.rect.right() = lr.second;
                     box.rect.bottom() = tb.second;
                 }
-            }
-
-            if (rnd.get_random_double() < mirror_prob)
-            {
-                tform = flip_image_left_right(result.first);
-                for (auto& box : result.second)
-                    box.rect = tform(box.rect);
             }
 
             if (gain_h > 0 or gain_s > 0 or gain_i > 0)
