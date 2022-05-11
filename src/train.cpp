@@ -342,11 +342,11 @@ try
 
             // Scale, shift and rotate
             const double scale = rnd.get_double_in_range(1 - scale_gain, 1 + scale_gain);
-            const auto shift_amount = shift_frac * image_size;
+            const auto shift = shift_frac * image_size;
             const dpoint center = dpoint(image_size / 2., image_size / 2.) +
                                   dpoint(
-                                      rnd.get_double_in_range(-shift_amount, shift_amount),
-                                      rnd.get_double_in_range(-shift_amount, shift_amount));
+                                      rnd.get_double_in_range(-shift, shift),
+                                      rnd.get_double_in_range(-shift, shift));
             const chip_details chip(
                 centered_drect(center, image_size * scale, image_size * scale),
                 {image_size, image_size},
@@ -442,7 +442,7 @@ try
                     result.second.begin(),
                     result.second.end(),
                     [&image_rect, min_coverage](const yolo_rect& b) {
-                        return b.rect.intersect(image_rect).area() / b.rect.area() > min_coverage;
+                        return b.rect.intersect(image_rect).area() / b.rect.area() >= min_coverage;
                     });
                 result.second.erase(p, result.second.end());
             }
