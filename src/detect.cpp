@@ -332,12 +332,12 @@ try
         rgb_image image, resized;
         std::vector<fs::path> files;
         const fs::path path = parser.option("images").argument();
-        fs::create_directories(output_path / path.relative_path());
+        if (not output_path.empty())
+            fs::create_directories(output_path / path.relative_path());
         for (const auto& item : fs::recursive_directory_iterator(path))
         {
-            if (item.is_directory())
+            if (item.is_directory() and not output_path.empty())
             {
-                std::cout << output_path / item.path() << std::endl;
                 fs::create_directories(output_path / item.path());
             }
             else if (
