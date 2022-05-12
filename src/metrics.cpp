@@ -74,14 +74,14 @@ metrics_details compute_metrics(
 
         for (size_t i = 0; i < images.size(); ++i)
         {
-            postprocess_detections(details[i].tform, detections_batch[i]);
             const auto& im = details[i].info;
             auto& dets = detections_batch[i];
+            postprocess_detections(details[i].tform, dets);
             std::vector<bool> used(dets.size(), false);
             const size_t num_pr = std::count_if(
                 dets.begin(),
                 dets.end(),
-                [conf_thresh](const auto& d) { return d.detection_confidence > conf_thresh; });
+                [conf_thresh](const auto& d) { return d.detection_confidence >= conf_thresh; });
             // true positives: truths matched by detections
             for (size_t t = 0; t < im.boxes.size(); ++t)
             {
@@ -202,12 +202,7 @@ metrics_details compute_metrics(
     return metrics;
 }
 
-void save_model(
-    model& net,
-    const std::string& name,
-    size_t num_steps,
-    double map,
-    double wf1)
+void save_model(model& net, const std::string& name, size_t num_steps, double map, double wf1)
 {
     std::stringstream filename;
     filename << name << "_step-" << dlib::pad_int_with_zeros(num_steps);
