@@ -131,6 +131,17 @@ metrics_details compute_metrics(
 
     metrics_details metrics;
     result micro;
+    // clang-format off
+    out << std::string(padding, ' ')
+        << dlib::lpad(std::string("ap"), 12)
+        << dlib::lpad(std::string("precision"), 12)
+        << dlib::lpad(std::string("recall"), 12)
+        << dlib::lpad(std::string("f1-score"), 12)
+        << dlib::lpad(std::string("tp"), 12)
+        << dlib::lpad(std::string("fp"), 12)
+        << dlib::lpad(std::string("fn"), 12)
+        << dlib::lpad(std::string("support"), 12) << '\n';
+    // clang-format on
     for (auto& item : hits)
     {
         std::sort(item.second.rbegin(), item.second.rend());
