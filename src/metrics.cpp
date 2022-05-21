@@ -127,6 +127,7 @@ metrics_details compute_metrics(
         num_processed += images.size();
         progress.print_status(num_processed, false, std::clog);
     }
+    progress.print_status(progress.target(), true, std::clog);
     out << std::endl;
 
     metrics_details metrics;
