@@ -115,32 +115,35 @@ void model::print(std::ostream& out) const
     out << pimpl->train << '\n';
 }
 
-void model::print_loss_details() const
+void model::print_loss_details(std::ostream& out) const
 {
+    out << "num parameters: " << count_parameters(pimpl->infer) << '\n';
+    out << "num layers: " << pimpl->infer.num_layers
+        << " (computational: " << pimpl->infer.num_computational_layers << ")\n";
     const auto& opts = pimpl->infer.loss_details().get_options();
-    std::cout << "YOLO loss details (" << opts.anchors.size() << " outputs)" << '\n';
-    std::cout << "  anchors:\n";
+    out << "YOLO loss details (" << opts.anchors.size() << " outputs)" << '\n';
+    out << "  anchors:\n";
     for (const auto& [tag_id, anchors] : opts.anchors)
     {
-        std::cout << "    " << tag_id << ": ";
+        out << "    " << tag_id << ": ";
         for (size_t i = 0; i < anchors.size(); ++i)
         {
-            std::cout << anchors[i].width << 'x' << anchors[i].height;
+            out << anchors[i].width << 'x' << anchors[i].height;
             if (i + 1 < anchors.size())
-                std::cout << ", ";
+                out << ", ";
         }
-        std::cout << '\n';
+        out << '\n';
     }
-    std::cout << "  iou_ignore_threshold: " << opts.iou_ignore_threshold << '\n';
-    std::cout << "  iou_anchor_threshold: " << opts.iou_anchor_threshold << '\n';
-    std::cout << "  lambda_obj: " << opts.lambda_obj << '\n';
-    std::cout << "  lambda_box: " << opts.lambda_box << '\n';
-    std::cout << "  lambda_cls: " << opts.lambda_cls << '\n';
-    std::cout << "  overlaps_nms: (" << opts.overlaps_nms.get_iou_thresh() << ", "
-              << opts.overlaps_nms.get_percent_covered_thresh() << ")" << '\n';
-    std::cout << "  classwise_nms: " << std::boolalpha << opts.classwise_nms << '\n';
-    std::cout << "  " << opts.labels.size() << " labels:\n";
+    out << "  iou_ignore_threshold: " << opts.iou_ignore_threshold << '\n';
+    out << "  iou_anchor_threshold: " << opts.iou_anchor_threshold << '\n';
+    out << "  lambda_obj: " << opts.lambda_obj << '\n';
+    out << "  lambda_box: " << opts.lambda_box << '\n';
+    out << "  lambda_cls: " << opts.lambda_cls << '\n';
+    out << "  overlaps_nms: (" << opts.overlaps_nms.get_iou_thresh() << ", "
+        << opts.overlaps_nms.get_percent_covered_thresh() << ")" << '\n';
+    out << "  classwise_nms: " << std::boolalpha << opts.classwise_nms << '\n';
+    out << "  " << opts.labels.size() << " labels:\n";
     for (size_t i = 0; i < opts.labels.size(); ++i)
-        std::cout << "    " << std::setw(2) << i << ". " << opts.labels[i] << '\n';
-    std::cout << '\n';
+        out << "    " << std::setw(2) << i << ". " << opts.labels[i] << '\n';
+    out << '\n';
 }

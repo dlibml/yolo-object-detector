@@ -36,7 +36,7 @@ class model
         const bool classwise = true);
     void fuse();
     void print(std::ostream& out) const;
-    void print_loss_details() const;
+    void print_loss_details(std::ostream& out = std::cout) const;
 
     private:
     struct impl;
