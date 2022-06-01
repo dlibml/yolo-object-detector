@@ -38,19 +38,22 @@ metrics_details compute_metrics(
     const dlib::image_dataset_metadata::dataset& dataset,
     const size_t batch_size,
     dlib::pipe<image_info>& data,
-    double conf_thresh,
+    const double conf_thresh,
+    const double map_thresh,
     std::ostream& out)
 {
     std::map<std::string, result> results;
     std::map<std::string, std::vector<std::pair<double, bool>>> hits;
     std::map<std::string, unsigned long> missing;
-    size_t padding = 0;
+    // category padding: among class, micro, macro and weighted, the weighted is the longest
+    size_t padding = std::string("weighted").length();
     for (const auto& label : net.get_options().labels)
     {
         hits[label] = std::vector<std::pair<double, bool>>();
         missing[label] = 0;
         padding = std::max(label.length(), padding);
     }
+    // Add two extra spaces for padding in case
     padding += 2;
 
     // process the dataset
@@ -70,7 +73,7 @@ metrics_details compute_metrics(
             images.push_back(std::move(temp.image));
             details.push_back(std::move(temp));
         }
-        auto detections_batch = net(images, batch_size, 0.001);
+        auto detections_batch = net(images, batch_size, map_thresh);
 
         for (size_t i = 0; i < images.size(); ++i)
         {
@@ -133,7 +136,7 @@ metrics_details compute_metrics(
     metrics_details metrics;
     result micro;
     // clang-format off
-    out << std::string(padding, ' ')
+    out << dlib::rpad(std::string("class"), padding)
         << dlib::lpad(std::string("ap"), 12)
         << dlib::lpad(std::string("precision"), 12)
         << dlib::lpad(std::string("recall"), 12)
@@ -158,7 +161,7 @@ metrics_details compute_metrics(
         metrics.weighted_r += r.recall() * r.support();
         metrics.weighted_f += r.f1_score() * r.support();
         // clang-format off
-        out << dlib::rpad(item.first + ": ", padding)
+        out << dlib::rpad(item.first, padding)
                   << std::setprecision(4) << std::right << std::fixed
                   << std::setw(12) << ap
                   << std::setprecision(4)
@@ -190,20 +193,20 @@ metrics_details compute_metrics(
     metrics.weighted_f /= num_boxes;
     out << "--" << std::endl;
     // clang-format off
-    out << dlib::rpad(std::string("macro: "), padding)
+    out << dlib::rpad(std::string("macro"), padding)
               << std::setprecision(4) << std::right << std::fixed
               << std::setw(12) << metrics.map
               << std::setw(12) << metrics.macro_p
               << std::setw(12) << metrics.macro_r
               << std::setw(12) << metrics.macro_f
               << std::endl;
-    out << dlib::rpad(std::string("micro: "), padding)
+    out << dlib::rpad(std::string("micro"), padding)
               << "            "
               << std::setw(12) << metrics.micro_p
               << std::setw(12) << metrics.micro_r
               << std::setw(12) << metrics.micro_f
               << std::endl;
-    out << dlib::rpad(std::string("weighted: "), padding)
+    out << dlib::rpad(std::string("weighted"), padding)
               << std::setprecision(4) << std::right << std::fixed
               << "            "
               << std::setw(12) << metrics.weighted_p

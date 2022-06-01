@@ -78,7 +78,8 @@ metrics_details compute_metrics(
     const dlib::image_dataset_metadata::dataset& dataset,
     const size_t batch_size,
     dlib::pipe<image_info>& data,
-    double conf_thresh = 0.25,
+    const double conf_thresh = 0.25,
+    const double map_thresh = 0.001,
     std::ostream& out = std::cout);
 
 void save_model(
