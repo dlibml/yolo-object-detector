@@ -18,6 +18,8 @@ using namespace dlib;
 using rgb_image = matrix<rgb_pixel>;
 using fseconds = std::chrono::duration<float>;
 using fms = std::chrono::duration<float, std::milli>;
+using image_dataset_metadata::load_image_dataset_metadata;
+using image_dataset_metadata::save_image_dataset_metadata;
 const std::unordered_set<std::string> image_exts{
     ".bmp",
     ".gif",
@@ -125,7 +127,7 @@ try
     const fs::path input_path = get_option(parser, "input", "");
     fs::path output_path = get_option(parser, "output", "");
     const fs::path mapping_path = get_option(parser, "mapping", "");
-    const fs::path dataset_path = get_option(parser, "pseudo", "");
+    fs::path dataset_path = get_option(parser, "pseudo", "");
     const fs::path fused_path = get_option(parser, "fuse", "");
     const bool use_letterbox = parser.option("letterbox");
     const float quality = get_option(parser, "quality", 101.f);
@@ -238,8 +240,8 @@ try
     {
         const bool check_dataset = parser.option("dry-run");
         image_dataset_metadata::dataset dataset;
-        image_dataset_metadata::load_image_dataset_metadata(dataset, dataset_path);
-        locally_change_current_dir chdir(get_parent_directory(file(dataset_path)));
+        load_image_dataset_metadata(dataset, dataset_path);
+        locally_change_current_dir chdir(dataset_path.parent_path());
         rgb_image image, resized;
         double overlap_iou_threshold = 0.45;
         double overlap_ratio_covered = 1;
@@ -279,9 +281,7 @@ try
         progress.print_status(dataset.images.size(), true, std::cerr);
         std::cerr << std::endl;
         chdir.revert();
-        image_dataset_metadata::save_image_dataset_metadata(
-            dataset,
-            fs::path(dataset_path).replace_extension("-pseudo.xml"));
+        save_image_dataset_metadata(dataset, dataset_path.replace_extension("-pseudo.xml"));
         return EXIT_SUCCESS;
     }
 
