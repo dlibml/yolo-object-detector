@@ -1,7 +1,7 @@
 #ifndef webcam_window_h_INCLUDED
 #define webcam_window_h_INCLUDED
 
-#include "drawing_utils.h"
+#include "draw.h"
 
 #include <dlib/gui_widgets.h>
 

@@ -1,5 +1,5 @@
 #include "detector_utils.h"
-#include "drawing_utils.h"
+#include "draw.h"
 #include "model.h"
 
 #include <dlib/cmd_line_parser.h>
@@ -110,7 +110,6 @@ try
         // std::cout << results.back().dump(2) << '\n';
         // std::cin.get();
         // break;
-
     }
     std::clog << "saving results\n";
     std::ofstream fout("detections_test-dev2017_yolo-dlib_results.json");

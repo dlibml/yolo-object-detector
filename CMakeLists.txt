@@ -80,7 +80,7 @@ add_compile_options(-ftemplate-depth=2000)
 
 add_dlib_executable(compute_anchors)
 
-add_dlib_library(drawing_utils)
+add_dlib_library(draw)
 add_dlib_library(webcam_window)
 
 add_dlib_library(model)
@@ -95,20 +95,20 @@ add_dlib_executable(test)
 target_link_libraries(test PRIVATE model sgd_trainer metrics detector_utils)
 
 add_dlib_executable(detect)
-target_link_libraries(detect PRIVATE model sgd_trainer detector_utils drawing_utils webcam_window ${OpenCV_LIBS})
+target_link_libraries(detect PRIVATE model sgd_trainer detector_utils draw webcam_window ${OpenCV_LIBS})
 target_include_directories(detect PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 add_dlib_executable(fuse)
 target_link_libraries(fuse PRIVATE model sgd_trainer)
-
-add_dlib_executable(kfashion)
-target_link_libraries(kfashion PRIVATE nlohmann_json::nlohmann_json)
 
 add_dlib_executable(coco2xml)
 target_link_libraries(coco2xml PRIVATE nlohmann_json::nlohmann_json)
 
 add_dlib_executable(convert_images)
 add_dlib_executable(xml2darknet)
+add_dlib_executable(darknet2xml)
+add_dlib_executable(draw_boxes)
+target_link_libraries(draw_boxes PRIVATE draw)
 
 add_dlib_executable(evalcoco)
 target_link_libraries(evalcoco PRIVATE model detector_utils nlohmann_json::nlohmann_json)

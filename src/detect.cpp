@@ -1,5 +1,5 @@
 #include "detector_utils.h"
-#include "drawing_utils.h"
+#include "draw.h"
 #include "model.h"
 #include "sgd_trainer.h"
 #include "webcam_window.h"

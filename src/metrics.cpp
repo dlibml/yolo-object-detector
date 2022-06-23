@@ -39,7 +39,6 @@ metrics_details compute_metrics(
     const size_t batch_size,
     dlib::pipe<image_info>& data,
     const double conf_thresh,
-    const double map_thresh,
     std::ostream& out)
 {
     std::map<std::string, result> results;
@@ -73,7 +72,7 @@ metrics_details compute_metrics(
             images.push_back(std::move(temp.image));
             details.push_back(std::move(temp));
         }
-        auto detections_batch = net(images, batch_size, map_thresh);
+        auto detections_batch = net(images, batch_size, 0.001);
 
         for (size_t i = 0; i < images.size(); ++i)
         {

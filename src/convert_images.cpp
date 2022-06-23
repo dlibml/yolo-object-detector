@@ -95,71 +95,67 @@ try
         throw std::runtime_error("error creating " + error_log + " file.");
     std::mutex mutex;
 
-    parallel_for_verbose(
-        num_threads,
-        0,
-        files.size(),
-        [&](size_t i)
+    parallel_for_verbose(num_threads, 0, files.size(), [&](size_t i)
+    {
+        const fs::path file(files.at(i));
+        matrix<rgb_pixel> image;
+        bool error = false;
+        try
         {
-            const fs::path file(files.at(i));
-            matrix<rgb_pixel> image;
-            bool error = false;
-            try
+            load_image(image, file);
+            const auto scale = max_side / std::max<double>(image.nr(), image.nc());
+            if (scale < 1)
+                resize_image(scale, image);
+            if (image.nr() < min_side or image.nc() < min_side)
+                throw std::length_error(
+                    "image is too small: " + std::to_string(image.nc()) + "x" +
+                    std::to_string(image.nr()));
+        }
+        catch (const image_load_error& e)
+        {
+            error = true;
+            const std::lock_guard<std::mutex> lock(mutex);
+            fout << file.native() << ": " << e.what() << '\n';
+        }
+        catch (const std::length_error& e)
+        {
+            error = true;
+            const std::lock_guard<std::mutex> lock(mutex);
+            fout << file.native() << ": " << e.what() << '\n';
+        }
+        if (not error)
+        {
+            fs::path out_file(out_root);
+            out_file /= file;
+            if (out_file.extension() == ".webp")
             {
-                load_image(image, file);
-                const auto scale = max_side / std::max<double>(image.nr(), image.nc());
-                if (scale < 1)
-                    resize_image(scale, image);
-                if (image.nr() < min_side or image.nc() < min_side)
-                    throw std::length_error(
-                        "image is too small: " + std::to_string(image.nc()) + "x" +
-                        std::to_string(image.nr()));
-            }
-            catch (const image_load_error& e)
-            {
-                error = true;
-                const std::lock_guard<std::mutex> lock(mutex);
-                fout << file.native() << ": " << e.what() << '\n';
-            }
-            catch (const std::length_error& e)
-            {
-                error = true;
-                const std::lock_guard<std::mutex> lock(mutex);
-                fout << file.native() << ": " << e.what() << '\n';
-            }
-            if (not error)
-            {
-                fs::path out_file(out_root);
-                out_file /= file;
-                if (out_file.extension() == ".webp")
+                if (not fs::copy_file(file, out_file))
                 {
-                    if (not fs::copy_file(file, out_file))
+                    const std::lock_guard<std::mutex> lock(mutex);
+                    fout << file.native() << ": error copying file\n";
+                }
+            }
+            else
+            {
+                out_file.replace_extension(".webp");
+                if (not fs::exists(out_file) or overwrite)
+                {
+                    try
+                    {
+                        save_webp(image, out_file, quality);
+                    }
+                    catch (const image_save_error& e)
                     {
                         const std::lock_guard<std::mutex> lock(mutex);
-                        fout << file.native() << ": error copying file\n";
-                    }
-                }
-                else
-                {
-                    out_file.replace_extension(".webp");
-                    if (not fs::exists(out_file) or overwrite)
-                    {
-                        try
-                        {
-                            save_webp(image, out_file, quality);
-                        }
-                        catch (const image_save_error& e)
-                        {
-                            const std::lock_guard<std::mutex> lock(mutex);
-                            fout << file.native() << ": " << e.what() << '\n';
-                        }
+                        fout << file.native() << ": " << e.what() << '\n';
                     }
                 }
             }
-        });
+        }
+    });
 }
 
 catch (const std::exception& e)
 {
-    std::cout << e.what() << '\n';
+    std::cerr << e.what() << '\n';
 }
