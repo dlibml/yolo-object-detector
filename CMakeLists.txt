@@ -16,9 +16,9 @@ set(CMAKE_CXX_EXTENSIONS ON)
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
 if(${FORCE_COLORED_OUTPUT})
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        add_compile_options (-fdiagnostics-color=always)
+        add_compile_options(-fdiagnostics-color=always)
     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-        add_compile_options (-fcolor-diagnostics)
+        add_compile_options(-fcolor-diagnostics)
     endif()
 endif()
 
@@ -27,14 +27,20 @@ find_program(CCACHE_FOUND ccache)
 if(CCACHE_FOUND)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
-endif (CCACHE_FOUND)
+endif()
+
+find_program(MOLD_FOUND mold)
+if(MOLD_FOUND)
+    add_compile_options(-fuse-ld=mold)
+    set_property(GLOBAL PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 
 # Optimization flags
 include(CheckCXXCompilerFlag)
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
     CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
     if(COMPILER_SUPPORTS_MARCH_NATIVE)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+        add_compile_options(-march=native)
     endif()
 endif()
 
@@ -53,7 +59,7 @@ macro(fetch_content name tag repository)
         GIT_SHALLOW    TRUE
         SOURCE_DIR     ${PROJECT_SOURCE_DIR}/external/${name}
     )
-    message("-- Fetching ${name} ${tag}")
+    message(STATUS "Fetching ${name} ${tag}")
     FetchContent_MakeAvailable(${name})
 endmacro()
 
