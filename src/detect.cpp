@@ -117,16 +117,16 @@ try
 
     const long image_size = get_option(parser, "size", 512);
     const double conf_thresh = get_option(parser, "conf", 0.25);
-    const std::string dnn_path = get_option(parser, "dnn", "");
-    const std::string sync_path = get_option(parser, "sync", "");
-    const std::string font_path = get_option(parser, "font", "");
+    const fs::path dnn_path = get_option(parser, "dnn", "");
+    const fs::path sync_path = get_option(parser, "sync", "");
+    const fs::path font_path = get_option(parser, "font", "");
     const bool classwise_nms = not parser.option("no-classwise");
     const size_t webcam_index = get_option(parser, "webcam", 0);
-    const std::string input_path = get_option(parser, "input", "");
+    const fs::path input_path = get_option(parser, "input", "");
     fs::path output_path = get_option(parser, "output", "");
-    const std::string mapping_path = get_option(parser, "mapping", "");
-    const std::string dataset_path = get_option(parser, "pseudo", "");
-    const std::string fused_path = get_option(parser, "fuse", "");
+    const fs::path mapping_path = get_option(parser, "mapping", "");
+    const fs::path dataset_path = get_option(parser, "pseudo", "");
+    const fs::path fused_path = get_option(parser, "fuse", "");
     const bool use_letterbox = parser.option("letterbox");
     const float quality = get_option(parser, "quality", 101.f);
     float fps = get_option(parser, "fps", 30);
@@ -206,7 +206,7 @@ try
     {
         std::ifstream fin(mapping_path);
         if (not fin.good())
-            throw std::runtime_error("Error reading " + mapping_path);
+            throw std::runtime_error("Error reading " + mapping_path.string());
         std::string line;
         for (const auto& label : net.get_options().labels)
         {
@@ -276,10 +276,12 @@ try
             }
             progress.print_status(i + 1, false, std::cerr);
         }
+        progress.print_status(dataset.images.size(), true, std::cerr);
         std::cerr << std::endl;
         chdir.revert();
-        const auto new_path = dataset_path.substr(0, dataset_path.rfind('.')) + "-pseudo.xml";
-        image_dataset_metadata::save_image_dataset_metadata(dataset, new_path);
+        image_dataset_metadata::save_image_dataset_metadata(
+            dataset,
+            fs::path(dataset_path).replace_extension("-pseudo.xml"));
         return EXIT_SUCCESS;
     }
 
