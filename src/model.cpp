@@ -73,11 +73,11 @@ auto model::get_strides(const long image_size) -> std::vector<long>
 {
     matrix<rgb_pixel> image(image_size, image_size);
     pimpl->infer(image);
-    const auto& t3 = layer<ytag3>(pimpl->infer).get_output();
-    const auto& t4 = layer<ytag4>(pimpl->infer).get_output();
-    const auto& t5 = layer<ytag5>(pimpl->infer).get_output();
+    const auto stride3 = image_size / layer<ytag3>(pimpl->infer).get_output().nr();
+    const auto stride4 = image_size / layer<ytag4>(pimpl->infer).get_output().nr();
+    const auto stride5 = image_size / layer<ytag5>(pimpl->infer).get_output().nr();
     pimpl->infer.clean();
-    return {image_size / t3.nr(), image_size / t4.nr(), image_size / t5.nr()};
+    return {stride3, stride4, stride5};
 }
 
 auto model::operator()(const matrix<rgb_pixel>& image, const float conf) -> std::vector<yolo_rect>

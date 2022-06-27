@@ -225,6 +225,7 @@ try
     net.adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
     // Get the maximum network stride
     const auto stride = net.get_strides(image_size).back();
+    std::cout << stride << std::endl;
     net.print_loss_details();
 
     // Fuse layers
