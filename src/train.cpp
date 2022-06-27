@@ -452,10 +452,10 @@ try
             {
                 if (not box.ignore)
                 {
-                    box.rect.left() = put_in_range(0, image_size, box.rect.left());
-                    box.rect.top() = put_in_range(0, image_size, box.rect.top());
-                    box.rect.right() = put_in_range(0, image_size, box.rect.right());
-                    box.rect.bottom() = put_in_range(0, image_size, box.rect.bottom());
+                    box.rect.left() = put_in_range(0, image_size - 1, box.rect.left());
+                    box.rect.top() = put_in_range(0, image_size - 1, box.rect.top());
+                    box.rect.right() = put_in_range(0, image_size - 1, box.rect.right());
+                    box.rect.bottom() = put_in_range(0, image_size - 1, box.rect.bottom());
                 }
             }
 

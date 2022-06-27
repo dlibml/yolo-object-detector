@@ -13,7 +13,6 @@ model::model() : pimpl(std::make_unique<model::impl>())
 model::model(const yolo_options& options) : pimpl(std::make_unique<model::impl>(options))
 {
     auto& net = pimpl->train;
-    using namespace dlib;
     // setup the leaky relu activations
     visit_computational_layers(net, [](leaky_relu_& l) { l = leaky_relu_(0.1); });
     disable_duplicative_biases(net);
@@ -73,12 +72,12 @@ void model::load_backbone(const std::string& path)
 auto model::get_strides(const long image_size) -> std::vector<long>
 {
     matrix<rgb_pixel> image(image_size, image_size);
-    auto& net = pimpl->infer;
-    net(image);
-    const auto& t3 = layer<ytag3>(net).get_output();
-    const auto& t4 = layer<ytag4>(net).get_output();
-    const auto& t5 = layer<ytag5>(net).get_output();
-    return {image_size / t3.nr(), image_size / t4.nc(), image_size / t5.nr()};
+    pimpl->infer(image);
+    const auto& t3 = layer<ytag3>(pimpl->infer).get_output();
+    const auto& t4 = layer<ytag4>(pimpl->infer).get_output();
+    const auto& t5 = layer<ytag5>(pimpl->infer).get_output();
+    pimpl->infer.clean();
+    return {image_size / t3.nr(), image_size / t4.nr(), image_size / t5.nr()};
 }
 
 auto model::operator()(const matrix<rgb_pixel>& image, const float conf) -> std::vector<yolo_rect>
