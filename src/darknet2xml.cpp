@@ -80,7 +80,7 @@ try
     // parse and convert the darknet labels into dlib xml format
     const std::regex image_regex{"images"};
     image_dataset_metadata::dataset dataset;
-    std::mutex mutex;
+    dataset.images.resize(listing.size());
     parallel_for_verbose(
         num_threads,
         0,
@@ -114,10 +114,7 @@ try
                     std::round(h * image_info.height));
                 image_info.boxes.push_back(std::move(box));
             }
-            {
-                const std::lock_guard<std::mutex> lock(mutex);
-                dataset.images.push_back(std::move(image_info));
-            }
+            dataset.images[i] = std::move(image_info);
         });
     image_dataset_metadata::save_image_dataset_metadata(dataset, "dataset.xml");
     chdir.revert();
