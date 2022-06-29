@@ -109,6 +109,8 @@ target_link_libraries(fuse PRIVATE model sgd_trainer)
 
 add_dlib_executable(coco2xml)
 target_link_libraries(coco2xml PRIVATE nlohmann_json::nlohmann_json)
+add_dlib_executable(xml2coco)
+target_link_libraries(xml2coco PRIVATE nlohmann_json::nlohmann_json)
 
 add_dlib_executable(convert_images)
 add_dlib_executable(xml2darknet)
