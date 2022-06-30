@@ -62,6 +62,8 @@ try
                 {"id", box_id++},
                 {"image_id", i},
                 {"category_id", category_map.at(box.label)},
+                {"iscrowd", 0},
+                {"area", r.area()},
                 {"bbox", json{r.left(), r.top(), r.width(), r.height()}}});
         }
     }
