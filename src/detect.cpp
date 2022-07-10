@@ -225,7 +225,6 @@ try
     net.adjust_nms(nms_iou_threshold, nms_ratio_covered, classwise_nms);
     // Get the maximum network stride
     const auto stride = net.get_strides(image_size).back();
-    std::cout << stride << std::endl;
     net.print_loss_details();
 
     // Fuse layers
@@ -277,10 +276,9 @@ try
                     image_info.boxes.push_back(std::move(box));
                 }
             }
-            progress.print_status(i + 1, false, std::cerr);
+            progress.print_status(i + 1);
         }
-        progress.print_status(dataset.images.size(), true, std::cerr);
-        std::cerr << std::endl;
+        progress.finish();
         chdir.revert();
         save_image_dataset_metadata(dataset, dataset_path.replace_extension("-pseudo.xml"));
         return EXIT_SUCCESS;
@@ -380,9 +378,10 @@ try
             else
             {
                 save_webp(image, output_path / file.replace_extension(".webp"), quality);
-                progress.print_status(i + 1, false, std::cerr);
+                progress.print_status(i + 1);
             }
         }
+        progress.finish();
         return EXIT_SUCCESS;
     }
 

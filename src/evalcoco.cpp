@@ -6,8 +6,10 @@
 #include <dlib/console_progress_indicator.h>
 #include <dlib/gui_widgets.h>
 #include <dlib/image_io.h>
+#include <filesystem>
 #include <nlohmann/json.hpp>
 
+namespace fs = std::filesystem;
 using namespace dlib;
 using json = nlohmann::json;
 
@@ -26,6 +28,7 @@ try
     parser.add_option("dnn", "path to the network to evaluate", 1);
     parser.add_option("conf", "detection confidence threshold (default: 0.001)", 1);
     parser.add_option("letterbox", "force letter box on single inference");
+    parser.add_option("draw", "draw bounding boxes on images");
 
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
@@ -43,14 +46,15 @@ try
     const long image_size = get_option(parser, "size", 640);
     const double conf_thresh = get_option(parser, "conf", 0.001);
     const bool use_letterbox = parser.option("letterbox");
-    const std::string json_path = get_option(parser, "json", "");
+    const bool draw = parser.option("draw");
+    const fs::path json_path = get_option(parser, "json", "");
     if (json_path.empty())
     {
         std::cerr << "Specify the path to image_info_test-dev2017.json with --json\n";
         return EXIT_FAILURE;
     }
 
-    const std::string dnn_path = get_option(parser, "dnn", "");
+    const fs::path dnn_path = get_option(parser, "dnn", "");
     if (dnn_path.empty())
     {
         std::cerr << "Specify the path to the network to evaluate with --dnn\n";
@@ -59,34 +63,39 @@ try
 
     std::ifstream fin(json_path);
     if (not fin.good())
-        throw std::runtime_error("ERROR while trying to open " + json_path + " file.");
+        throw std::runtime_error("ERROR while trying to open " + json_path.string() + " file.");
 
+    // load the json file
     json data;
     fin >> data;
 
+    // build a mapping from label to id
     std::unordered_map<std::string, int> categories;
     for (const auto& entry : data["categories"])
     {
         categories[entry["name"].get<std::string>()] = entry["id"].get<int>();
     }
 
+    // load the network in inference mode
     model net;
     net.load_infer(dnn_path);
 
     image_window win;
     drawing_options options;
-    options.draw_labels = true;
+    if (not draw)
+        win.hide();
     for (const auto& label : net.get_options().labels)
         options.mapping[label] = label;
+
     matrix<rgb_pixel> image, resized;
-    const auto images_path = get_parent_directory(file(json_path)).full_name() + "/test2017";
+    const auto images_path = json_path.parent_path() / "test2017";
     json results;
     console_progress_indicator progress(data["images"].size());
     size_t cnt = 0;
     for (const auto& image_info : data["images"])
     {
         const auto image_id = image_info["id"].get<int>();
-        load_image(image, images_path + "/" + image_info["file_name"].get<std::string>());
+        load_image(image, images_path / image_info["file_name"].get<fs::path>());
         const auto tform = preprocess_image(image, resized, image_size, use_letterbox);
         auto dets = net(resized, conf_thresh);
         postprocess_detections(tform, dets);
@@ -103,14 +112,17 @@ try
                 {"score", round_decimal_places(det.detection_confidence, 3)}};
             results.push_back(std::move(d));
         }
-        progress.print_status(++cnt, false, std::clog);
+        progress.print_status(++cnt);
 
-        // draw_bounding_boxes(image, dets, options);
-        // win.set_image(image);
-        // std::cout << results.back().dump(2) << '\n';
-        // std::cin.get();
-        // break;
+        if (draw)
+        {
+            draw_bounding_boxes(image, dets, options);
+            win.set_image(image);
+            std::cout << results.back().dump(2) << '\n';
+            std::cin.get();
+        }
     }
+    progress.finish();
     std::clog << "saving results\n";
     std::ofstream fout("detections_test-dev2017_yolo-dlib_results.json");
     fout << results << std::flush;

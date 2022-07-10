@@ -119,5 +119,5 @@ add_dlib_executable(draw_boxes)
 target_link_libraries(draw_boxes PRIVATE draw)
 
 add_dlib_executable(evalcoco)
-target_link_libraries(evalcoco PRIVATE model detector_utils nlohmann_json::nlohmann_json)
+target_link_libraries(evalcoco PRIVATE model detector_utils draw nlohmann_json::nlohmann_json)
 
