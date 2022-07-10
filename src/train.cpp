@@ -21,7 +21,7 @@ try
     const auto num_threads_str = std::to_string(num_threads);
     command_line_parser parser;
     parser.add_option("architecture", "print the network architecture");
-    parser.add_option("name", "name used for sync and net files (default: yolo)", 1);
+    parser.add_option("name", "name used for net and sync files (default: yolo)", 1);
     parser.add_option("size", "image size for internal usage (default: 512)", 1);
     parser.add_option("test", "visually test the model instead of training");
     parser.add_option("visualize", "visualize data augmentation before training");
@@ -50,12 +50,15 @@ try
     parser.add_option("weight-decay", "sgd weight decay (default: 0.0005)", 1);
 
     parser.set_group_name("YOLO Options");
-    parser.add_option("anchor", "anchor pyramid level, width and height", 3);
+    parser.add_option("box", "anchor box pyramid level, width and height", 3);
     parser.add_option("iou-ignore", "IoUs above don't incur obj loss (default: 0.7)", 1);
     parser.add_option("iou-anchor", "extra anchors IoU threshold (default: 0.2)", 1);
     parser.add_option("lambda-obj", "weight for the objectness loss (default: 1)", 1);
     parser.add_option("lambda-box", "weight for the box regression loss (default: 1)", 1);
     parser.add_option("lambda-cls", "weight for the classification loss (default: 1)", 1);
+    parser.add_option("beta-cls", "class balanced loss beta (default: disabled)", 1);
+    parser.add_option("gamma-obj", "focal loss gamma for the objectness (default: 0)", 1);
+    parser.add_option("gamma-cls", "focal loss gamma for the classifier (default: 0)", 1);
 
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max rotation in degrees (default: 3.0)", 1);
@@ -82,9 +85,13 @@ try
         std::cout << "Give the path to a directory with the training.xml and testing.xml files.\n";
         return EXIT_SUCCESS;
     }
+    const auto epsilon = std::numeric_limits<double>::epsilon();
     parser.check_option_arg_range<double>("conf", 0, 1);
     parser.check_option_arg_range<double>("iou-ignore", 0, 1);
     parser.check_option_arg_range<double>("iou-anchor", 0, 1);
+    parser.check_option_arg_range<double>("gamma-obj", 0, std::numeric_limits<double>::max());
+    parser.check_option_arg_range<double>("gamma-cls", 0, std::numeric_limits<double>::max());
+    parser.check_option_arg_range<double>("beta-cls", 0, 1 - epsilon);
     parser.check_option_arg_range<double>("mirror", 0, 1);
     parser.check_option_arg_range<double>("mixup", 0, 1);
     parser.check_option_arg_range<double>("mosaic", 0, 1);
@@ -100,7 +107,7 @@ try
     parser.check_sub_option("warmup", "burnin");
     const double learning_rate = get_option(parser, "learning-rate", 0.001);
     const double min_learning_rate = get_option(parser, "min-learning-rate", 1e-6);
-    const size_t patience = get_option(parser, "patience", 3);
+    const double patience = get_option(parser, "patience", 3.0);
     const double shrink_factor = get_option(parser, "shrink-factor", 0.1);
     const double warmup_epochs = get_option(parser, "warmup", 0.0);
     const double num_epochs = get_option(parser, "epochs", 0.0);
@@ -117,6 +124,9 @@ try
     const double lambda_obj = get_option(parser, "lambda-obj", 1.0);
     const double lambda_box = get_option(parser, "lambda-box", 1.0);
     const double lambda_cls = get_option(parser, "lambda-cls", 1.0);
+    const double gamma_obj = get_option(parser, "gamma-obj", 0.0);
+    const double gamma_cls = get_option(parser, "gamma-cls", 0.0);
+    const double beta_cls = get_option(parser, "beta-cls", 0.0);
     const size_t num_gpus = get_option(parser, "gpus", 1);
     const size_t batch_size = get_option(parser, "batch-gpu", 8) * num_gpus;
     const double burnin = get_option(parser, "burnin", 1.0);
@@ -151,17 +161,45 @@ try
         train_dataset,
         data_path + "/training.xml");
     std::clog << "# train images: " << train_dataset.images.size() << '\n';
-    std::map<std::string, size_t> labels;
+    std::map<std::string, size_t> class_support;
+    std::map<std::string, double> class_weights;
     size_t num_objects = 0;
+    // compute the label support
     for (const auto& im : train_dataset.images)
     {
         for (const auto& b : im.boxes)
         {
-            labels[b.label]++;
+            class_support[b.label]++;
             ++num_objects;
         }
     }
-    std::clog << "# labels: " << labels.size() << '\n';
+    // compute the class balanced loss weights
+    if (not parser.option("beta-cls"))
+    {
+        for (const auto& [label, support] : class_support)
+        {
+            class_weights[label] = 1;
+        }
+    }
+    else
+    {
+        double sum_inv_weights = 0;
+        // double sum_weights = 0;
+        for (const auto& [label, support] : class_support)
+        {
+            class_weights[label] = (1.0 - beta_cls) / (1.0 - std::pow(beta_cls, support));
+            sum_inv_weights += 1.0 / class_weights.at(label);
+            // sum_weights += class_weights.at(label);
+        }
+        for (auto& [label, weight] : class_weights)
+        {
+            const auto eff_support = 1.0 / weight / sum_inv_weights * num_objects;
+            weight = (num_objects - eff_support) / eff_support;
+            // weight = weight / sum_weights * class_weights.size();
+        }
+    }
+
+    std::clog << "# labels: " << class_support.size() << '\n';
     image_dataset_metadata::dataset test_dataset;
     image_dataset_metadata::load_image_dataset_metadata(test_dataset, data_path + "/testing.xml");
     std::clog << "# test images: " << test_dataset.images.size() << '\n';
@@ -169,25 +207,28 @@ try
     // YOLO options
     yolo_options options;
     color_mapper string_to_color;
-    for (const auto& label : labels)
+    for (const auto& [label, support] : class_support)
     {
-        std::clog << " - " << label.first << ": " << label.second;
-        std::clog << " (" << (100.0 * label.second) / num_objects << "%)\n";
-        options.labels.push_back(label.first);
-        string_to_color(label.first);
+        std::clog << " - " << label << ": " << support;
+        std::clog << " (" << (100.0 * support) / num_objects << "%),";
+        std::clog << " weight: " << class_weights.at(label) << '\n';
+        options.labels.push_back(label);
+        string_to_color(label);
     }
     options.iou_ignore_threshold = iou_ignore_threshold;
     options.iou_anchor_threshold = iou_anchor_threshold;
     options.lambda_obj = lambda_obj;
     options.lambda_box = lambda_box;
     options.lambda_cls = lambda_cls;
+    options.gamma_obj = gamma_obj;
+    options.gamma_cls = gamma_cls;
 
     // Initialize the default YOLO anchors
     std::map<unsigned long, std::vector<yolo_options::anchor_box_details>> anchors{
         {3, {{10, 13}, {16, 30}, {33, 23}}},
         {4, {{30, 61}, {62, 45}, {59, 119}}},
         {5, {{116, 90}, {156, 198}, {373, 326}}}};
-    if (parser.option("anchor"))
+    if (parser.option("box"))
     {
         anchors.clear();
         const auto num_anchors = parser.option("anchor").count();
@@ -234,6 +275,8 @@ try
     {
         net.load_train(tune_net_path);
     }
+
+    net.setup(options);
 
     // In case we have several GPUs, we can tell the dnn_trainer to make use of them.
     std::vector<int> gpus(num_gpus);
@@ -333,7 +376,7 @@ try
                 return result;
             }
             for (const auto& box : image_info.boxes)
-                result.second.emplace_back(box.rect, 1, box.label);
+                result.second.emplace_back(box.rect, class_weights.at(box.label), box.label);
 
             // First, letterbox the image
             rectangle_transform tform(letterbox_image(image, letterbox, image_size));
@@ -452,17 +495,17 @@ try
             {
                 if (not box.ignore)
                 {
-                    box.rect.left() = put_in_range(0, image_size - 1, box.rect.left());
-                    box.rect.top() = put_in_range(0, image_size - 1, box.rect.top());
-                    box.rect.right() = put_in_range(0, image_size - 1, box.rect.right());
-                    box.rect.bottom() = put_in_range(0, image_size - 1, box.rect.bottom());
+                    box.rect.left() = put_in_range(0, image_size, box.rect.left());
+                    box.rect.top() = put_in_range(0, image_size, box.rect.top());
+                    box.rect.right() = put_in_range(0, image_size, box.rect.right());
+                    box.rect.bottom() = put_in_range(0, image_size, box.rect.bottom());
                 }
             }
 
             return result;
         };
 
-        const auto mixup = [&rnd, get_sample]()
+        const auto mixup = [&rnd, &class_weights, get_sample]()
         {
             const auto sample1 = get_sample();
             const auto sample2 = get_sample();
@@ -484,12 +527,12 @@ try
             }
             for (auto box : sample1.second)
             {
-                box.detection_confidence = alpha;
+                box.detection_confidence = alpha * class_weights.at(box.label);
                 sample.second.push_back(std::move(box));
             }
             for (auto box : sample2.second)
             {
-                box.detection_confidence = 1 - alpha;
+                box.detection_confidence = (1 - alpha) * class_weights.at(box.label);
                 sample.second.push_back(std::move(box));
             }
             return sample;
@@ -617,7 +660,7 @@ try
         if (trainer.get_train_one_step_calls() == 0)
         {
             const matrix<double> learning_rate_schedule =
-                learning_rate * pow(linspace(1e-24, 1, warmup_steps), burnin);
+                learning_rate * pow(linspace(epsilon, 1, warmup_steps), burnin);
 
             trainer.set_learning_rate_schedule(learning_rate_schedule);
             std::cout << "training started with " << warmup_epochs;

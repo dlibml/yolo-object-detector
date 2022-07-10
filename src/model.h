@@ -21,6 +21,7 @@ class model
         const size_t batch_size,
         const float conf = 0.25) -> std::vector<std::vector<dlib::yolo_rect>>;
 
+    void setup(const dlib::yolo_options& options);
     void sync();
     void clean();
     void save_train(const std::string& path);

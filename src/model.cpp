@@ -13,6 +13,7 @@ model::model() : pimpl(std::make_unique<model::impl>())
 model::model(const yolo_options& options) : pimpl(std::make_unique<model::impl>(options))
 {
     auto& net = pimpl->train;
+    using namespace dlib;
     // setup the leaky relu activations
     visit_computational_layers(net, [](leaky_relu_& l) { l = leaky_relu_(0.1); });
     disable_duplicative_biases(net);
@@ -26,6 +27,12 @@ model::model(const yolo_options& options) : pimpl(std::make_unique<model::impl>(
     layer<ytag5, 2>(net).layer_details().set_num_filters(num_anchors_p5 * (num_classes + 5));
     // increase the batch normalization window size
     set_all_bn_running_stats_window_sizes(net, 1000);
+}
+
+void model::setup(const yolo_options& options)
+{
+    pimpl->train.loss_details() = loss_yolo_<yolov5::ytag3, yolov5::ytag4, yolov5::ytag5>(options);
+    sync();
 }
 
 void model::sync()
@@ -72,12 +79,12 @@ void model::load_backbone(const std::string& path)
 auto model::get_strides(const long image_size) -> std::vector<long>
 {
     matrix<rgb_pixel> image(image_size, image_size);
-    pimpl->infer(image);
-    const auto stride3 = image_size / layer<ytag3>(pimpl->infer).get_output().nr();
-    const auto stride4 = image_size / layer<ytag4>(pimpl->infer).get_output().nr();
-    const auto stride5 = image_size / layer<ytag5>(pimpl->infer).get_output().nr();
-    pimpl->infer.clean();
-    return {stride3, stride4, stride5};
+    auto& net = pimpl->infer;
+    net(image);
+    const auto& t3 = layer<ytag3>(net).get_output();
+    const auto& t4 = layer<ytag4>(net).get_output();
+    const auto& t5 = layer<ytag5>(net).get_output();
+    return {image_size / t3.nr(), image_size / t4.nc(), image_size / t5.nr()};
 }
 
 auto model::operator()(const matrix<rgb_pixel>& image, const float conf) -> std::vector<yolo_rect>
@@ -138,6 +145,8 @@ void model::print_loss_details(std::ostream& out) const
     out << "  lambda_obj: " << opts.lambda_obj << '\n';
     out << "  lambda_box: " << opts.lambda_box << '\n';
     out << "  lambda_cls: " << opts.lambda_cls << '\n';
+    out << "  gamma_obj: " << opts.gamma_obj << '\n';
+    out << "  gamma_cls: " << opts.gamma_cls << '\n';
     out << "  overlaps_nms: (" << opts.overlaps_nms.get_iou_thresh() << ", "
         << opts.overlaps_nms.get_percent_covered_thresh() << ")" << '\n';
     out << "  classwise_nms: " << std::boolalpha << opts.classwise_nms << '\n';
