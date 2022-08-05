@@ -7,21 +7,6 @@
 struct drawing_options
 {
     drawing_options() = default;
-    drawing_options& operator=(const drawing_options& item)
-    {
-        if (this == &item)
-            return *this;
-        thickness = item.thickness;
-        draw_labels = item.draw_labels;
-        draw_confidence = item.draw_confidence;
-        multilabel = item.multilabel;
-        fill = item.fill;
-        mapping = item.mapping;
-        font_path = item.font_path;
-        weighted = item.weighted;
-        text_offset = item.text_offset;
-        return *this;
-    }
     size_t thickness = 5;
     color_mapper string_to_color;
     bool draw_labels = true;
@@ -31,35 +16,10 @@ struct drawing_options
     bool weighted = false;
     dlib::point text_offset{0, 0};
     std::map<std::string, std::string> mapping;
-    const std::shared_ptr<dlib::font>& get_font()
-    {
-        if (custom_font != nullptr)
-            font = custom_font;
-        else
-            font = default_font;
-        return font;
-    }
-    void set_font(const std::string& font_path)
-    {
-        this->font_path = font_path;
-        if (not font_path.empty())
-        {
-            const auto font = std::make_shared<dlib::bdf_font>();
-            std::ifstream fin(font_path);
-            if (fin.good())
-            {
-                font->read_bdf_file(fin, 0xFFFF);
-                font->adjust_metrics();
-                custom_font = std::move(font);
-            }
-            else
-            {
-                std::cerr << "WARNING: could not open font file " + font_path +
-                                 ", using default font."
-                          << std::endl;
-            }
-        }
-    }
+
+    auto operator=(const drawing_options& item) -> drawing_options&;
+    auto get_font() -> const std::shared_ptr<dlib::font>&;
+    auto set_font(const std::string& font_path) -> void;
 
     private:
     const std::shared_ptr<dlib::font> default_font = dlib::default_font::get_font();

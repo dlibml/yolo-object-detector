@@ -1,5 +1,50 @@
 #include "draw.h"
 
+auto drawing_options::operator=(const drawing_options& item) -> drawing_options&
+{
+    if (this == &item)
+        return *this;
+    thickness = item.thickness;
+    draw_labels = item.draw_labels;
+    draw_confidence = item.draw_confidence;
+    multilabel = item.multilabel;
+    fill = item.fill;
+    mapping = item.mapping;
+    font_path = item.font_path;
+    weighted = item.weighted;
+    text_offset = item.text_offset;
+    return *this;
+}
+
+auto drawing_options::get_font() -> const std::shared_ptr<dlib::font>&
+{
+    if (custom_font != nullptr)
+        font = custom_font;
+    else
+        font = default_font;
+    return font;
+}
+
+auto drawing_options::set_font(const std::string& font_path) -> void
+{
+    this->font_path = font_path;
+    if (not font_path.empty())
+    {
+        const auto font = std::make_shared<dlib::bdf_font>();
+        std::ifstream fin(font_path);
+        if (fin.good())
+        {
+            font->read_bdf_file(fin, 0xFFFF);
+            font->adjust_metrics();
+            custom_font = std::move(font);
+        }
+        else
+        {
+            std::cerr << "WARNING: could not open file " + font_path + ", using default font\n.";
+        }
+    }
+}
+
 using namespace dlib;
 
 void serialize(const drawing_options& item, std::ostream& out)
