@@ -6,7 +6,9 @@
 #include <dlib/console_progress_indicator.h>
 #include <dlib/data_io.h>
 #include <dlib/image_io.h>
+#include <filesystem>
 
+namespace fs = std::filesystem;
 using namespace dlib;
 using rgb_image = matrix<rgb_pixel>;
 
@@ -44,8 +46,8 @@ try
     const size_t image_size = get_option(parser, "size", 512);
     const size_t num_workers = get_option(parser, "workers", num_threads);
     const double conf_thresh = get_option(parser, "conf", 0.25);
-    const std::string dnn_path = get_option(parser, "dnn", "");
-    const std::string sync_path = get_option(parser, "sync", "");
+    const fs::path dnn_path = get_option(parser, "dnn", "");
+    const fs::path sync_path = get_option(parser, "sync", "");
     const bool classwise_nms = not parser.option("nms-agnostic");
     double iou_threshold = 0.45;
     double ratio_covered = 1.0;
@@ -67,6 +69,7 @@ try
     {
         auto trainer = sgd_trainer(net);
         trainer.load_from_synchronization_file(sync_path);
+        num_steps = trainer.get_train_one_step_calls();
         std::clog << "Lodaded network from " << sync_path << '\n';
         export_model = true;
     }
@@ -97,7 +100,7 @@ try
     data_loaders.join();
 
     if (export_model)
-        save_model(net, sync_path, num_steps, metrics.map, metrics.weighted_f);
+        save_model(net, sync_path, num_steps, metrics);
 
     return EXIT_SUCCESS;
 }
