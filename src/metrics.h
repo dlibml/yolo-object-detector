@@ -63,6 +63,18 @@ struct metrics_details
     double weighted_p = 0;
     double weighted_r = 0;
     double weighted_f = 0;
+    DLIB_DEFINE_DEFAULT_SERIALIZATION(
+        metrics_details,
+        map,
+        macro_p,
+        macro_r,
+        macro_f,
+        micro_p,
+        micro_r,
+        micro_f,
+        weighted_p,
+        weighted_r,
+        weighted_f);
 };
 
 inline std::ostream& operator<<(std::ostream& out, const metrics_details& item)
@@ -85,7 +97,6 @@ void save_model(
     model& net,
     const std::string& name,
     size_t num_steps,
-    double map,
-    double wf1);
+    const metrics_details& metrics);
 
 #endif  // metrics_h_INCLUDED

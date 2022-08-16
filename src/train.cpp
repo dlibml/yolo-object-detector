@@ -450,9 +450,9 @@ try
                     p.i = put_in_range(0, 255, p.i * dexp);
                 }
                 assign_image(result.first, hsi);
-                disturb_colors(result.first, rnd);
-                apply_random_color_offset(result.first, rnd);
             }
+            disturb_colors(result.first, rnd);
+            apply_random_color_offset(result.first, rnd);
 
             if (rnd.get_random_double() < solarize_prob)
             {
@@ -731,10 +731,10 @@ try
         trainer.print(std::clog);
     }
 
-    double best_map = 0;
-    double best_wf1 = 0;
+    metrics_details best_metrics;
+    size_t best_epoch = 0;
     if (file_exists(best_metrics_path))
-        deserialize(best_metrics_path) >> best_map >> best_wf1;
+        deserialize(best_metrics_path) >> best_metrics >> best_epoch;
     while (trainer.get_learning_rate() >= trainer.get_min_learning_rate())
     {
         train();
@@ -756,10 +756,13 @@ try
                 test_conf,
                 std::clog);
 
-            if (metrics.map > best_map or metrics.weighted_f > best_wf1)
-                save_model(net, experiment_name, num_steps, metrics.map, metrics.weighted_f);
-            best_map = std::max(metrics.map, best_map);
-            best_wf1 = std::max(metrics.weighted_f, best_wf1);
+            if (metrics.map > best_metrics.map)
+            {
+                save_model(net, experiment_name, num_steps, metrics);
+                serialize(best_metrics_path) << metrics << epoch;
+                best_metrics = metrics;
+                best_epoch = epoch;
+            }
 
             std::cout << "\n"
                       << "           mAP    mPr    mRc    mF1    µPr    µRc    µF1    wPr    wRc "
@@ -767,8 +770,6 @@ try
             std::cout << "EPOCH " << epoch << ": " << std::fixed << std::setprecision(4) << metrics
                       << "\n\n"
                       << std::flush;
-
-            serialize(best_metrics_path) << best_map << best_wf1;
 
             data.disable();
             test_loaders.join();
@@ -779,6 +780,12 @@ try
     trainer.get_net();
     trainer.print(std::cout);
     std::cout << "training done\n";
+
+    std::cout << "\n"
+              << "           mAP    mPr    mRc    mF1    µPr    µRc    µF1    wPr    wRc "
+                 "   wF1\n";
+    std::cout << "EPOCH " << best_epoch << ": " << std::fixed << std::setprecision(4)
+              << best_metrics << std::endl;
 
     train_data.disable();
     for (auto& worker : train_data_loaders)

@@ -96,7 +96,7 @@ metrics_details compute_metrics(
                     if (im.boxes[t].label == dets[d].label &&
                         box_intersection_over_union(
                             dlib::drectangle(im.boxes[t].rect),
-                            dets[d].rect) > 0.5)
+                            dets[d].rect) >= 0.5)
                     {
                         used[d] = true;
                         found_match_ap = true;
@@ -215,12 +215,15 @@ metrics_details compute_metrics(
     return metrics;
 }
 
-void save_model(model& net, const std::string& name, size_t num_steps, double map, double wf1)
+void save_model(
+    model& net,
+    const std::string& name,
+    size_t num_steps,
+    const metrics_details& metrics)
 {
     std::stringstream filename;
     filename << name << "_step-" << dlib::pad_int_with_zeros(num_steps);
-    filename << "_map-" << std::fixed << std::setprecision(4) << map;
-    filename << "_wf1-" << std::fixed << std::setprecision(4) << wf1;
+    filename << "_map-" << std::fixed << std::setprecision(4) << metrics.map;
     filename << ".dnn";
     net.save_train(filename.str());
     std::cout << "model saved as: " << filename.str() << '\n';
