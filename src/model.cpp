@@ -31,7 +31,7 @@ model::model(const yolo_options& options) : pimpl(std::make_unique<model::impl>(
 
 void model::setup(const yolo_options& options)
 {
-    pimpl->train.loss_details() = loss_yolo_<yolov5::ytag3, yolov5::ytag4, yolov5::ytag5>(options);
+    pimpl->train.loss_details() = loss_yolo_<yolov7::ytag3, yolov7::ytag4, yolov7::ytag5>(options);
     sync();
 }
 
