@@ -1,10 +1,10 @@
 #ifndef model_impl_h_INCLUDED
 #define model_impl_h_INCLUDED
 #include "model.h"
-#include "yolov5.h"
+#include "yolov7.h"
 
-using net_train_type = yolov5::train_type_l;
-using net_infer_type = yolov5::infer_type_l;
+using net_train_type = yolov7::train_type;
+using net_infer_type = yolov7::infer_type;
 
 struct model::impl
 {
