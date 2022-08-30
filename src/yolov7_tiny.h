@@ -31,14 +31,6 @@ namespace yolov7_tiny
                  itag1<conv<NF / 2, 1, 1,
                  itag0<SUBNET>>>>>>>>>>>>;
 
-        template <long NF, template<typename> class TAG, typename SUBNET>
-        using transition2 = concat3<itag2, itag1, TAG,
-                      itag2<conv<NF, 3, 2,
-                            conv<NF, 1, 1, iskip<
-                      itag1<conv<NF, 1, 1,
-                            max_pool<2, 2, 2, 2,
-                      itag0<SUBNET>>>>>>>>>;
-
         template <typename INPUT>
         using backbone = ptag5<e_elan<512, max_pool<2, 2, 2, 2,
                          ptag4<e_elan<256, max_pool<2, 2, 2, 2,
@@ -65,7 +57,7 @@ namespace yolov7_tiny
         using head = yolo<ytag5, conv<512, 3, 1,
                      e_elan<256,
                      concat2<tag5, ntag5,
-                tag5<conv<128, 3, 2, skip1<
+                tag5<conv<256, 3, 2, skip1<
                      yolo<ytag4, conv<256, 3, 1,
                 tag1<e_elan<128,
                      concat2<tag4, ntag4,
