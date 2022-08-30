@@ -64,24 +64,25 @@ try
         image_dataset_metadata::load_image_dataset_metadata(dataset, parser[i]);
         fs::create_directories(output_path);
 
+        // get the unique labels from the dataset
+        std::set<std::string> labels_set;
+        for (const auto& image : dataset.images)
+        {
+            for (const auto& box : image.boxes)
+            {
+                labels_set.insert(box.label);
+            }
+        }
 
         // map each label to a class index
         std::map<std::string, unsigned long> labels_map;
         if (parser.option("coco"))
         {
+            DLIB_CASSERT(labels_set.size() == coco_mapping.size());
             labels_map = coco_mapping;
         }
         else
         {
-            // get the unique labels from the dataset
-            std::set<std::string> labels_set;
-            for (const auto& image : dataset.images)
-            {
-                for (const auto& box : image.boxes)
-                {
-                    labels_set.insert(box.label);
-                }
-            }
             // generate a mapping
             size_t i = 0;
             for (const auto& label : labels_set)
