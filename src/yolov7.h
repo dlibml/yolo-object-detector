@@ -13,6 +13,7 @@ namespace yolov7
     template <typename SUBNET> using ptag4 = add_tag_layer<7004, SUBNET>;
     template <typename SUBNET> using ptag5 = add_tag_layer<7005, SUBNET>;
     template <typename SUBNET> using ntag4 = add_tag_layer<5004, SUBNET>;
+    template <typename SUBNET> using ntag5 = add_tag_layer<5005, SUBNET>;
 
     template <template <typename> class ACT, template <typename> class BN>
     struct def
@@ -85,22 +86,22 @@ namespace yolov7
         template <typename SUBNET>
         using head = yolo<ytag5,
                      e_elan2<512,
-                     transition2<256, tag8, skip9<
+                     transition2<256, ntag5, skip5<
                      yolo<ytag4,
-                tag9<e_elan2<256,
-                     transition2<128, tag7, skip9<
+                tag5<e_elan2<256,
+                     transition2<128, ntag4, skip4<
                      yolo<ytag3,
-                tag9<e_elan2<128,
+                tag4<e_elan2<128,
                      concat2<tag2, tag1,
                 tag2<conv<128, 1, 1, add_skip_layer<ptag3,
                 tag1<upsample<2,
                      conv<128, 1, 1,
-                tag7<e_elan2<256,
+               ntag4<e_elan2<256,
                      concat2<tag2, tag1,
                 tag2<conv<256, 1, 1, add_skip_layer<ptag4,
                 tag1<upsample<2,
                      conv<256, 1, 1,
-               tag8<sppcspc<512,
+              ntag5<sppcspc<512,
                SUBNET>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
 
         using net_type = loss_yolo<ytag3, ytag4, ytag5, head<backbone<input_rgb_image>>>;
