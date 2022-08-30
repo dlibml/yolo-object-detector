@@ -231,12 +231,12 @@ try
     if (parser.option("box"))
     {
         anchors.clear();
-        const auto num_anchors = parser.option("anchor").count();
+        const auto num_anchors = parser.option("box").count();
         for (size_t i = 0; i < num_anchors; ++i)
         {
-            const auto stride = std::stoul(parser.option("anchor").argument(0, i));
-            const auto width = std::stoul(parser.option("anchor").argument(1, i));
-            const auto height = std::stoul(parser.option("anchor").argument(2, i));
+            const auto stride = std::stoul(parser.option("box").argument(0, i));
+            const auto width = std::stoul(parser.option("box").argument(1, i));
+            const auto height = std::stoul(parser.option("box").argument(2, i));
             anchors[stride].emplace_back(width, height);
         }
         for (auto& [stride, anchor] : anchors)
@@ -357,7 +357,7 @@ try
     const auto train_loader = [&](time_t seed)
     {
         dlib::rand rnd(time(nullptr) + seed);
-        const auto get_sample = [&]()
+        const auto get_sample = [&](const bool downscale = true)
         {
             std::pair<rgb_image, std::vector<yolo_rect>> result;
             rgb_image image, letterbox, transformed(image_size, image_size);
@@ -384,7 +384,12 @@ try
                 box.rect = tform(box.rect);
 
             // Scale, shift and rotate
-            const double scale = rnd.get_double_in_range(1 - scale_gain, 1 + scale_gain);
+            double scale = 1.0;
+            if (downscale)
+                scale = rnd.get_double_in_range(1 - scale_gain, 1 + scale_gain);
+            else
+                scale = rnd.get_double_in_range(1 - scale_gain, 1);
+
             const auto shift = shift_frac * image_size;
             const dpoint center = dpoint(image_size / 2., image_size / 2.) +
                                   dpoint(
@@ -505,10 +510,10 @@ try
             return result;
         };
 
-        const auto mixup = [&rnd, &class_weights, get_sample]()
+        const auto mixup = [&rnd, &class_weights, get_sample](const bool downscale = true)
         {
-            const auto sample1 = get_sample();
-            const auto sample2 = get_sample();
+            const auto sample1 = get_sample(downscale);
+            const auto sample2 = get_sample(downscale);
             std::pair<rgb_image, std::vector<yolo_rect>> sample;
             DLIB_CASSERT(have_same_dimensions(sample1.first, sample2.first));
             sample.first.set_size(sample1.first.nr(), sample1.first.nc());
@@ -550,9 +555,9 @@ try
                 {
                     std::pair<rgb_image, std::vector<yolo_rect>> tile;
                     if (rnd.get_random_double() < mixup_prob)
-                        tile = mixup();
+                        tile = mixup(false);
                     else
-                        tile = get_sample();
+                        tile = get_sample(false);
                     const rectangle r(x, y, x + s, y + s);
                     auto si = sub_image(sample.first, r);
                     resize_image(tile.first, si);
@@ -567,9 +572,9 @@ try
             else
             {
                 if (rnd.get_random_double() < mixup_prob)
-                    train_data.enqueue(mixup());
+                    train_data.enqueue(mixup(true));
                 else
-                    train_data.enqueue(get_sample());
+                    train_data.enqueue(get_sample(true));
             }
         }
     };
