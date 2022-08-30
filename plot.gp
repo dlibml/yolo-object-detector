@@ -2,7 +2,7 @@
 
 reset session
 
-set term png size 1800,960
+set term pngcairo size 1800,960
 set output 'loss.png'
 set grid
 
@@ -12,30 +12,36 @@ set style line 3 lc rgb '#0000C0' lt 1 lw 2 pt 7 pi -1 ps 0.5
 
 set multiplot title 'YOLO'
 
-set size 0.67,0.5
+set size 0.5,0.5
 set origin 0,0.5
 # stats "< awk '$1==\"step#:\" {print $2, $8}' training.log" every ::1 using 1:2;
 # max_y = floor(STATS_min_y * 1.5);
 # set yrange [0:max_y]
-set yrange [0:20]
+set yrange [0:100]
 set title 'loss'
 set xlabel 'step'
 
-plot "< awk '$1==\"step#:\" {print $2, $8}' training.log" using 1:2 title 'train' w lines ls 1, \
-     "< awk '$1==\"step#:\" {print $2, $11}' training.log" using 1:2 title 'test' w lines ls 2
+plot "< awk '$1==\"step#:\" {print $2, $8}' training.log" using 1:2 title 'train' w lines ls 1
+# plot "< awk '$1==\"step#:\" {print $2, $8}' training.log" using 1:2 title 'train' w lines ls 1, \
+#      "< awk '$1==\"step#:\" {print $2, $11}' training.log" using 1:2 title 'test' w lines ls 2
 
-set size 0.33,0.5
-set origin 0.67,0.5
+set size 0.5,0.5
+set origin 0.5,0.5
 set title 'learning rate'
 set xlabel 'step'
 set autoscale y
+set format y '%.0t×10^{%.0S}'
+# set format y '%.0t×10^{%.0S}'
+set ytics format '%.0te%S'
 plot "< awk '$1==\"step#:\" {print $2, $5}' training.log" using 1:2 title '' w lines ls 1
 
+unset format y
 set size 0.25,0.5
 
 set key right bottom
 set origin 0,0
 set title 'mAP\@0.5'
+set xrange [0:100]
 set yrange [0:1]
 set xlabel 'epoch'
 plot "< awk '$1==\"EPOCH\" {print $2, $3}' training.log" using 1:2 title '' w linespoints ls 1
