@@ -12,7 +12,7 @@ auto main(const int argc, const char** argv) -> int
 try
 {
     command_line_parser parser;
-    parser.add_option("output", "path to the fused network (default: fused.dnn", 1);
+    parser.add_option("output", "path to the fused network (default: fused.dnn)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("help", "display this message and exit");
