@@ -447,8 +447,8 @@ try
         draw_bounding_boxes(image, detections, options);
         win.set_image(image);
         det_fps.add(1.0f / std::chrono::duration_cast<fseconds>(t1 - t0).count());
-        std::clog << "size: " << resized.nc() << 'x' << resized.nr() << ", fps: " << det_fps.mean()
-                  << "              \r" << std::flush;
+        std::clog << "processed image size: " << resized.nc() << 'x' << resized.nr()
+                  << ", fps: " << det_fps.mean() << "              \r" << std::flush;
         if (win.recording and not output_path.empty())
         {
             matrix<bgr_pixel> bgr_img(height, width);
