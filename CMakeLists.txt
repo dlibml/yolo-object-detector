@@ -67,7 +67,7 @@ macro(add_dlib_executable name)
     add_executable(${name} src/${name}.cpp)
     target_link_libraries(${name} PRIVATE dlib::dlib)
     target_include_directories(${name} PRIVATE src)
-    target_compile_options(${name} PRIVATE -Wall -Wextra -pedantic -Wno-deprecated-copy)
+    target_compile_options(${name} PRIVATE -Wall -Wextra -Wpedantic)
     install(TARGETS ${name} DESTINATION bin)
 endmacro()
 
@@ -86,6 +86,7 @@ add_compile_options(-ftemplate-depth=2000)
 
 add_dlib_executable(compute_anchors)
 
+add_dlib_library(yolo_logo)
 add_dlib_library(draw)
 add_dlib_library(webcam_window)
 
@@ -101,7 +102,7 @@ add_dlib_executable(test)
 target_link_libraries(test PRIVATE model sgd_trainer metrics detector_utils)
 
 add_dlib_executable(detect)
-target_link_libraries(detect PRIVATE model sgd_trainer detector_utils draw webcam_window ${OpenCV_LIBS})
+target_link_libraries(detect PRIVATE model sgd_trainer detector_utils draw webcam_window yolo_logo ${OpenCV_LIBS})
 target_include_directories(detect PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 add_dlib_executable(fuse)
@@ -117,6 +118,7 @@ add_dlib_executable(xml2darknet)
 add_dlib_executable(darknet2xml)
 add_dlib_executable(draw_boxes)
 target_link_libraries(draw_boxes PRIVATE draw)
+add_dlib_executable(augmentations)
 
 add_dlib_executable(evalcoco)
 target_link_libraries(evalcoco PRIVATE model detector_utils draw nlohmann_json::nlohmann_json)
