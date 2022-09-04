@@ -31,14 +31,14 @@ namespace yolov7
                      itag0<SUBNET>>>>>>>>>;
 
         template <long NF, typename SUBNET>
-        using e_elan = conv<NF * 4, 1, 1,
+        using e_elan = conv<NF, 1, 1,
                        concat4<itag4, itag3, itag2, itag1,
-                 itag4<conv<NF, 3, 1,
-                       conv<NF, 3, 1,
-                 itag3<conv<NF, 3, 1,
-                       conv<NF, 3, 1,
-                 itag2<conv<NF, 1, 1, iskip<
-                 itag1<conv<NF, 1, 1,
+                 itag4<conv<NF / 4, 3, 1,
+                       conv<NF / 4, 3, 1,
+                 itag3<conv<NF / 4, 3, 1,
+                       conv<NF / 4, 3, 1,
+                 itag2<conv<NF / 4, 1, 1, iskip<
+                 itag1<conv<NF / 4, 1, 1,
                  itag0<SUBNET>>>>>>>>>>>>>>;
 
         template <long NF, template<typename> class TAG, typename SUBNET>
@@ -61,10 +61,10 @@ namespace yolov7
                   itag0<SUBNET>>>>>>>>>>>>>>>>;
 
         template <typename INPUT>
-        using backbone = ptag5<e_elan<256, transition<512,
-                         ptag4<e_elan<256, transition<256,
-                         ptag3<e_elan<128, transition<128,
-                               e_elan<64, conv<128, 3, 2,
+        using backbone = ptag5<e_elan<1024, transition<512,
+                         ptag4<e_elan<1024, transition<256,
+                         ptag3<e_elan<512, transition<128,
+                               e_elan<256, conv<128, 3, 2,
                                conv<64, 3, 1, conv<64, 3, 2,
                                conv<32, 3, 1, INPUT>>>>>>>>>>>>>>;
 
@@ -84,13 +84,13 @@ namespace yolov7
         using yolo = YTAG<sig<con<255, 1, 1, 1, 1, SUBNET>>>;
 
         template <typename SUBNET>
-        using head = yolo<ytag5,
+        using head = yolo<ytag5, conv<1024, 3, 1,
                      e_elan2<512,
                      transition2<256, ntag5, skip5<
-                     yolo<ytag4,
+                     yolo<ytag4, conv<512, 3, 1,
                 tag5<e_elan2<256,
                      transition2<128, ntag4, skip4<
-                     yolo<ytag3,
+                     yolo<ytag3, conv<256, 3, 1,
                 tag4<e_elan2<128,
                      concat2<tag2, tag1,
                 tag2<conv<128, 1, 1, add_skip_layer<ptag3,
@@ -102,7 +102,7 @@ namespace yolov7
                 tag1<upsample<2,
                      conv<256, 1, 1,
               ntag5<sppcspc<512,
-               SUBNET>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
+               SUBNET>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
 
         using net_type = loss_yolo<ytag3, ytag4, ytag5, head<backbone<input_rgb_image>>>;
     };
