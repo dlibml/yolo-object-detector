@@ -62,7 +62,7 @@ try
 
     parser.set_group_name("Data Augmentation Options");
     parser.add_option("angle", "max rotation in degrees (default: 3.0)", 1);
-    parser.add_option("hsi", "HSI colorspace gains (default: 0.5 0.2 0.1)", 3);
+    parser.add_option("color", "color gamma and magnitude (default: 0.5 0.2)", 2);
     parser.add_option("ignore-partial", "ignore partially covered objects instead");
     parser.add_option("min-coverage", "remove partially covered objects (default: 0.5)", 1);
     parser.add_option("mirror", "mirror probability (default: 0.5)", 1);
@@ -71,7 +71,6 @@ try
     parser.add_option("perspective", "relative to image size (default: 0.01)", 1);
     parser.add_option("scale", "scale gain (default: 0.5)", 1);
     parser.add_option("shift", "shift relative to image size (default: 0.2)", 1);
-    parser.add_option("solarize", "probability of solarize (default: 0.0)", 1);
 
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias of --help");
@@ -98,7 +97,6 @@ try
     parser.check_option_arg_range<double>("scale", 0, 1);
     parser.check_option_arg_range<double>("perspective", 0, 1);
     parser.check_option_arg_range<double>("min-coverage", 0, 1);
-    parser.check_option_arg_range<double>("hsi", 0, 1);
     parser.check_option_arg_range<double>("shrink-factor", 1e-99, 1);
     parser.check_incompatible_options("epochs", "patience");
     parser.check_incompatible_options("epochs", "shrink-factor");
@@ -113,12 +111,12 @@ try
     const double num_epochs = get_option(parser, "epochs", 0.0);
     if (parser.option("epochs"))
         DLIB_CASSERT(num_epochs > warmup_epochs);
-    double gain_h = 0.5, gain_s = 0.2, gain_i = 0.1;
-    if (parser.option("hsi"))
+    double color_gamma = 0.5;
+    double color_magnitude = 0.2;
+    if (parser.option("color"))
     {
-        gain_h = std::stod(parser.option("hsi").argument(0));
-        gain_s = std::stod(parser.option("hsi").argument(1));
-        gain_i = std::stod(parser.option("hsi").argument(2));
+        color_gamma = std::stod(parser.option("color").argument(0));
+        color_magnitude = std::stod(parser.option("color").argument(1));
     }
     const double test_conf = get_option(parser, "conf", 0.25);
     const double lambda_obj = get_option(parser, "lambda-obj", 1.0);
@@ -142,7 +140,6 @@ try
     const double shift_frac = get_option(parser, "shift", 0.2);
     const double min_coverage = get_option(parser, "min-coverage", 0.5);
     const bool ignore_partial_boxes = parser.option("ignore-partial");
-    const double solarize_prob = get_option(parser, "solarize", 0.0);
     const double iou_ignore_threshold = get_option(parser, "iou-ignore", 0.7);
     const double iou_anchor_threshold = get_option(parser, "iou-anchor", 0.2);
     const float momentum = get_option(parser, "momentum", 0.9);
@@ -441,36 +438,8 @@ try
                 }
             }
 
-            if (gain_h > 0 or gain_s > 0 or gain_i > 0)
-            {
-                matrix<hsi_pixel> hsi;
-                assign_image(hsi, result.first);
-                const auto dhue = rnd.get_double_in_range(1 / (1 + gain_h), (1 + gain_h));
-                const auto dsat = rnd.get_double_in_range(1 / (1 + gain_s), (1 + gain_s));
-                const auto dexp = rnd.get_double_in_range(1 / (1 + gain_i), (1 + gain_i));
-                for (auto& p : hsi)
-                {
-                    p.h = put_in_range(0, 255, p.h * dhue);
-                    p.s = put_in_range(0, 255, p.s * dsat);
-                    p.i = put_in_range(0, 255, p.i * dexp);
-                }
-                assign_image(result.first, hsi);
-            }
-            disturb_colors(result.first, rnd);
-            apply_random_color_offset(result.first, rnd);
-
-            if (rnd.get_random_double() < solarize_prob)
-            {
-                for (auto& p : result.first)
-                {
-                    if (p.red > 128)
-                        p.red = 128 - p.red;
-                    if (p.green > 128)
-                        p.green = 128 - p.green;
-                    if (p.blue > 128)
-                        p.blue = 128 - p.blue;
-                }
-            }
+            // Color data augmentation
+            disturb_colors(result.first, rnd, color_gamma, color_magnitude);
 
             // Ignore or remove boxes that are not well covered by the current image
             const auto image_rect = get_rect(result.first);
