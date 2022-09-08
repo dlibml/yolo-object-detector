@@ -5,7 +5,7 @@
 
 using namespace dlib;
 
-using sample_t = matrix<double, 2, 1>;
+using box_t = matrix<double, 2, 1>;
 
 auto main(const int argc, const char** argv) -> int
 try
@@ -75,37 +75,43 @@ try
 
     // Prepare the anchor box groups
     std::vector<size_t> clusters;
-    std::vector<std::pair<double, double>> ranges;
+    std::vector<box_t> ranges;
     for (size_t i = 0; i < parser.option("sides").count(); ++i)
     {
-        std::pair<double, double> range;
-        range.first = std::stod(parser.option("sides").argument(0, i));
-        range.second = std::stod(parser.option("sides").argument(1, i));
-        if (range.first > range.second)
-            std::swap(range.first, range.second);
+        box_t range;
+        range(0) = std::stod(parser.option("sides").argument(0, i));
+        range(1) = std::stod(parser.option("sides").argument(1, i));
+        if (range(0) > range(1))
+            std::swap(range(0), range(1));
         ranges.push_back(std::move(range));
         if (parser.option("clusters"))
             clusters.push_back(std::stoul(parser.option("clusters").argument(0, i)));
 
-        std::cout << "group #" << i << ": " << ranges.back().first << " - " << ranges.back().second
+        std::cout << "group #" << i << ": " << ranges.back()(0) << " - " << ranges.back()(1)
                   << std::endl;
     }
 
+    // Sort the ranges according to their area
+    std::sort(
+        ranges.begin(),
+        ranges.end(),
+        [](const auto& a, const auto& b) { return prod(a) < prod(b); });
+
     // Group the ground truth boxes by area covered
     size_t num_boxes = 0;
-    std::vector<std::vector<sample_t>> box_groups(num_groups);
+    std::vector<std::vector<box_t>> box_groups(num_groups);
     for (const auto& image_info : dataset.images)
     {
         const auto scale = image_size / std::max<double>(image_info.width, image_info.height);
         for (const auto& box : image_info.boxes)
         {
-            sample_t sample;
+            box_t sample;
             sample(0) = box.rect.width() * scale;
             sample(1) = box.rect.height() * scale;
             const auto [min_side, max_side] = std::minmax(sample(0), sample(1));
             for (size_t i = 0; i < ranges.size(); ++i)
             {
-                if (ranges[i].second > max_side)
+                if (ranges[i](1) > max_side)
                 {
                     box_groups.at(i).push_back(std::move(sample));
                     break;
@@ -116,7 +122,7 @@ try
     }
 
     const auto compute_average_iou =
-        [](const std::vector<sample_t>& samples, const std::vector<sample_t>& anchors)
+        [](const std::vector<box_t>& samples, const std::vector<box_t>& anchors)
     {
         double average_iou = 0;
         for (const auto& s : samples)
@@ -144,7 +150,7 @@ try
             const auto num_clusters = clusters[i];
             randomize_samples(samples);
             std::cout << "Computing anchors for " << samples.size() << " samples" << std::endl;
-            std::vector<sample_t> anchors;
+            std::vector<box_t> anchors;
             pick_initial_centers(num_clusters, anchors, samples);
             find_clusters_using_kmeans(samples, anchors);
             std::sort(
@@ -173,9 +179,9 @@ try
         dlib::rand rnd;
         test_box_overlap overlaps(min_iou);
 
-        const auto count_overlaps = [](const std::vector<sample_t>& samples,
+        const auto count_overlaps = [](const std::vector<box_t>& samples,
                                        const test_box_overlap& overlaps,
-                                       const sample_t& ref_sample)
+                                       const box_t& ref_sample)
         {
             const auto ref_box = centered_drect(dpoint(0, 0), ref_sample(0), ref_sample(1));
             size_t cnt = 0;
@@ -189,13 +195,13 @@ try
         };
 
         const auto find_samples_overlapping_all_others =
-            [count_overlaps](std::vector<sample_t> samples, const test_box_overlap overlaps)
+            [count_overlaps](std::vector<box_t> samples, const test_box_overlap overlaps)
         {
-            std::vector<sample_t> exemplars;
+            std::vector<box_t> exemplars;
             dlib::rand rnd;
             while (samples.size() > 0)
             {
-                sample_t best_ref_sample;
+                box_t best_ref_sample;
                 best_ref_sample = 0, 0;
                 randomize_samples(samples);
                 size_t best_cnt = 0;
