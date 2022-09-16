@@ -1,8 +1,8 @@
 #include "model.h"
 #include "sgd_trainer.h"
-#include <filesystem>
 
 #include <dlib/cmd_line_parser.h>
+#include <filesystem>
 
 using namespace dlib;
 using fms = std::chrono::duration<float, std::milli>;
@@ -13,6 +13,7 @@ try
 {
     command_line_parser parser;
     parser.add_option("output", "path to the fused network (default: fused.dnn)", 1);
+    parser.add_option("details", "print the network details");
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("help", "display this message and exit");
@@ -42,10 +43,13 @@ try
     auto t1 = std::chrono::steady_clock::now();
     std::clog << " (" << std::chrono::duration_cast<fms>(t1 - t0).count() << " ms)\n";
     const auto strides = net.get_strides();
-    std::cout << "the network has " << strides.size() << " outputs with strides:\n";
-    for (const auto stride : strides)
-        std::cout << " - " << stride << '\n';
-    net.print_loss_details();
+    if (parser.option("details"))
+    {
+        std::cout << "the network has " << strides.size() << " outputs with strides:\n";
+        for (const auto stride : strides)
+            std::cout << " - " << stride << '\n';
+        net.print_loss_details();
+    }
     std::clog << "fusing layers";
     t0 = std::chrono::steady_clock::now();
     net.fuse();
