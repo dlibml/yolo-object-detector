@@ -359,11 +359,10 @@ try
             auto detections = net(resized, win.conf_thresh);
             const auto t1 = std::chrono::steady_clock::now();
             postprocess_detections(tform, detections);
-            const auto t = std::chrono::duration_cast<fms>(t1 - t0).count();
             draw_bounding_boxes(image, detections, options);
             if (output_path.empty())
             {
-                std::clog << file << ": " << t << " ms\n";
+                std::clog << file << ": " << fms{t1 - t0}.count() << " ms\n";
                 for (const auto& d : detections)
                 {
                     std::clog << d.label << " " << d.detection_confidence << ": ";
