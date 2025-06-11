@@ -327,6 +327,7 @@ try
         {
             const auto idx = rnd.get_random_64bit_number() % test_dataset.images.size();
             std::pair<rgb_image, std::vector<yolo_rect>> sample;
+            sample.first.set_size(image_size, image_size);
             rgb_image image;
             const auto& image_info = test_dataset.images.at(idx);
             try
@@ -336,13 +337,12 @@ try
             catch (const image_load_error& e)
             {
                 std::cerr << "ERROR: " << e.what() << std::endl;
-                sample.first.set_size(image_size, image_size);
                 assign_all_pixels(sample.first, rgb_pixel(0, 0, 0));
                 sample.second = {};
                 test_data.enqueue(sample);
                 continue;
             }
-            const rectangle_transform tform = letterbox_image(image, sample.first, image_size);
+            const rectangle_transform tform = letterbox_image(image, sample.first);
             for (const auto& box : image_info.boxes)
                 sample.second.emplace_back(tform(box.rect), 1, box.label);
             test_data.enqueue(sample);
@@ -357,7 +357,7 @@ try
         const auto get_sample = [&](const bool downscale = true)
         {
             std::pair<rgb_image, std::vector<yolo_rect>> result;
-            rgb_image image, letterbox, transformed(image_size, image_size);
+            rgb_image image, letterbox(image_size, image_size), transformed(image_size, image_size);
             const auto idx = rnd.get_random_64bit_number() % train_dataset.images.size();
             const auto& image_info = train_dataset.images.at(idx);
             try
@@ -376,7 +376,7 @@ try
                 result.second.emplace_back(box.rect, class_weights.at(box.label), box.label);
 
             // First, letterbox the image
-            rectangle_transform tform(letterbox_image(image, letterbox, image_size));
+            rectangle_transform tform(letterbox_image(image, letterbox));
             for (auto& box : result.second)
                 box.rect = tform(box.rect);
 

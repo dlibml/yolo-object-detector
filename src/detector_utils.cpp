@@ -7,8 +7,9 @@ dlib::rectangle_transform preprocess_image(
     const bool use_letterbox,
     const long stride)
 {
+    output.set_size(image_size, image_size);
     if (use_letterbox)
-        return dlib::rectangle_transform(inv(letterbox_image(image, output, image_size)));
+        return dlib::rectangle_transform(inv(letterbox_image(image, output)));
 
     const double width = image.nc();
     const double height = image.nr();

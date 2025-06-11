@@ -25,6 +25,7 @@ const std::unordered_set<std::string> image_exts{
     ".gif",
     ".jpeg",
     ".jpg",
+    ".jxl",
     ".png",
     ".webp",
 };
