@@ -6,7 +6,7 @@
 namespace fs = std::filesystem;
 using namespace dlib;
 
-const std::array<const char*, 5> supported{".jpg", ".jpeg", ".png", ".gif", ".webp"};
+const std::array<const char*, 6> supported{".jpg", ".jpeg", ".jxl", ".png", ".gif", ".webp"};
 
 auto get_files(const fs::path& path, const fs::path& out_root) -> std::vector<std::string>
 {
@@ -49,21 +49,20 @@ try
     command_line_parser parser;
     auto num_threads = std::thread::hardware_concurrency();
     const auto num_threads_str = std::to_string(num_threads);
-    const long webp_max_dimension = 16383;
     parser.add_option("output", "output directory (default: converted_images)", 1);
     parser.add_option("threads", "number of workers (default: " + num_threads_str + ")", 1);
     parser.add_option("overwrite", "overwrite existing files");
     parser.add_option("quality", "image quality factor (default: 75.0)", 1);
     parser.add_option("log", "error log file (default: error.log)", 1);
-    parser.add_option("max-side", "maximum image side (default: 16383)", 1);
+    parser.add_option("max-side", "maximum image side (default: inf)", 1);
     parser.add_option("min-side", "maximum image side (default: 0)", 1);
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
     parser.add_option("help", "display this message and exit");
     parser.parse(argc, argv);
 
-    parser.check_option_arg_range("max-side", 0, 16383);
-    parser.check_option_arg_range("min-side", 0, 16383);
+    parser.check_option_arg_range("max-side", 0l, std::numeric_limits<long>::infinity());
+    parser.check_option_arg_range("min-side", 0l, std::numeric_limits<long>::infinity());
 
     if (parser.number_of_arguments() == 0 or parser.option("h") or parser.option("help"))
     {
@@ -84,7 +83,7 @@ try
     const bool overwrite = parser.option("overwrite");
     const float quality = get_option(parser, "quality", 75.f);
     const std::string error_log = get_option(parser, "log", "error.log");
-    const long max_side = get_option(parser, "max-side", webp_max_dimension);
+    const long max_side = get_option(parser, "max-side", std::numeric_limits<long>::infinity());
     const long min_side = get_option(parser, "min-side", 0);
 
     const auto files = get_files(parser[0], out_root);
@@ -127,7 +126,7 @@ try
         {
             fs::path out_file(out_root);
             out_file /= file;
-            if (out_file.extension() == ".webp")
+            if (out_file.extension() == ".jxl")
             {
                 if (not fs::copy_file(file, out_file))
                 {
@@ -137,12 +136,12 @@ try
             }
             else
             {
-                out_file.replace_extension(".webp");
+                out_file.replace_extension(".jxl");
                 if (not fs::exists(out_file) or overwrite)
                 {
                     try
                     {
-                        save_webp(image, out_file, quality);
+                        save_jxl(image, out_file, quality);
                     }
                     catch (const image_save_error& e)
                     {
