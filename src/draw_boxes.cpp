@@ -21,6 +21,7 @@ try
     parser.add_option("thickness", "bounding box thickness (default: 5)", 1);
     parser.add_option("quality", "image quality factor for JPEG and WebP (default: 75)", 1);
     parser.add_option("jpeg", "save images as JPEG instead of PNG");
+    parser.add_option("jxl", "save images as JPEG XL instead of PNG");
     parser.add_option("webp", "save images as WebP instead of PNG");
     parser.set_group_name("Help Options");
     parser.add_option("h", "alias for --help");
@@ -32,7 +33,9 @@ try
         parser.print_options();
         return EXIT_SUCCESS;
     }
+    parser.check_incompatible_options("jpeg", "jxl");
     parser.check_incompatible_options("jpeg", "webp");
+    parser.check_incompatible_options("jxl", "webp");
     parser.check_option_arg_range<int>("fill", 0, 255);
     parser.check_option_arg_range<float>("quality", 0, std::numeric_limits<float>::max());
     const fs::path output_path = get_option(parser, "output", "output");
@@ -92,6 +95,11 @@ try
             save_jpeg(
                 image,
                 output_path / image_path.filename().replace_extension(".jpg"),
+                std::min<int>(quality, 100));
+        else if (parser.option("jxl"))
+            save_jxl(
+                image,
+                output_path / image_path.filename().replace_extension(".jxl"),
                 std::min<int>(quality, 100));
         else if (parser.option("webp"))
             save_webp(

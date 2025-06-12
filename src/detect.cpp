@@ -64,7 +64,7 @@ try
     parser.add_option("letterbox", "force letter box on single inference");
     parser.add_option("output", "output file to write out the processed input", 1);
     parser.add_option("webcam", "webcam device to use (default: 0)", 1);
-    parser.add_option("quality", "lossy image quality factor (0...100)", 1);
+    parser.add_option("quality", "image quality factor (0...100)", 1);
 
     parser.set_group_name("Pseudo-labelling Options");
     parser.add_option("dry-run", "check that all files in the dataset exist");
@@ -131,7 +131,7 @@ try
     fs::path dataset_path = get_option(parser, "pseudo", "");
     const fs::path fused_path = get_option(parser, "fuse", "");
     const bool use_letterbox = parser.option("letterbox");
-    const float quality = get_option(parser, "quality", 101.f);
+    const float quality = get_option(parser, "quality", 100.f);
     float fps = get_option(parser, "fps", 30);
     double nms_iou_threshold = 0.45;
     double nms_ratio_covered = 1.0;
@@ -312,6 +312,8 @@ try
             const auto ext = output_path.extension();
             if (ext == ".jpg")
                 save_jpeg(image, output_path, std::max(100.f, quality));
+            if (ext == ".jxl")
+                save_jxl(image, output_path, std::max(100.f, quality));
             else if (ext == ".png")
                 save_png(image, output_path);
             else if (ext == ".bmp")
@@ -320,8 +322,8 @@ try
                 save_dng(image, output_path);
             else if (ext == ".webp")
                 save_webp(image, output_path, quality);
-            else  // save to WebP otherwise (unknown or empty extension)
-                save_webp(image, output_path.replace_extension(".webp"), quality);
+            else  // save to JPEG XL otherwise (unknown or empty extension)
+                save_jxl(image, output_path.replace_extension(".jxl"), quality);
         }
         win.set_title(parser.option("image").argument());
         win.set_image(image);
@@ -377,7 +379,7 @@ try
             }
             else
             {
-                save_webp(image, output_path / file.replace_extension(".webp"), quality);
+                save_jxl(image, output_path / file.replace_extension(".jxl"), quality);
                 progress.print_status(i + 1);
             }
         }
