@@ -79,7 +79,7 @@ macro(add_dlib_library name)
     install(TARGETS ${name} DESTINATION lib)
 endmacro()
 
-fetch_content(dlib v20.0 https://github.com/davisking/dlib.git)
+fetch_content(dlib 79e2d1373add8d9e265d6a16c4952f5273600e97 https://github.com/davisking/dlib.git)
 fetch_content(json v3.12.0 https://github.com/nlohmann/json.git)
 
 add_compile_options(-ftemplate-depth=2000)
